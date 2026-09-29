@@ -1,0 +1,56 @@
+/* Design tokens — the single token source (docs/design-system.md §Token source).
+   Semantic names only; components never use raw hex or Tailwind palette colors. */
+@import "tailwindcss";
+
+:root {
+  --surface: #ffffff;
+  --surface-muted: #f4f5f7;
+  --text: #16181d;
+  --text-muted: #5b6270;
+  --border: #dde1e7;
+  --accent: #2f5bea;
+  --accent-contrast: #ffffff;
+  --danger: #c62f3c;
+  --score-high: #1f8a4c;
+  --score-mid: #b7791f;
+  --score-low: #8a94a6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #121417;
+    --surface-muted: #1c1f24;
+    --text: #eceef2;
+    --text-muted: #9aa2b1;
+    --border: #2c3139;
+    --accent: #6f8ff5;
+    --accent-contrast: #0b0d10;
+    --danger: #ef6b75;
+    --score-high: #4cc782;
+    --score-mid: #e0a64a;
+    --score-low: #7d8698;
+  }
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-contrast: var(--accent-contrast);
+  --color-danger: var(--danger);
+  --color-score-high: var(--score-high);
+  --color-score-mid: var(--score-mid);
+  --color-score-low: var(--score-low);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-text font-sans antialiased;
+  }
+}

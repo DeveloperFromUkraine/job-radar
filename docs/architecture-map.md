@@ -75,7 +75,7 @@ Greenfield: each convention cites the ADR that fixes it; scaffold creates the fi
 - **Migrations:** drizzle-kit generates SQL into `apps/server/drizzle/`, forward-only; rollback = restore the SQLite file backup taken before migrating — `docs/adr/0003-sqlite-with-drizzle.md`
 - **Tests:** Vitest; unit tests next to the code (`*.test.ts`), integration tests in `apps/server/test/` against a real temporary SQLite file; web tests with Testing Library — `docs/adr/0001-typescript-monorepo-react-fastify.md`
 - **Inter-module communication:** direct in-process calls to another module's `app` functions — `docs/adr/0002-feature-modules-mirror-roadmap.md`
-- **UI / styling:** React + Vite; styling approach and component kit not decided yet — run `/sdd:design-system` before the first UI feature
+- **UI / styling:** React + Vite + Tailwind v4; semantic tokens only from `apps/web/src/styles/tokens.css`, mobile-first — canon in `docs/design-system.md`
 
 ## Datastores
 
@@ -85,9 +85,9 @@ Greenfield: each convention cites the ADR that fixes it; scaffold creates the fi
 
 ## Frontend / UI foundation
 
-- **Component library / design system:** none yet — to be fixed by `/sdd:design-system`
-- **Design tokens:** not decided
-- **Styling approach:** not decided
+- **Component library / design system:** no kit — in-repo components in `apps/web/src/components/`; canon + inventory in `docs/design-system.md` (tool: code)
+- **Design tokens:** `apps/web/src/styles/tokens.css` (CSS custom properties, light + dark, exposed via Tailwind `@theme`)
+- **Styling approach:** Tailwind v4 utility classes (`@tailwindcss/vite`), mobile-first
 - **Shared primitives:** none yet — `apps/web/src/components/` (new)
 - **State / data-fetching:** not decided
 - **Closest UI precedent:** the scaffold's `App.tsx` placeholder (new)

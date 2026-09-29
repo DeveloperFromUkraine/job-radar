@@ -39,7 +39,8 @@ Node 22+ (`.nvmrc`), pnpm via corepack (`corepack enable`).
   first — rollback = restore that `*.bak-*` file.
 - **Tests:** Vitest. Unit tests next to the code (`*.test.ts`); server integration tests in `apps/server/test/`
   against a real temp SQLite file (`test/helpers/temp-db.ts`); web tests with Testing Library.
-- **UI styling / component kit:** not decided — run `/sdd:design-system` before the first UI feature.
+- **UI:** Tailwind v4, mobile-first (unprefixed = phone, `md:`/`lg:` add). Colors/fonts only via the semantic tokens in
+  `apps/web/src/styles/tokens.css` — no raw hex or stock palette. Design canon + component inventory: `docs/design-system.md`.
 
 ## Source terms
 
