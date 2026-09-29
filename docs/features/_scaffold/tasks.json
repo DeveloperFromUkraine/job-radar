@@ -1,0 +1,19 @@
+{
+  "slug": "_scaffold",
+  "tasks": [
+    { "id": "S1", "title": "Create the pnpm monorepo: apps/server (Fastify entry, core/, modules/) and apps/web (React + Vite), shared tsconfig, Node 22 pin", "layer": "scaffold", "deps": [],
+      "acs": [], "dod": "pnpm install and pnpm build succeed on an empty project", "files_hint": ["package.json", "pnpm-workspace.yaml", ".nvmrc", "tsconfig.base.json", "apps/server/src/app.ts", "apps/server/src/main.ts", "apps/web/src/main.tsx"] },
+    { "id": "S2", "title": "Wire Vitest in both apps + smoke tests: server boots and GET /health returns 200; web renders App", "layer": "scaffold", "deps": ["S1"],
+      "acs": [], "dod": "pnpm test runs green; the app-boots smoke test passes", "files_hint": ["vitest.workspace.ts", "apps/server/src/modules/health/", "apps/server/test/", "apps/web/src/App.test.tsx"] },
+    { "id": "S3", "title": "Set up SQLite + Drizzle + drizzle-kit with an initial empty migration and a temp-DB test helper", "layer": "scaffold", "deps": ["S1"],
+      "acs": [], "dod": "the migration applies cleanly to a fresh database file; an integration test opens a temporary database", "files_hint": ["apps/server/drizzle.config.ts", "apps/server/drizzle/", "apps/server/src/core/db.ts"] },
+    { "id": "S4", "title": "Add core conventions: JSON error envelope handler and UUIDv7 ID helper", "layer": "scaffold", "deps": ["S2"],
+      "acs": [], "dod": "unit tests prove an unknown route returns the error envelope and IDs are time-sortable", "files_hint": ["apps/server/src/core/errors.ts", "apps/server/src/core/id.ts"] },
+    { "id": "S5", "title": "Add Biome for lint + format and the pnpm lint script", "layer": "scaffold", "deps": ["S1"],
+      "acs": [], "dod": "pnpm lint passes on the skeleton", "files_hint": ["biome.json", "package.json"] },
+    { "id": "S6", "title": "Add the CI workflow running build + test + lint", "layer": "scaffold", "deps": ["S2", "S3", "S5"],
+      "acs": [], "dod": "CI config is valid; its commands match pnpm build, pnpm test and pnpm lint", "files_hint": [".github/workflows/ci.yml"] },
+    { "id": "S7", "title": "Write CLAUDE.md from the foundation map conventions", "layer": "scaffold", "deps": ["S1"],
+      "acs": [], "dod": "the conventions doc reflects docs/architecture-map.md", "files_hint": ["CLAUDE.md"] }
+  ]
+}
