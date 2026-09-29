@@ -1,2 +1,11 @@
 .claude/*.local.md
 .worktrees/
+node_modules/
+dist/
+coverage/
+.env
+.env.*
+apps/server/data/
+*.sqlite
+*.sqlite-*
+*.sqlite.bak-*
