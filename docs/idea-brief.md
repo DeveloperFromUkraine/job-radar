@@ -50,7 +50,7 @@ Build a background collector plus an on-request filter: the system gathers posti
 ## 8. Open questions
 
 - Which sources actually carry the owner's relevant jobs? One week of logging where good postings come from settles whether LinkedIn is needed in v1 — owner.
-- LinkedIn access: public no-login pages only, or a logged-in session with a separate account? — owner.
+- ~~LinkedIn access: public no-login pages only, or a logged-in session with a separate account? — owner.~~ Decided 2026-09-29: public no-login guest pages only (roadmap step 10).
 - How fresh is "among the first": hours or a day? This sets the collection frequency — owner.
 - Saved searches with notifications as the step right after v1: yes or no? — owner.
 - The later product: is the niche "Eastern European engineers, global remote" real, and would an open list of companies that actually hire from the region be the asset to build it on? — owner.

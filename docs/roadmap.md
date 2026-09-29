@@ -28,6 +28,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
+| 10 | Collect postings from LinkedIn's public guest job pages — no login, no account, low request volume, remote filter; an optional source whose failure never breaks collection | idea-brief.md §7 Recommendation | S | idea |
 
 ## Not yet specified
 
@@ -41,7 +42,6 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 - Crawling "the whole internet" — a fixed set of known sources, not an open-ended crawl.
 - Live web search on each request — slow, incomplete, and misses postings that aren't indexed yet.
 - CV and cover-letter tailoring — not the pain the owner named.
-- LinkedIn as a source — no public jobs API for individuals, and its User Agreement §8.2 bans scrapers and bots; the risk is the owner's own account during a job search.
 - A product for other job seekers — gets its own roadmap once the personal version proves its value.
 
 ## Open decisions
@@ -56,7 +56,8 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 
 - Collect in the background, filter on request → [`idea-brief.md §7 Recommendation`](idea-brief.md)
 - Apply manually in v1, no auto-send → [`idea-brief.md §5 Out of scope`](idea-brief.md)
-- LinkedIn and the multi-user product are out of this roadmap → [`LinkedIn User Agreement §8.2`](https://www.linkedin.com/legal/user-agreement)
+- The multi-user product is out of this roadmap → [`idea-brief.md §3 Users`](idea-brief.md)
+- LinkedIn joins as public guest pages only (no login, so the owner's account is never exposed); automated access still breaches its User Agreement §8.2, so it stays low-volume and optional, and the risk that remains is an IP block or markup change, not a lost account → [`LinkedIn User Agreement §8.2`](https://www.linkedin.com/legal/user-agreement), [`ai-job-search linkedin-search`](https://github.com/MadsLorentzen/ai-job-search/tree/main/.agents/skills/linkedin-search)
 - Remote job boards first; ATS boards wait for the company watchlist → [`Himalayas jobs API`](https://himalayas.app/api), [`Greenhouse Job Board API`](https://developers.greenhouse.io/job-board.html)
 
 ## Dependency graph
@@ -72,6 +73,7 @@ flowchart LR
   s5 -->|a saved search reuses the filter| s7
   s8["8 · Company watchlist (fog)"] -->|boards are read per company| s9["9 · ATS boards"]
   s2 -->|reuses the posting store and schedule| s9
+  s2 -->|another source for the same collector| s10["10 · LinkedIn public pages"]
 ```
 
 ## Execution path
@@ -80,7 +82,7 @@ flowchart LR
 |:---:|---|---|---|
 | 1 | 1 | project root (new) | 2 |
 | 2 | 2 | `collector/` (new) | 3 |
-| 3 | 3 | `search/` (new) | 4, 5, 6 |
+| 3 | 3 ∥ 10 | 3: `search/` (new) · 10: a LinkedIn adapter in `collector/infra/` — disjoint modules | 4, 5, 6 |
 | 4 | 4 ∥ 5 ∥ 6 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new) — disjoint modules | 7 |
 | 5 | 7 | `alerts/` (new) | — |
 
