@@ -20,7 +20,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | # | Step | Source | Size | Status |
 |---|---|---|:---:|---|
 | 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | idea |
-| 2 | Collect postings from remote job boards (Himalayas, Remotive; Jobicy and We Work Remotely as backups) on a schedule, keeping publication time and candidate-location restrictions | idea-brief.md §7 Recommendation | S | idea |
+| 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive; We Work Remotely once its terms are verified), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | specified |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem | S | idea |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
 | 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
@@ -48,7 +48,6 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 
 | # | Question | Type | Owner | Blocks |
 |---|---|:---:|:---:|:---:|
-| D1 | How fresh does "among the first" have to be — within hours or within a day? This sets the collection frequency (Remotive's free feed is delayed 24 hours). | grilling | human | 2 |
 | D2 | Which sources actually carry the owner's relevant postings? Answered by logging them for one week. | task | human | 8 |
 | D3 | Which discovery method yields company board names reliably enough to maintain a watchlist? | prototype | agent | 8 |
 
@@ -56,6 +55,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 
 - Collect in the background, filter on request → [`idea-brief.md §7 Recommendation`](idea-brief.md)
 - Apply manually in v1, no auto-send → [`idea-brief.md §5 Out of scope`](idea-brief.md)
+- D1 closed: "among the first" means within hours, not a day — Jobicy (hourly) is the freshness source, the 24-hour-delayed feeds add coverage; step 2 re-sized S→M (merging, closing, source health and catch-up are part of a trustworthy collector) → [`remote-boards-collector spec §1`](features/remote-boards-collector/spec.md)
 - The multi-user product is out of this roadmap → [`idea-brief.md §3 Users`](idea-brief.md)
 - LinkedIn joins as public guest pages only (no login, so the owner's account is never exposed); automated access still breaches its User Agreement §8.2, so it stays low-volume and optional, and the risk that remains is an IP block or markup change, not a lost account → [`LinkedIn User Agreement §8.2`](https://www.linkedin.com/legal/user-agreement), [`ai-job-search linkedin-search`](https://github.com/MadsLorentzen/ai-job-search/tree/main/.agents/skills/linkedin-search)
 - Remote job boards first; ATS boards wait for the company watchlist → [`Himalayas jobs API`](https://himalayas.app/api), [`Greenhouse Job Board API`](https://developers.greenhouse.io/job-board.html)
