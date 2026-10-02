@@ -1,6 +1,6 @@
 ---
 status: living
-updated_at: "2026-09-29"
+updated_at: "2026-10-02"
 ---
 
 # Roadmap — job-radar
@@ -19,7 +19,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 
 | # | Step | Source | Size | Status |
 |---|---|---|:---:|---|
-| 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | idea |
+| 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | shipped |
 | 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive; We Work Remotely once its terms are verified), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | spec'd |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem | S | idea |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
@@ -29,11 +29,13 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
 | 10 | Collect postings from LinkedIn's public guest job pages — no login, no account, low request volume, remote filter; an optional source whose failure never breaks collection | idea-brief.md §7 Recommendation | S | idea |
+| 11 | Collect postings from Polish IT job boards (Just Join IT, No Fluff Jobs, theprotocol.it, Pracuj.pl, Bulldogjob) through the same source contract → see [Not yet specified](#not-yet-specified) | idea-brief.md §1 Raw idea, [`spec §3 Non-goals`](features/remote-boards-collector/spec.md) | fog | idea |
 
 ## Not yet specified
 
 | Area | What we'd have to learn | Blocks | How it gets sharpened |
 |---|---|:---:|---|
+| Access to Polish job boards | None of the five boards documents a public API or feed (checked while designing step 2); none of their terms could be read automatically; Just Join IT's robots.txt disallows `/api/`; Pracuj.pl and theprotocol.it publish sitemaps of current offers. Unknown: which boards allow automated reading at all, and which legitimate route each one takes — written permission or a partner feed, the public offer sitemaps at a low request rate, or reading the boards' own email alerts the owner subscribes to. The route decides the size. | 11 | The owner reads each board's terms in a browser (D4) and a prototype of email-alert ingestion (D5) — both can run while step 2 is being built |
 | Company watchlist | Greenhouse, Lever and Ashby expose public per-company boards, but none lets you list postings across companies and no directory of board names exists. Unknown: how to discover board names (careers-page URLs, search-engine queries, community lists), which companies belong on the list, how many, and how the list is kept current. | 9 | A week of logging where the owner's relevant postings come from (D2), then a recon pass on discovery methods (D3) |
 
 ## Out of scope
@@ -50,6 +52,8 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 |---|---|:---:|:---:|:---:|
 | D2 | Which sources actually carry the owner's relevant postings? Answered by logging them for one week. | task | human | 8 |
 | D3 | Which discovery method yields company board names reliably enough to maintain a watchlist? | prototype | agent | 8 |
+| D4 | For Just Join IT, No Fluff Jobs, theprotocol.it, Pracuj.pl and Bulldogjob: what do their terms (regulamin) say about automated reading and reuse of listings? | task | human | 11 |
+| D5 | Can the boards' own email alerts (remote + the owner's stack) be read into job-radar reliably enough to serve as a source? | prototype | agent | 11 |
 
 ## Decisions so far
 
@@ -58,6 +62,8 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 - D1 closed: "among the first" means within hours, not a day — Jobicy (hourly) is the freshness source, the 24-hour-delayed feeds add coverage; step 2 re-sized S→M (merging, closing, source health and catch-up are part of a trustworthy collector) → [`remote-boards-collector spec §1`](features/remote-boards-collector/spec.md)
 - The multi-user product is out of this roadmap → [`idea-brief.md §3 Users`](idea-brief.md)
 - LinkedIn joins as public guest pages only (no login, so the owner's account is never exposed); automated access still breaches its User Agreement §8.2, so it stays low-volume and optional, and the risk that remains is an IP block or markup change, not a lost account → [`LinkedIn User Agreement §8.2`](https://www.linkedin.com/legal/user-agreement), [`ai-job-search linkedin-search`](https://github.com/MadsLorentzen/ai-job-search/tree/main/.agents/skills/linkedin-search)
+- Polish IT boards become their own step right after the remote-boards collector, entering through the same source contract; LinkedIn moves one wave later so the two never edit the collector in the same wave → [`remote-boards-collector spec §3`](features/remote-boards-collector/spec.md), [`ADR-0004`](features/remote-boards-collector/adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md)
+- Boards from any other country are added one at a time, as a new adapter behind the same contract once their terms are verified — no open-ended crawl, no separate step → [`ADR-0004`](features/remote-boards-collector/adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md)
 - Remote job boards first; ATS boards wait for the company watchlist → [`Himalayas jobs API`](https://himalayas.app/api), [`Greenhouse Job Board API`](https://developers.greenhouse.io/job-board.html)
 
 ## Dependency graph
@@ -74,6 +80,7 @@ flowchart LR
   s8["8 · Company watchlist (fog)"] -->|boards are read per company| s9["9 · ATS boards"]
   s2 -->|reuses the posting store and schedule| s9
   s2 -->|another source for the same collector| s10["10 · LinkedIn public pages"]
+  s2 -->|same source contract and collector| s11["11 · Polish IT boards (fog)"]
 ```
 
 ## Execution path
@@ -82,14 +89,14 @@ flowchart LR
 |:---:|---|---|---|
 | 1 | 1 | project root (new) | 2 |
 | 2 | 2 | `collector/` (new) | 3 |
-| 3 | 3 ∥ 10 | 3: `search/` (new) · 10: a LinkedIn adapter in `collector/infra/` — disjoint modules | 4, 5, 6 |
-| 4 | 4 ∥ 5 ∥ 6 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new) — disjoint modules | 7 |
+| 3 | 3 ∥ 11 | 3: `search/` (new) · 11: Polish board adapters in `collector/infra/sources/` (new) — disjoint modules | 4, 5, 6, 10 |
+| 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new) · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — disjoint modules | 7 |
 | 5 | 7 | `alerts/` (new) | — |
 
-Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.
+Step 11 holds its wave-3 slot only once the Access to Polish job boards area is reconnoitred and it trades `fog` for a size; its recon (D4, D5) runs now, in parallel with step 2. Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.
 
 ## Shipped
 
 | Step | Shipped | Link |
 |---|---|---|
-| — | — | — |
+| 1 · Project skeleton | 2026-09-29 | commit `5a7f2b4` (no PR) |
