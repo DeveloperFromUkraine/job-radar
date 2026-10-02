@@ -22,7 +22,7 @@
 | T15 | [Finalize a run: apply closures, hold-back, flags and per-source counts](./t15-app-finalize.md) | app | Volodymyr Kozlov | L | T7, T8, T14 | done |
 | T16 | [Fill the last 30 days for a never-read source within its leftover budget](./t16-app-first-fill.md) | app | Volodymyr Kozlov | M | T14 | done |
 | T17 | [Run the daily clean-up through the MarkedPostings port](./t17-app-daily-cleanup.md) | app | Volodymyr Kozlov | M | T9, T15 | done |
-| T18 | [Serve getCollectorProblems and getSourceHealth](./t18-ports-health-routes.md) | ports | Volodymyr Kozlov | L | T2, T8, T13 | todo |
+| T18 | [Serve getCollectorProblems and getSourceHealth](./t18-ports-health-routes.md) | ports | Volodymyr Kozlov | L | T2, T8, T13 | done |
 | T19 | [Serve collectNow and wire the collector plugin, scheduler and built SPA](./t19-ports-collect-now-and-wiring.md) | wiring | Volodymyr Kozlov | M | T2, T13, T18 | todo |
 | T20 | [Set up query + router, the shared primitives and SCR-01 with the problem marker](./t20-ui-foundation-and-main-screen.md) | ui | Volodymyr Kozlov | L | — | todo |
 | T21 | [Build SourceCard in every per-source state](./t21-ui-source-card.md) | ui | Volodymyr Kozlov | M | T20 | todo |
