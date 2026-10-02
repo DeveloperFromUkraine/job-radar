@@ -4,6 +4,7 @@ import type { Db } from "../../../../core/db.js";
 import { newId } from "../../../../core/id.js";
 import { SOURCES, type SourceId } from "../../domain/sources.js";
 import { requestLedger, sourceDisabledPeriods, sources } from "../schema.js";
+import type { DbOrTx } from "./tx.js";
 
 /** One row per registry source; a new source in the registry needs no migration. */
 export function ensureSources(db: Db): void {
@@ -31,7 +32,7 @@ export function readTimesSince(db: Db, sourceId: SourceId, since: number): numbe
 
 export type SourceRow = typeof sources.$inferSelect;
 
-export function readSource(db: Db, sourceId: SourceId): SourceRow {
+export function readSource(db: DbOrTx, sourceId: SourceId): SourceRow {
   const row = db.select().from(sources).where(eq(sources.id, sourceId)).get();
   if (!row) throw new Error(`source ${sourceId} missing — ensureSources not called`);
   return row;
@@ -41,7 +42,7 @@ export function readSources(db: Db): SourceRow[] {
   return db.select().from(sources).all();
 }
 
-export function updateSource(db: Db, sourceId: SourceId, values: Partial<Omit<SourceRow, "id">>): void {
+export function updateSource(db: DbOrTx, sourceId: SourceId, values: Partial<Omit<SourceRow, "id">>): void {
   db.update(sources).set(values).where(eq(sources.id, sourceId)).run();
 }
 

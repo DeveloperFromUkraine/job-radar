@@ -1,8 +1,9 @@
 // collector_runs + collector_run_sources queries.
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
 import type { SourceId } from "../../domain/sources.js";
 import { runSources, runs } from "../schema.js";
+import type { DbOrTx } from "./tx.js";
 
 export type RunTrigger = "schedule" | "catch_up" | "collect_now";
 export type RunRow = typeof runs.$inferSelect;
@@ -54,4 +55,16 @@ export function insertRun(
 
 export function readRun(db: Db, runId: string): RunRow | null {
   return db.select().from(runs).where(eq(runs.id, runId)).get() ?? null;
+}
+
+export function updateRunSource(
+  db: DbOrTx,
+  runId: string,
+  sourceId: SourceId,
+  values: Partial<Omit<RunSourceRow, "runId" | "sourceId">>,
+): void {
+  db.update(runSources)
+    .set(values)
+    .where(and(eq(runSources.runId, runId), eq(runSources.sourceId, sourceId)))
+    .run();
 }

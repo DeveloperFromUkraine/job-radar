@@ -10,7 +10,7 @@ owner: "Volodymyr Kozlov"
 estimate: "L"
 context_budget: "L"   # justified: ingest and merge share one per-source transaction (sad §6 Run phases); nine ACs land in that transaction
 # measured inlined lines: 181
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task: inlined slices carry provenance signatures; the source always wins.
