@@ -123,49 +123,66 @@ Each tactical decision in later sections traces to one of these seeds. Tactical 
 
 ## 5. Building block view
 
-<!-- 🎯 Why: INTERNAL DECOMPOSITION — modules, containers, datastores. The static topology: who
-     may talk to whom. Without §5, §6 (the flows) has no vocabulary of participants.
-     📋 Write: 1 ¶ on the style (layered / hexagonal / clean / event-driven) + a folder tree + a
-     C4Container block.
-     📌 Draw ONE Container per declared `target_surface` (frontmatter): a fullstack
-     [backend-service, web-frontend] = a backend-API container + a web/SPA container; a
-     [backend-service, mobile-app] = the API + the mobile app. The Container(web, …) line below is
-     just one surface's container — swap/add per what was declared in §4. → _shared/surfaces.md
-     📌 e.g. «web app, content API, media worker, datastore, object store, CDN». -->
-
-<One paragraph: layered / hexagonal / clean / event-driven, and why.>
+The collector follows the repo's feature-module layering (project ADR `docs/adr/0002-feature-modules-mirror-roadmap.md`): `domain` holds pure rules with no I/O — match key and merge, closure decisions (AC-07/08/09/14), due-ness and rate windows, health flags (AC-13/14/25), retention (AC-10); `app` holds the use cases that orchestrate a run; `infra` holds the Drizzle schema and queries, the source adapters (one file per source, per the map) and the settings-file reader; `ports` holds the Fastify routes for source health and collect-now. The scheduler is an `app`-layer loop started by the module's plugin and stopped on server close. Rules stay in `domain` so every AC that is a rule (merging, closing, flags, limits) is unit-testable with a fake clock and recorded source fixtures, without network or database.
 
 **Internal decomposition:**
 
 ```
-<e.g. modules/<feature>/>
-├── domain/       <entities + sentinel errors>
-├── app/          <use cases / services>
-├── infra/        <repository + integration impl>
-├── ports/        <handlers, DTOs, error mapping>
-└── wiring        <self-wiring entry point>
+apps/server/src/modules/collector/
+├── domain/        posting + listing rules: match key, merge, close decision, 30% hold-back,
+│                  rate windows + due-ness, health flags, retention, location restriction (as stated | unknown)
+├── app/           runCollection, scheduler tick, collectNow, startUpRecovery, dailyCleanUp,
+│                  getSourceHealth, queries other modules import (postings, listings)
+├── infra/
+│   ├── schema.ts  Drizzle tables (shapes owned by the data-model stage)
+│   ├── repo.ts    queries — the only place SQL lives
+│   ├── settings.ts  reads/creates the local settings file, keeps the last valid copy
+│   ├── http.ts    shared fetch: timeout, size cap, User-Agent, ledger write before send
+│   └── sources/   jobicy.ts · himalayas.ts · remotive.ts · weworkremotely.ts (disabled)
+├── ports/         routes: source health, collect-now, run status
+└── index.ts       Fastify plugin: registers routes, starts/stops the scheduler
+
+apps/web/src/
+├── main.tsx        + QueryClientProvider + router
+├── routes/         main screen (SCR-01, problem marker) · source health (SCR-02)
+├── features/source-health/   queries (TanStack Query), source rows, run progress, collect-now
+└── components/     shared primitives per docs/design-system.md
 ```
 
-**C4 Container (L2):** <!-- syntax → references/c4-mermaid-syntax.md. Real names, no <placeholder> stubs. ONE Container per declared target_surface (frontmatter); the web container below is one example surface. -->
+**Owner marks stay outside the collector.** Applied/skipped marks arrive with roadmap step 6 (tracking module). The collector never stores or reads mark columns itself; it asks a `MarkedPostings` port ("which of these posting ids carry a mark?") before retention deletes anything (AC-10) and keeps the posting id stable across merge, close and reopen (AC-06, AC-07, AC-11). Until step 6 ships, the port's default answers "none" and tests use a fake that carries marks — [ADR-0006](adr/0006-keep-owner-marks-behind-a-port-the-collector-consults-before-removal.md).
+
+**Settings file.** `apps/server/data/settings.json` (beside the database, gitignored): enabled flag per source and tech categories per source. Re-read at the start of every run (no file watcher), validated against a schema; a valid copy is stored in the database as the last valid settings, so an unreadable file — even after a restart — keeps collection on the last valid copy (AC-27). A missing file is created with built-in defaults (every source except We Work Remotely enabled).
+
+**C4 Container (L2):**
 
 ```mermaid
 C4Container
-    title <feature> — Containers
+    title remote-boards-collector — Containers
 
-    Person(actor, "<Actor>")
+    Person(owner, "Owner", "Runs job-radar on their own machine")
 
-    Container_Boundary(app, "<Our system>") {
-        Container(web, "<Web/UI>", "<technology>", "<purpose>")
-        Container(api, "<API/handler>", "<technology>", "<purpose>")
-        ContainerDb(db, "<Datastore>", "<technology>", "<purpose>")
+    Container_Boundary(jr, "job-radar (owner's machine)") {
+        Container(web, "Web app", "React 19 + Vite SPA, TanStack Query", "Main screen with problem marker, source health, collect-now, run progress")
+        Container(api, "Collector API", "Fastify 5 routes, collector ports", "Source health, run status, collect-now - loopback only")
+        Container(sched, "Collection runner", "In-process scheduler, collector app + domain", "One-minute due-check, runs sources, merges, closes, flags, daily clean-up")
+        Container(adapters, "Source adapters", "TypeScript, Node fetch", "One per source - normalized listings, completeness, close signals")
+        Container(later, "Later modules", "search, matching, remote-filter, tracking, alerts", "Read postings, provide owner marks from step 6")
+        ContainerDb(db, "Local database", "SQLite via Drizzle", "Postings, listings, runs, request ledger, source state, last valid settings")
+        ContainerDb(settings, "Settings file", "JSON on disk", "Enabled sources, tech categories per source")
     }
 
-    System_Ext(ext, "<External>", "<purpose>")
+    System_Ext(sources, "Job sources", "Jobicy, Himalayas, Remotive - We Work Remotely disabled")
 
-    Rel(actor, web, "<interaction>", "<protocol>")
-    Rel(web, api, "<calls>")
-    Rel(api, db, "<reads/writes>", "<driver>")
-    Rel(api, ext, "<emits>", "<protocol>")
+    Rel(owner, web, "Opens source health, presses collect-now", "browser on loopback")
+    Rel(owner, settings, "Edits outside the app", "text editor")
+    Rel(web, api, "Polls health and run status, starts a run", "JSON over HTTP")
+    Rel(api, sched, "Starts a run, reads health", "in-process call")
+    Rel(sched, adapters, "Fetches due sources within their read budget", "in-process call")
+    Rel(adapters, sources, "Reads listings", "HTTPS JSON")
+    Rel(sched, settings, "Reads at the start of every run", "file read")
+    Rel(sched, db, "Reads and writes", "Drizzle")
+    Rel(sched, later, "Asks which postings carry marks", "MarkedPostings port")
+    Rel(later, sched, "Reads postings and listings", "collector app exports")
 ```
 
 ## 6. Runtime view
