@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/infra/schema.ts", "apps/server/d
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T30 — Show a rate-limited fill as stopped and resume a fill from its saved cursor

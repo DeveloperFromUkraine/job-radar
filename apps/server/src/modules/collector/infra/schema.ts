@@ -10,10 +10,13 @@ export const sources = sqliteTable("collector_sources", {
   lastReadAt: integer("last_read_at"),
   lastSuccessAt: integer("last_success_at"),
   firstSuccessAt: integer("first_success_at"),
-  fillStatus: text("fill_status", { enum: ["pending", "continuing", "complete"] }).notNull(),
+  // limited: the regular schedule leaves no spare read, so the fill cannot go further (AC-19).
+  fillStatus: text("fill_status", { enum: ["pending", "continuing", "limited", "complete"] }).notNull(),
   fillReachedAt: integer("fill_reached_at"),
   fillNextPartDueAt: integer("fill_next_part_due_at"),
   fillCompletedAt: integer("fill_completed_at"),
+  /** Where the next part of the fill resumes (the source's own paging cursor). */
+  fillCursor: text("fill_cursor"),
 });
 
 export const sourceDisabledPeriods = sqliteTable(

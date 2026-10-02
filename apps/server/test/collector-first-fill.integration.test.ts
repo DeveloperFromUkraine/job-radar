@@ -110,15 +110,48 @@ describe("first fill of a never-read source (Flow 8)", () => {
     ]);
   });
 
-  it("continues later, with a next-part time, when the regular reads leave no budget", async () => {
+  it("records the fill as limited, with no next part, when the regular reads leave no spare read (review B12)", async () => {
     fake.route("/jobs/api", json(himalayasPage([himalayasJob(1, 1)], "cursor-2")));
     await firstRun();
     expect(fake.requests.filter((r) => r.startsWith("/jobs/api"))).toHaveLength(1);
     const [row] = rows(
-      "select fill_status, fill_next_part_due_at from collector_sources where id = 'himalayas'",
+      "select fill_status, fill_next_part_due_at, fill_reached_at from collector_sources where id = 'himalayas'",
     );
-    expect(row?.fill_status).toBe("continuing");
-    expect(row?.fill_next_part_due_at).toBe(T0 + DAY);
+    expect(row?.fill_status).toBe("limited");
+    expect(row?.fill_next_part_due_at).toBeNull();
+    expect(row?.fill_reached_at).toBe(Math.floor((T0 - DAY) / 1000) * 1000);
+  });
+
+  it("resumes a later part of the fill from the saved cursor, not from the newest page", async () => {
+    const roomy: SourceDefinition = { ...sourceById("himalayas"), limits: { perDay: 6 } }; // 2 spare reads a day
+    fake.route("/jobs/api", (req, res) => {
+      const cursor = new URL(req.url ?? "", "http://x").searchParams.get("cursor");
+      const pages: Record<string, string> = {
+        none: himalayasPage([himalayasJob(1, 1)], "c2"),
+        c2: himalayasPage([himalayasJob(2, 3)], "c3"),
+        c3: himalayasPage([himalayasJob(3, 5)], "c4"),
+        c4: himalayasPage([himalayasJob(4, 8)], "c5"),
+        c5: himalayasPage([himalayasJob(5, 31)], null),
+      };
+      res.writeHead(200, { "content-type": "application/json" }).end(pages[cursor ?? "none"]);
+    });
+    await firstRun(roomy); // regular + c2 + c3, then the spare reads are used up
+    expect(rows("select fill_status, fill_cursor from collector_sources where id = 'himalayas'")).toEqual([
+      { fill_status: "continuing", fill_cursor: "c4" },
+    ]);
+    db.db.run(sql`update collector_runs set status = 'finished'`);
+    fake.requests.length = 0;
+    now = T0 + DAY + HOUR;
+
+    await firstRun(roomy);
+
+    expect(fake.requests.filter((r) => r.includes("cursor="))).toEqual([
+      "/jobs/api?limit=20&cursor=c4",
+      "/jobs/api?limit=20&cursor=c5",
+    ]);
+    expect(rows("select fill_status from collector_sources where id = 'himalayas'")).toEqual([
+      { fill_status: "complete" },
+    ]);
   });
 
   it("pages older listings newest first within the leftover budget, then stops at 30 days", async () => {

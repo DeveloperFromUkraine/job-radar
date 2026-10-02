@@ -95,3 +95,7 @@ Data-model fields with no operation (`# unused-in-spec` check): `collector_posti
 | F-3 | `collectNow` returns two 2xx statuses (202 started, 200 not started) | Accepted by the owner. The web app branches on `started`, not on status |
 
 Flags: 3 supporting, 0 core failing. All three are resolved above. None needs an upstream fix.
+
+## Reconcile — 2026-10-02 (review follow-ups)
+
+- `FillState.status` gains `limited` (T30, review B12) — origin `data-model.md → collector_sources.fill_status`, high. New column `collector_sources.fill_cursor` is internal (no contract field).

@@ -1,6 +1,6 @@
 // Postings + listings: applying the merge decision (ADR-0005, sad §6 Flow 6) inside the ingest
 // transaction. The decision itself is the pure domain rule in domain/merge.ts.
-import { and, eq, gte, inArray, lt, max, or } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, max, min, or } from "drizzle-orm";
 import { newId } from "../../../../core/id.js";
 import type { NormalizedListing } from "../../domain/adapter.js";
 import type { ClosureListing } from "../../domain/closures.js";
@@ -292,4 +292,15 @@ export function markSeen(
       )
       .run();
   }
+}
+
+/** The oldest publication time among a source's listings — how far its first fill has reached. */
+export function oldestPublishedAt(db: DbOrTx, sourceId: SourceId): number | null {
+  return (
+    db
+      .select({ at: min(listings.publishedAt) })
+      .from(listings)
+      .where(eq(listings.sourceId, sourceId))
+      .get()?.at ?? null
+  );
 }

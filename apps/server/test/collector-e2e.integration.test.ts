@@ -224,19 +224,32 @@ describe("collection end to end against a fake source server", () => {
       expect(p95).toBeLessThan(5 * MIN);
     }, 120_000);
 
-    it("the first fill of an hourly source completes within 30 min", async () => {
+    it("a first fill that pages back 30 days completes within 30 min (spare budget as if Q3 raised the rate)", async () => {
+      deps.sources = SOURCES.map((src) =>
+        src.id === "himalayas" ? { ...src, limits: { perDay: 40 } } : src,
+      );
+      fake.route("/jobs/api", (req, res) => {
+        const page = Number(new URL(req.url ?? "", "http://x").searchParams.get("cursor") ?? 0);
+        const body = JSON.parse(himalayasPage(20, now - page * 2 * DAY));
+        body.jobs = body.jobs.map((j: { guid: string }, i: number) => ({
+          ...j,
+          guid: `${j.guid}-p${page}-${i}`,
+        }));
+        body.nextCursor = page < 20 ? String(page + 1) : null;
+        res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(body));
+      });
       startUp(deps);
       const run = openRun(deps, "catch_up");
       if (run.kind !== "started") throw new Error("no run");
       const t = performance.now();
       await executeRun(deps, run, noMarks);
       expect(performance.now() - t).toBeLessThan(30 * MIN);
-      expect(rows("select fill_status from collector_sources where id = 'jobicy'")).toEqual([
+      expect(rows("select fill_status from collector_sources where id = 'himalayas'")).toEqual([
         { fill_status: "complete" },
       ]);
-      expect(rows("select count(*) as n from collector_listings where source_id = 'jobicy'")).toEqual([
-        { n: 200 },
-      ]);
+      expect(
+        fake.requests.filter((r) => r.startsWith("/jobs/api") && r.includes("cursor=")).length,
+      ).toBeGreaterThanOrEqual(14);
     });
   });
 });

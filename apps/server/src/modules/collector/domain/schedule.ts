@@ -57,6 +57,15 @@ export function fillReadAllowed(
   });
 }
 
+/** Whether the source's limits leave any read beyond its regular schedule at all (AC-19). */
+export function fillPossible(source: SourceDefinition): boolean {
+  if (hasZeroRate(source)) return false;
+  return WINDOWS.every(({ key, span }) => {
+    const limit = source.limits[key];
+    return limit === undefined || limit - Math.ceil(span / source.intervalMs) > 0;
+  });
+}
+
 /** When the oldest read inside the source's longest limited window leaves it — the next fill attempt. */
 export function nextFillAttemptAt(
   source: SourceDefinition,

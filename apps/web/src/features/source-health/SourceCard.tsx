@@ -89,6 +89,12 @@ export function SourceCard({ row, now = Date.now() }: { row: SourceHealthRow; no
         </p>
       )}
 
+      {row.fill.status === "limited" && (
+        <p className="text-text-muted">
+          {`First 30 days${row.fill.reached_at ? `: reached ${shortDate(row.fill.reached_at)}` : ""}. Its allowed rate leaves no room to fill further.`}
+        </p>
+      )}
+
       {notices.map((f) => (
         <p key={f.kind} className="flex gap-1">
           <span aria-hidden="true">(i)</span>

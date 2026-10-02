@@ -1,13 +1,12 @@
 // First fill of a never-read source (sad §6 Flow 8, AC-19): after the regular read, older pages
 // newest first, only within what the regular schedule leaves of the source's rate, back to 30 days.
 // Fill pages never close anything and never raise a failure flag; their listings are first-fill.
-import { and, eq, min } from "drizzle-orm";
-import { fillReadAllowed, nextFillAttemptAt } from "../domain/schedule.js";
+import { fillPossible, fillReadAllowed, nextFillAttemptAt } from "../domain/schedule.js";
 import { type SourceDefinition, sourceById } from "../domain/sources.js";
 import { createSourceHttp } from "../infra/http.js";
+import { oldestPublishedAt } from "../infra/repo/postings.js";
 import { readRunSource, updateRunSource } from "../infra/repo/runs.js";
 import { readSource, readTimesSince, updateSource } from "../infra/repo/sources.js";
-import { listings } from "../infra/schema.js";
 import type { CollectorDeps } from "./deps.js";
 import type { FetchVerdict } from "./ingest.js";
 import { normalizeAndFilter, storeListings } from "./ingest.js";
@@ -25,39 +24,46 @@ export async function continueFill(
 ): Promise<void> {
   const { db } = deps;
   const id = verdict.sourceId;
-  if (readSource(db, id).fillStatus === "complete" || verdict.completeness === "failed") return;
+  const state = readSource(db, id);
+  if (state.fillStatus === "complete" || verdict.completeness === "failed") return;
 
   const adapter = deps.adapters[id];
   const http = createSourceHttp(db, source, { now: deps.now });
-  const oldest = () =>
-    db
-      .select({ at: min(listings.publishedAt) })
-      .from(listings)
-      .where(and(eq(listings.sourceId, id)))
-      .get()?.at ?? null;
   const target = deps.now() - FILL_DAYS * DAY;
-  let cursor = verdict.nextCursor;
+  // Resume where the last part stopped; the first part starts after the regular read.
+  let cursor = state.fillCursor ?? verdict.nextCursor;
 
   while (true) {
     const now = deps.now();
-    const reached = oldest();
+    const reached = oldestPublishedAt(db, id);
     if (!adapter.fetchOlder || cursor === null || (reached !== null && reached <= target)) {
       updateSource(db, id, {
         fillStatus: "complete",
         fillReachedAt: reached,
         fillCompletedAt: now,
         fillNextPartDueAt: null,
+        fillCursor: null,
       });
       return;
     }
-    const reads = readTimesSince(db, id, now - DAY);
+    if (!fillPossible(source)) {
+      // The regular schedule uses the whole allowed rate: no part can ever follow (review B12).
+      updateSource(db, id, {
+        fillStatus: "limited",
+        fillReachedAt: reached,
+        fillNextPartDueAt: null,
+        fillCursor: cursor,
+      });
+      return;
+    }
     const continueLater = () =>
       updateSource(db, id, {
         fillStatus: "continuing",
         fillReachedAt: reached,
         fillNextPartDueAt: nextFillAttemptAt(source, readTimesSince(db, id, now - DAY), now),
+        fillCursor: cursor,
       });
-    if (!fillReadAllowed(source, reads, now)) return continueLater();
+    if (!fillReadAllowed(source, readTimesSince(db, id, now - DAY), now)) return continueLater();
 
     // A refused or throwing page ends this part of the fill; it is never a source failure (Flow 8).
     const page = await adapter.fetchOlder({ http, now }, cursor).catch(() => null);
@@ -68,6 +74,8 @@ export async function continueFill(
       page.listings,
       run.settings.sources[id].categories,
     );
+    cursor = page.nextCursor ?? null;
+    const next = cursor;
     db.transaction((tx) => {
       const counts = storeListings(tx, kept, {
         runId: run.runId,
@@ -85,7 +93,7 @@ export async function continueFill(
           noCategory: before.noCategory + noCategory,
         });
       }
+      updateSource(tx, id, { fillCursor: next });
     });
-    cursor = page.nextCursor ?? null;
   }
 }

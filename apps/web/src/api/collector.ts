@@ -54,7 +54,7 @@ export interface SourceHealthRow {
   last_outcome: RunSourceOutcome | null;
   flags: SourceFlag[];
   fill: {
-    status: "pending" | "continuing" | "complete";
+    status: "pending" | "continuing" | "limited" | "complete";
     reached_at: string | null;
     next_part_due_at: string | null;
     completed_at: string | null;

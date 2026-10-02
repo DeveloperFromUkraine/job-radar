@@ -386,11 +386,13 @@ components:
       type: object
       required: [status, reached_at, next_part_due_at, completed_at]
       additionalProperties: false
-      description: First 30-day fill (AC-19, sad.md §6 Flow 8)
+      description: |
+        First 30-day fill (AC-19, sad.md §6 Flow 8). `limited`: the source's allowed rate leaves no
+        read beyond its regular schedule, so the fill cannot go further (review 2026-10-02, B12).
       properties:
         status:
           type: string
-          enum: [pending, continuing, complete]
+          enum: [pending, continuing, limited, complete]
         reached_at:
           type: [string, "null"]
           format: date-time

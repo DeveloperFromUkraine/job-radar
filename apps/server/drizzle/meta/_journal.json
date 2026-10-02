@@ -15,6 +15,13 @@
       "when": 1790946935170,
       "tag": "0001_groovy_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790957575925,
+      "tag": "0002_stale_prodigy",
+      "breakpoints": true
     }
   ]
 }

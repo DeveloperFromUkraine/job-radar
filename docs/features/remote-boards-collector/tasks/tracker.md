@@ -34,7 +34,7 @@
 | T27 | [Replace a same-source item only when the old one is gone and locations agree](./t27-fix-same-source-repost.md) | domain | Volodymyr Kozlov | M | T26 | done |
 | T28 | [Clear each flag only on the evidence its AC names and ignore flags of sources that are not read](./t28-fix-flag-clearing.md) | domain | Volodymyr Kozlov | M | T27 | done |
 | T29 | [Check owner categories against the published lists of Jobicy and Remotive](./t29-fix-published-category-lists.md) | domain | Volodymyr Kozlov | M | T28 | done |
-| T30 | [Show a rate-limited fill as stopped and resume a fill from its saved cursor](./t30-fix-fill-stopped-and-cursor.md) | migration | Volodymyr Kozlov | M | T29 | todo |
+| T30 | [Show a rate-limited fill as stopped and resume a fill from its saved cursor](./t30-fix-fill-stopped-and-cursor.md) | migration | Volodymyr Kozlov | M | T29 | done |
 | T31 | [Move app-layer SQL into infra and keep id lists under SQLite's variable limit](./t31-fix-infra-hygiene.md) | infra | Volodymyr Kozlov | M | T30 | todo |
 | T32 | [Keep the heartbeat during long runs and abort in-flight reads on shutdown](./t32-fix-heartbeat-and-shutdown.md) | app | Volodymyr Kozlov | M | T31 | todo |
 | T33 | [Settings fallback in the contract, SCR-02 polling and the remaining screen fixes](./t33-fix-source-health-ui.md) | ui | Volodymyr Kozlov | M | T32 | todo |

@@ -147,4 +147,18 @@ describe("SourceCard (SCR-02 source card states)", () => {
     expect(container.querySelector("img")).toBeNull();
     expect(screen.getByText(/<img src=x onerror=alert\(1\)>/)).toBeTruthy();
   });
+  it("limited: says the allowed rate leaves no room to fill further, with no next part (review B12)", () => {
+    const row = healthy();
+    row.fill = {
+      status: "limited",
+      reached_at: "2026-09-25T08:00:00Z",
+      next_part_due_at: null,
+      completed_at: null,
+    };
+    card(row);
+    expect(
+      screen.getByText("First 30 days: reached 25 Sep. Its allowed rate leaves no room to fill further."),
+    ).toBeTruthy();
+    expect(screen.queryByText(/next part/)).toBeNull();
+  });
 });
