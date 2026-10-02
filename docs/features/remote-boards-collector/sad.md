@@ -483,8 +483,8 @@ sequenceDiagram
 
     Note over S,D: Precondition: source enabled and due, no fill recorded as complete
     S->>S: regular read of the newest listings first (Flow 5)
-    S->>D: read fill progress - how far back the fill has reached
-    D-->>S: none yet, or the oldest publication time reached so far
+    S->>D: read fill progress - how far back the fill has reached and its saved cursor
+    D-->>S: none yet, or the oldest publication time reached so far and where to resume
     loop while the window still allows a read and the fill has not reached 30 days back (Jobicy - 7)
         S->>D: check idempotency - record the read in the request ledger before sending
         Note over S,D: persists ledger entry - fill reads count toward the same limit
@@ -497,9 +497,12 @@ sequenceDiagram
     alt reached 30 days back, or the source offers nothing older
         S->>D: record the fill as complete
         Note over S,D: persists fill state complete, completed at
+    else the regular schedule uses the whole allowed rate - no spare read ever
+        S->>D: record the fill as limited, keep its cursor, no next part
+        Note over S,D: persists fill state limited and fill cursor - shown in source health (review 2026-10-02, B12)
     else window used up first
-        S->>D: record that the fill continues and when its next part is due
-        Note over S,D: persists fill state continuing, next part due at - shown in source health
+        S->>D: record that the fill continues, its cursor and when its next part is due
+        Note over S,D: persists fill state continuing, fill cursor, next part due at - shown in source health
     end
     Note over S,D: Postcondition: first postings visible without waiting for the schedule, regular reads never starved
 ```

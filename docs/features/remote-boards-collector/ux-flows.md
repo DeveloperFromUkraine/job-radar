@@ -84,11 +84,12 @@ flowchart TD
     M -->|opens source health| H[SCR-02 run in progress, an interrupted run shown as incomplete]
     H -->|hourly sources' fill done| I[SCR-02 first postings counted per source]
     I --> J{Slower source still filling?}
-    J -->|yes| K[SCR-02 that source shows its fill continues, with the next part's due time]
+    J -->|yes, a later part can run| K[SCR-02 that source shows its fill continues, with the next part's due time]
+    J -->|no spare read under its allowed rate| K2[SCR-02 that source shows how far its fill reached and that its rate allows no more]
     J -->|no| L[SCR-02 regular source health]
 ```
 
-When the app starts, it first checks whether the previous run was cut short (the laptop slept or the app stopped). If so, that run is recorded as incomplete and nothing is closed on its basis. Then each enabled source goes one of three ways: never read before → its first 30-day fill starts; its own last success is older than its interval → a catch-up for it starts within a minute; up to date → nothing. Either way the main screen responds within 5 seconds and never waits for collection. In source health the owner sees the run in progress and any interrupted run marked as incomplete. Once the hourly sources' fill is done, their first postings show as counts. A slower source whose 30 days don't fit its allowed rate shows that its fill continues, and when the next part is due. When the fill is complete, source health looks as usual.
+When the app starts, it first checks whether the previous run was cut short (the laptop slept or the app stopped). If so, that run is recorded as incomplete and nothing is closed on its basis. Then each enabled source goes one of three ways: never read before → its first 30-day fill starts; its own last success is older than its interval → a catch-up for it starts within a minute; up to date → nothing. Either way the main screen responds within 5 seconds and never waits for collection. In source health the owner sees the run in progress and any interrupted run marked as incomplete. Once the hourly sources' fill is done, their first postings show as counts. A slower source whose 30 days don't fit its allowed rate shows that its fill continues, and when the next part is due; if its regular schedule leaves no spare read at all, it shows how far the fill reached and that its rate allows no more (review 2026-10-02). When the fill is complete, source health looks as usual.
 
 ### Flow: US-08 — Choose what gets collected (settings feedback loop)
 

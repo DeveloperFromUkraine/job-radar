@@ -9,7 +9,7 @@ files_hint: ["docs/features/remote-boards-collector/sad.md", "docs/features/remo
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T36 — Add the limited fill state to the runtime and UX flows
