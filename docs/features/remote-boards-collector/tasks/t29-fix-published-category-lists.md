@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/domain/sources.ts", "apps/server
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T29 — Check owner categories against the published lists of Jobicy and Remotive

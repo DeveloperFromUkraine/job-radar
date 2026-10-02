@@ -27,7 +27,7 @@ export interface FlagInput {
   held: { held: number; open: number } | null;
   ownerCategories: string[];
   /** The source's published category list, or null when it publishes none. */
-  publishedCategories: string[] | null;
+  publishedCategories: readonly string[] | null;
   categoriesMatchedLast7Days: string[];
 }
 

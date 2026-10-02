@@ -5,7 +5,7 @@ import { decideClosures } from "../domain/closures.js";
 import { evaluateFlags, type StoredFlagKind } from "../domain/health.js";
 import { cleanupDay } from "../domain/retention.js";
 import { sourceState } from "../domain/settings.js";
-import { SOURCES } from "../domain/sources.js";
+import { SOURCES, sourceById } from "../domain/sources.js";
 import {
   categoriesSeenSince,
   closeListings,
@@ -61,9 +61,8 @@ export function finalizeRun(
         currentFlags: readFlags(tx, sourceId).map((f) => f.kind as StoredFlagKind),
         held: held > 0 ? { held, open } : null,
         ownerCategories: run.settings.sources[sourceId].categories,
-        // No published list is fetched at run time (it would cost a read): every source uses the
-        // 7-day rule of AC-24.
-        publishedCategories: null,
+        // The published list where the source has one (static, AC-24); otherwise the 7-day rule.
+        publishedCategories: sourceById(sourceId).publishedCategories ?? null,
         categoriesMatchedLast7Days: categoriesSeenSince(tx, sourceId, now - 7 * DAY),
       });
       applyFlags(tx, sourceId, flags.raised, flags.cleared, now);

@@ -208,4 +208,23 @@ describe("finalize a run (Flow 7)", () => {
       { last_offered_at: T0 },
     ]);
   });
+  it("flags a category missing from the source's published list on the first run (AC-24)", async () => {
+    writeFileSync(
+      deps.settingsFile,
+      JSON.stringify({
+        sources: {
+          ...DEFAULT_SETTINGS.sources,
+          remotive: { enabled: true, categories: ["Software Development", "Blockchain"] },
+        },
+      }),
+    );
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([])));
+    fake.route("/api/remote-jobs", json(remotivePage([1])));
+
+    await fullRun(T0);
+
+    expect(rows("select kind, reason from collector_source_flags where source_id = 'remotive'")).toEqual([
+      { kind: "category_unmatched", reason: 'Category "Blockchain" matched nothing at the source.' },
+    ]);
+  });
 });
