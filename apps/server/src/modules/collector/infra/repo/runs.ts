@@ -1,5 +1,5 @@
 // collector_runs + collector_run_sources queries.
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
 import type { SourceId } from "../../domain/sources.js";
 import { runSources, runs } from "../schema.js";
@@ -67,4 +67,26 @@ export function updateRunSource(
     .set(values)
     .where(and(eq(runSources.runId, runId), eq(runSources.sourceId, sourceId)))
     .run();
+}
+
+/** The source's outcomes in runs started since `since`, newest first. */
+export function recentOutcomes(db: DbOrTx, sourceId: SourceId, since: number) {
+  return db
+    .select({
+      outcome: runSources.outcome,
+      itemsReturned: runSources.itemsReturned,
+      newListings: runSources.newListings,
+      unknownLocationNew: runSources.unknownLocationNew,
+      failureReason: runSources.failureReason,
+      startedAt: runs.startedAt,
+    })
+    .from(runSources)
+    .innerJoin(runs, eq(runSources.runId, runs.id))
+    .where(and(eq(runSources.sourceId, sourceId), gte(runs.startedAt, since)))
+    .orderBy(desc(runSources.runId))
+    .all();
+}
+
+export function finishRun(db: DbOrTx, runId: string, at: number): void {
+  db.update(runs).set({ status: "finished", finishedAt: at }).where(eq(runs.id, runId)).run();
 }

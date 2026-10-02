@@ -1,9 +1,10 @@
 // collector_sources + collector_request_ledger queries.
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
 import { newId } from "../../../../core/id.js";
+import type { FlagDraft, StoredFlagKind } from "../../domain/health.js";
 import { SOURCES, type SourceId } from "../../domain/sources.js";
-import { requestLedger, sourceDisabledPeriods, sources } from "../schema.js";
+import { requestLedger, sourceDisabledPeriods, sourceFlags, sources } from "../schema.js";
 import type { DbOrTx } from "./tx.js";
 
 /** One row per registry source; a new source in the registry needs no migration. */
@@ -65,4 +66,32 @@ export function syncDisabledPeriod(db: Db, sourceId: SourceId, disabled: boolean
 
 export function readDisabledPeriods(db: Db): (typeof sourceDisabledPeriods.$inferSelect)[] {
   return db.select().from(sourceDisabledPeriods).all();
+}
+
+export type FlagRow = typeof sourceFlags.$inferSelect;
+
+export function readFlags(db: DbOrTx, sourceId?: SourceId): FlagRow[] {
+  const q = db.select().from(sourceFlags);
+  return sourceId ? q.where(eq(sourceFlags.sourceId, sourceId)).all() : q.all();
+}
+
+/** A raised flag keeps the time it was first raised; its reason follows the latest numbers. */
+export function applyFlags(
+  db: DbOrTx,
+  sourceId: SourceId,
+  raised: readonly FlagDraft[],
+  cleared: readonly StoredFlagKind[],
+  at: number,
+): void {
+  for (const flag of raised) {
+    db.insert(sourceFlags)
+      .values({ sourceId, kind: flag.kind, reason: flag.reason, raisedAt: at })
+      .onConflictDoUpdate({ target: [sourceFlags.sourceId, sourceFlags.kind], set: { reason: flag.reason } })
+      .run();
+  }
+  if (cleared.length > 0) {
+    db.delete(sourceFlags)
+      .where(and(eq(sourceFlags.sourceId, sourceId), inArray(sourceFlags.kind, [...cleared])))
+      .run();
+  }
 }

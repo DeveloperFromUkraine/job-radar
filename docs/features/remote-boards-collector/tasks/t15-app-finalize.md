@@ -10,7 +10,7 @@ owner: "Volodymyr Kozlov"
 estimate: "L"
 context_budget: "L"   # justified: finalize is one pass over the run (sad §6 Run phases); closures, hold-back and flags read the same outcomes and must commit together
 # measured inlined lines: 138
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task: inlined slices carry provenance signatures; the source always wins.

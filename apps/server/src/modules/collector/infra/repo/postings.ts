@@ -1,9 +1,11 @@
 // Postings + listings: applying the merge decision (ADR-0005, sad §6 Flow 6) inside the ingest
 // transaction. The decision itself is the pure domain rule in domain/merge.ts.
-import { and, eq, inArray, max } from "drizzle-orm";
+import { and, eq, gte, inArray, max } from "drizzle-orm";
 import { newId } from "../../../../core/id.js";
 import type { NormalizedListing } from "../../domain/adapter.js";
+import type { ClosureListing } from "../../domain/closures.js";
 import { type Candidate, decideMerge, earliestPublishedAt, matchKey } from "../../domain/merge.js";
+import type { SourceId } from "../../domain/sources.js";
 import { listings, postings } from "../schema.js";
 import type { DbOrTx } from "./tx.js";
 
@@ -155,4 +157,70 @@ function candidatesFor(db: DbOrTx, key: string): Candidate[] {
         locationRestriction: l.locationRestriction,
       })),
   }));
+}
+
+/** Open postings that have an open listing from any of these sources, with all of their listings. */
+export function openPostingsTouching(
+  db: DbOrTx,
+  sourceIds: readonly SourceId[],
+): { postingId: string; listings: ClosureListing[] }[] {
+  if (sourceIds.length === 0) return [];
+  const ids = db
+    .selectDistinct({ id: listings.postingId })
+    .from(listings)
+    .innerJoin(postings, eq(listings.postingId, postings.id))
+    .where(
+      and(
+        inArray(listings.sourceId, [...sourceIds]),
+        eq(listings.status, "open"),
+        eq(postings.status, "open"),
+      ),
+    )
+    .all()
+    .map((r) => r.id);
+  if (ids.length === 0) return [];
+  const all = db.select().from(listings).where(inArray(listings.postingId, ids)).all();
+  return ids.map((postingId) => ({
+    postingId,
+    listings: all
+      .filter((l) => l.postingId === postingId)
+      .map((l) => ({
+        listingId: l.id,
+        sourceId: l.sourceId as SourceId,
+        status: l.status,
+        publishedAt: l.publishedAt,
+        expiresAt: l.expiresAt,
+        lastSeenRunId: l.lastSeenRunId,
+      })),
+  }));
+}
+
+export function closeListings(db: DbOrTx, ids: readonly string[], at: number): void {
+  if (ids.length === 0) return;
+  db.update(listings)
+    .set({ status: "closed", closedAt: at })
+    .where(inArray(listings.id, [...ids]))
+    .run();
+}
+
+/** Closed postings stay with their marks (AC-07); only retention removes them. */
+export function closePostings(db: DbOrTx, ids: readonly string[], at: number): void {
+  if (ids.length === 0) return;
+  db.update(postings)
+    .set({ status: "closed", closedAt: at })
+    .where(inArray(postings.id, [...ids]))
+    .run();
+}
+
+/** Category names of this source's listings seen since `since` (AC-24 for sources without a list). */
+export function categoriesSeenSince(db: DbOrTx, sourceId: SourceId, since: number): string[] {
+  const seen = new Set<string>();
+  for (const row of db
+    .select({ categories: listings.categories })
+    .from(listings)
+    .where(and(eq(listings.sourceId, sourceId), gte(listings.lastSeenAt, since)))
+    .all()) {
+    for (const c of JSON.parse(row.categories) as string[]) seen.add(c);
+  }
+  return [...seen];
 }

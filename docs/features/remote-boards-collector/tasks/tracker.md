@@ -19,7 +19,7 @@
 | T12 | [Verify spec §8 Q1/Q3, then build the Remotive, Himalayas and We Work Remotely adapters](./t12-infra-remaining-adapters.md) | infra | Volodymyr Kozlov | L | T11 | done |
 | T13 | [Run the one-minute scheduler, start-up recovery and run opening](./t13-app-scheduler-and-run-start.md) | app | Volodymyr Kozlov | L | T1, T3, T4, T10 | done |
 | T14 | [Ingest each due source and merge its listings in one transaction](./t14-app-ingest-and-merge.md) | app | Volodymyr Kozlov | L | T6, T11, T13 | done |
-| T15 | [Finalize a run: apply closures, hold-back, flags and per-source counts](./t15-app-finalize.md) | app | Volodymyr Kozlov | L | T7, T8, T14 | todo |
+| T15 | [Finalize a run: apply closures, hold-back, flags and per-source counts](./t15-app-finalize.md) | app | Volodymyr Kozlov | L | T7, T8, T14 | done |
 | T16 | [Fill the last 30 days for a never-read source within its leftover budget](./t16-app-first-fill.md) | app | Volodymyr Kozlov | M | T14 | todo |
 | T17 | [Run the daily clean-up through the MarkedPostings port](./t17-app-daily-cleanup.md) | app | Volodymyr Kozlov | M | T9, T15 | todo |
 | T18 | [Serve getCollectorProblems and getSourceHealth](./t18-ports-health-routes.md) | ports | Volodymyr Kozlov | L | T2, T8, T13 | todo |
