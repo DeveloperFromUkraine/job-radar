@@ -10,7 +10,7 @@ owner: "Volodymyr Kozlov"
 estimate: "L"
 context_budget: "L"   # justified: Flow 3 + Flow 4 are the two halves of one due-check; six ACs meet in it and splitting would duplicate the run-opening transaction
 # measured inlined lines: 173
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task: inlined slices carry provenance signatures; the source always wins.

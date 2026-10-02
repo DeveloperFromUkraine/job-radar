@@ -1,7 +1,7 @@
 // collector_state: the single module-state row (id 1).
 import { eq } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
-import { collectorState } from "../schema.js";
+import { appSessions, collectorState } from "../schema.js";
 
 const ROW = 1;
 
@@ -17,4 +17,16 @@ export function readState(db: Db): StateRow {
 export function updateState(db: Db, values: Partial<Omit<StateRow, "id">>): void {
   readState(db);
   db.update(collectorState).set(values).where(eq(collectorState.id, ROW)).run();
+}
+
+export function openSession(db: Db, id: string, at: number): void {
+  db.insert(appSessions).values({ id, startedAt: at, lastSeenAt: at }).run();
+}
+
+export function touchSession(db: Db, id: string, at: number): void {
+  db.update(appSessions).set({ lastSeenAt: at }).where(eq(appSessions.id, id)).run();
+}
+
+export function readSessions(db: Db): (typeof appSessions.$inferSelect)[] {
+  return db.select().from(appSessions).all();
 }

@@ -1,9 +1,9 @@
 // collector_sources + collector_request_ledger queries.
-import { and, eq, gt } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
 import { newId } from "../../../../core/id.js";
 import { SOURCES, type SourceId } from "../../domain/sources.js";
-import { requestLedger, sources } from "../schema.js";
+import { requestLedger, sourceDisabledPeriods, sources } from "../schema.js";
 
 /** One row per registry source; a new source in the registry needs no migration. */
 export function ensureSources(db: Db): void {
@@ -43,4 +43,25 @@ export function readSources(db: Db): SourceRow[] {
 
 export function updateSource(db: Db, sourceId: SourceId, values: Partial<Omit<SourceRow, "id">>): void {
   db.update(sources).set(values).where(eq(sources.id, sourceId)).run();
+}
+
+/** Opens a disabled period when a source becomes disabled and closes it when it is enabled again (AC-26). */
+export function syncDisabledPeriod(db: Db, sourceId: SourceId, disabled: boolean, at: number): void {
+  const open = db
+    .select()
+    .from(sourceDisabledPeriods)
+    .where(and(eq(sourceDisabledPeriods.sourceId, sourceId), isNull(sourceDisabledPeriods.disabledUntil)))
+    .get();
+  if (disabled && !open) {
+    db.insert(sourceDisabledPeriods).values({ id: newId(), sourceId, disabledFrom: at }).run();
+  } else if (!disabled && open) {
+    db.update(sourceDisabledPeriods)
+      .set({ disabledUntil: at })
+      .where(eq(sourceDisabledPeriods.id, open.id))
+      .run();
+  }
+}
+
+export function readDisabledPeriods(db: Db): (typeof sourceDisabledPeriods.$inferSelect)[] {
+  return db.select().from(sourceDisabledPeriods).all();
 }
