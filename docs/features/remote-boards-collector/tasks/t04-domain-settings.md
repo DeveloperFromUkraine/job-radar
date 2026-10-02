@@ -10,7 +10,7 @@ owner: "Volodymyr Kozlov"
 estimate: "S"
 context_budget: "S"
 # measured inlined lines: 36
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task: inlined slices carry provenance signatures; the source always wins.
