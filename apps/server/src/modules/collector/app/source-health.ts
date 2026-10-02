@@ -18,7 +18,7 @@ import {
   readsSince,
   runOutcomes,
 } from "../infra/repo/health.js";
-import { type RunRow, type RunSourceRow, runningRun } from "../infra/repo/runs.js";
+import { type RunRow, type RunSourceRow, readRun, runningRun } from "../infra/repo/runs.js";
 import { readFlags, readSources, type SourceRow } from "../infra/repo/sources.js";
 import { readSessions, readState } from "../infra/repo/state.js";
 import type { CollectorDeps } from "./deps.js";
@@ -27,6 +27,7 @@ const MIN = 60_000;
 const HOUR = 60 * MIN;
 const DAY = 24 * HOUR;
 
+const registryIndex = (id: string) => SOURCES.findIndex((s) => s.id === id);
 const iso = (t: number | null | undefined) => (t == null ? null : new Date(t).toISOString());
 
 /** The settings in force: the last valid copy (a GET never touches the settings file). */
@@ -91,7 +92,9 @@ function runJson(deps: CollectorDeps, run: RunRow | null) {
     status: run.status,
     started_at: iso(run.startedAt),
     finished_at: iso(run.finishedAt),
-    sources: runOutcomes(deps.db, run.id).map(outcomeJson),
+    sources: runOutcomes(deps.db, run.id)
+      .sort((a, b) => registryIndex(a.sourceId) - registryIndex(b.sourceId))
+      .map(outcomeJson),
   };
 }
 
@@ -177,4 +180,8 @@ export function getSourceHealth(deps: CollectorDeps) {
     last_run: runJson(deps, latestEndedRun(db)),
     sources,
   };
+}
+
+export function runJsonById(deps: CollectorDeps, runId: string) {
+  return runJson(deps, readRun(deps.db, runId));
 }

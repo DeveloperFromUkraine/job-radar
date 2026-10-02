@@ -41,7 +41,8 @@ export function createScheduler(deps: CollectorDeps, options: SchedulerOptions):
   return {
     async start() {
       sessionId = startUp(deps).sessionId;
-      await tick("catch_up");
+      // The catch-up run executes in the background: the server answers at once (≤ 5 s, spec §6).
+      void tick("catch_up");
       timer = setInterval(() => void tick("schedule"), options.intervalMs ?? 60_000);
     },
     async stop() {

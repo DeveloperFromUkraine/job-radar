@@ -21,8 +21,12 @@ export function envelope(code: string, message: string): ErrorEnvelope {
 }
 
 // The single place that shapes error responses: { "error": { "code", "message" } }.
-export function registerErrorHandling(app: FastifyInstance): void {
+export function registerErrorHandling(app: FastifyInstance, options: { spaFallback?: boolean } = {}): void {
   app.setNotFoundHandler((request, reply) => {
+    // The built web app owns every non-API GET path (client-side routes, sad §7).
+    if (options.spaFallback && request.method === "GET" && !request.url.startsWith("/api/")) {
+      return reply.sendFile("index.html");
+    }
     reply.status(404).send(envelope("NOT_FOUND", `Route ${request.method} ${request.url} not found`));
   });
 
