@@ -1,7 +1,9 @@
 // SCR-02 — source health (screens.md): page states around the source cards.
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
+import { CollectNowAction } from "../features/source-health/CollectNowAction";
 import { useSourceHealth } from "../features/source-health/queries";
+import { RunProgress } from "../features/source-health/RunProgress";
 import { SourceCard } from "../features/source-health/SourceCard";
 
 export function SourceHealth() {
@@ -11,6 +13,7 @@ export function SourceHealth() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="text-xl font-semibold">Source health</h1>
+      <CollectNowAction />
 
       {health.isPending && [0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)}
 
@@ -38,6 +41,11 @@ export function SourceHealth() {
               tone="info"
               title="The last run was interrupted. Nothing was closed because of it."
             />
+          )}
+          {data.current_run ? (
+            <RunProgress run={data.current_run} sources={data.sources} />
+          ) : (
+            data.last_run?.status === "finished" && <RunProgress run={data.last_run} sources={data.sources} />
           )}
           {!data.any_run_finished && (
             <InlineBanner tone="info" title="Nothing collected yet. Each source is read when it is due." />

@@ -27,7 +27,7 @@
 | T20 | [Set up query + router, the shared primitives and SCR-01 with the problem marker](./t20-ui-foundation-and-main-screen.md) | ui | Volodymyr Kozlov | L | — | done |
 | T21 | [Build SourceCard in every per-source state](./t21-ui-source-card.md) | ui | Volodymyr Kozlov | M | T20 | done |
 | T22 | [Build the SCR-02 page states and settings / interrupted-run banners](./t22-ui-source-health-page.md) | ui | Volodymyr Kozlov | M | T21 | done |
-| T23 | [Build CollectNowAction and RunProgress with 2 s polling](./t23-ui-collect-now-and-progress.md) | ui | Volodymyr Kozlov | M | T22 | todo |
+| T23 | [Build CollectNowAction and RunProgress with 2 s polling](./t23-ui-collect-now-and-progress.md) | ui | Volodymyr Kozlov | M | T22 | done |
 | T24 | [Prove limits, interruption and start-up end to end against a fake source server](./t24-tests-collection-integration.md) | tests | Volodymyr Kozlov | M | T12, T16, T17, T19 | todo |
 
 **Total:** 24 tasks, ~23 person-days (S = ½ day, M/L = 1 day; L marks a full day).

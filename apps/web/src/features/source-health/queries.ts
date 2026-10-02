@@ -11,11 +11,13 @@ export function useProblems() {
   });
 }
 
-/** SCR-02: refetched on window focus; polled while a run is in progress (ADR-0002, T23). */
+/** SCR-02: refetched on window focus; polled while a run is in progress (ADR-0002). */
 export function useSourceHealth() {
   return useQuery({
     queryKey: ["collector", "source-health"],
     queryFn: getSourceHealth,
     refetchOnWindowFocus: true,
+    // Run progress: every 2 s while a run is in progress, otherwise no polling (ADR-0002).
+    refetchInterval: (query) => (query.state.data?.current_run ? 2_000 : false),
   });
 }
