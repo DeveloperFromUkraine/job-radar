@@ -281,43 +281,58 @@ sequenceDiagram
 
 ## 7. Deployment view
 
-<!-- 🎯 Why: the TOPOLOGY DevOps must know without reading the deploy charts — how many replicas,
-     where the background worker lives, AT WHAT NUMBERS we scale.
-     📋 Write: 2–3 sentences on topology + monitoring + concrete threshold numbers.
-     📌 e.g. «500 authors → partition by quarter» (not «we'll think about scale later»).
-     🎯 N/A allowed for XS/S that reuses an existing deployment unit with no change.
-     Deployment-diagram scaffold → templates/deployment.md. -->
+One Node.js process on the owner's laptop, listening only on `127.0.0.1:3000` (ADR-0007). It runs the Fastify API, the in-process collection runner (ADR-0001, ADR-0003) and — in normal use (`pnpm build` then `pnpm start`) — also serves the built SPA from `apps/web/dist` through `@fastify/static`, with any non-`/api` path falling back to `index.html` so client-side routes work: one origin, one process, no CORS. In development the Vite dev server (`localhost:5173`) serves the web app and proxies `/api` to the server, as the scaffold already does. No replicas, no always-on host — collection happens only while the app runs (spec §3).
 
-<Topology in 2–3 sentences. Where it runs, replicas, scaling thresholds.>
+```mermaid
+flowchart TB
+    subgraph laptop[Owner's laptop]
+        browser[Browser]
+        subgraph proc[Node process on 127.0.0.1:3000]
+            static[Built SPA files]
+            api[Collector API]
+            runner[Collection runner]
+        end
+        db[(SQLite file apps/server/data/job-radar.sqlite)]
+        settings[/Settings file apps/server/data/settings.json/]
+    end
+    sources[Job sources over HTTPS]
+    browser -->|loopback only| static
+    browser -->|loopback only| api
+    api --> runner
+    runner --> db
+    api --> db
+    runner --> settings
+    runner --> sources
+```
 
-**Monitoring:**
-- <Metrics — e.g. `<metric_name>`>
-- <Alerts — e.g. «worker lag > 10 min → page on-call»>
-- <Tracing — e.g. spans on the request boundary>
+**Monitoring:** no external monitoring — source health *is* the monitoring surface.
+- Metrics (stored per run in the database, shown in source health): run start/finish and outcome per source; added / updated / closed counts; freshness per listing = first collection time − the source's publication time, summarised per source; reads per source per rolling window.
+- Alerts: the health flags themselves (AC-13, AC-14, AC-25) and the main-screen problem marker; nothing pages anyone.
+- Logs: Fastify's pino logger, structured, child fields `module=collector`, `runId`, `source`; no external tracing.
 
 **Scaling thresholds:**
-- <e.g. comfortable in one table up to N rows/year>
-- <e.g. partition by quarter above N rows/year>
-
-<!-- For XS/S with no deployment change: <!-- N/A: reuses existing deployment unit, no infra change --> -->
+- Expected volume: a few hundred new tech listings a day across enabled sources → roughly 20–40k listings inside the 60-day retention; one SQLite file with indexes on the match key and per-source item id is comfortable well past 10× that.
+- Ledger rows older than 24 h and run rows older than 60 days are pruned by the daily clean-up.
+- Moving to an always-on host or a second process is the trigger to revisit ADR-0001 and ADR-0007, not data volume.
+- Before every migration the database file is backed up (project ADR `docs/adr/0003-sqlite-with-drizzle.md`).
 
 ## 8. Crosscutting concepts
 
-<!-- 🎯 Why: CROSS-CUTTING PATTERNS spanning several modules: logging, errors, authorization, ID
-     strategy, events, caching. ⭐ The second-densest section. A pattern inside one module is NOT
-     here; a project-wide convention belongs in the convention file.
-     📋 Write: a table — concept / convention / where defined. One row per concept.
-     📌 e.g. «sortable time-based IDs generated in the app layer» as a default from the convention file. -->
-
 | Concept | Convention | Where defined |
 |---|---|---|
-| Logging | <e.g. structured, fields `module=<name>`> | <convention file §X or here> |
-| Authentication | <e.g. token-based via middleware> | <convention file §X> |
-| Error handling | <e.g. domain sentinel → ports error mapping → JSON> | <convention file §X> |
-| ID strategy | <e.g. sortable time-based ID in the app layer> | <convention file §X> |
-| Internationalisation | <e.g. N/A, single language> | — |
-| Observability | <e.g. tracing on the request boundary> | — |
-| Events | <module-specific patterns, if any> | <here> |
+| Logging | Fastify's pino logger, structured JSON; collector logs use child fields `module=collector`, `runId`, `source`; never log full descriptions or response bodies | `apps/server/src/main.ts` (logger on) + here |
+| Access control | No accounts. Server binds loopback only and refuses to start otherwise; requests whose `Host` is not `127.0.0.1`/`localhost` on the configured port are rejected (DNS rebinding); state-changing requests require a JSON body and are rejected when `Sec-Fetch-Site` says `cross-site`; no CORS headers are emitted (CSRF) | [ADR-0007](adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md), `apps/server/src/core/` |
+| Error handling | HTTP errors use the single envelope `{ "error": { "code", "message" } }`; a source failure is *data*, not an exception — the adapter returns `failed` with a reason code, the domain maps it to a plain-language reason stored on the source's run outcome (AC-03); unexpected errors inside one source's ingest fail that source only | `apps/server/src/core/errors.ts` + here |
+| ID strategy | UUIDv7 generated in the app; listing identity is additionally unique per (source, source item id) | `apps/server/src/core/id.ts`, ADR-0005 |
+| Untrusted source content | Each adapter validates the response shape against a schema; responses above 10 MB or slower than 30 s are rejected as `failed` (spec §6.1 oversized/malformed); HTML in titles and descriptions is converted to plain text at ingest and stored only as text; the web app renders it as text, never as markup (`dangerouslySetInnerHTML` is not used) | here |
+| Outbound HTTP | Node's built-in `fetch`; User-Agent `job-radar (personal use)`; every request is written to the request ledger before it is sent; a retry happens only if the source's window still allows it, and a used-up limit is that source's failure for the run (spec §6) | `collector/infra/http.ts`, ADR-0003 |
+| Time | Stored as UTC epoch milliseconds; source publication times kept as the source states them, converted to UTC; the clock is injected so rate windows, due-ness, flags and retention are tested with a fake clock | here |
+| Responsiveness during collection | Normalization (HTML-to-text, match keys) runs in chunks that yield to the event loop; each source's ingest is one short transaction — keeps the app answering ≤ 5 s during catch-up and the first fill (spec §6) | here |
+| Settings | `apps/server/data/settings.json`, re-read at the start of every run, schema-validated; last valid copy stored in the database (AC-27) | §5 |
+| UI data access | TanStack Query for every server read; polling only for run progress | [ADR-0002](adr/0002-fetch-ui-data-with-tanstack-query-and-poll-run-progress.md) |
+| UI styling | Semantic tokens only, mobile-first, interaction conventions (inline error banner, skeleton rows, disabled button with spinner) | `docs/design-system.md` |
+| Internationalisation | N/A — single language (English) UI | — |
+| Events | N/A — modules call each other's `app` exports in-process (project ADR-0002); no event bus | — |
 
 ## 9. Architecture decisions
 
