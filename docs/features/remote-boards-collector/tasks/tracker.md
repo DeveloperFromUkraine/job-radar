@@ -38,6 +38,6 @@
 | T31 | [Move app-layer SQL into infra and keep id lists under SQLite's variable limit](./t31-fix-infra-hygiene.md) | infra | Volodymyr Kozlov | M | T30 | done |
 | T32 | [Keep the heartbeat during long runs and abort in-flight reads on shutdown](./t32-fix-heartbeat-and-shutdown.md) | app | Volodymyr Kozlov | M | T31 | done |
 | T33 | [Settings fallback in the contract, SCR-02 polling and the remaining screen fixes](./t33-fix-source-health-ui.md) | ui | Volodymyr Kozlov | M | T32 | done |
-| T34 | [Record the review decisions in spec, SAD, ADR-0004 and screens](./t34-fix-review-docs.md) | docs | Volodymyr Kozlov | M | T33 | todo |
+| T34 | [Record the review decisions in spec, SAD, ADR-0004 and screens](./t34-fix-review-docs.md) | docs | Volodymyr Kozlov | M | T33 | done |
 
 **Total:** 34 tasks (T25–T34 are review follow-ups, 2026-10-02).

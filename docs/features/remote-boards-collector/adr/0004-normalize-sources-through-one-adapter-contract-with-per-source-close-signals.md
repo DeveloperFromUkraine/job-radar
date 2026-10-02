@@ -58,3 +58,10 @@ Each source differs in shape, paging, freshness and what it can say about a list
 - Spec: [[../spec.md]] AC-03, AC-07, AC-08, AC-09, AC-14, §8 Q2
 - SAD: [[../sad.md]] §4, §5, §11
 - Related ADR: [[0003-drive-collection-from-a-one-minute-due-check-over-persisted-state]], [[0005-store-postings-and-listings-separately-and-merge-at-collection-time]]
+
+## Addendum — 2026-10-02 (implement + review)
+
+- **Jobicy `jobGeo: "Anywhere"`** is Jobicy's value for "no region specified" (its API docs), so the adapter records it as unknown (spec AC-22 note). To re-check against a recorded live response; if employers can choose "Anywhere" deliberately, keep it as stated instead.
+- **Jobicy offers more than this ADR assumed** (its API docs, read 2026-10-02): a full cursor-paged pass once an hour is allowed, and a free batch status endpoint (`/api/v2/remote-jobs/status?ids=…`, `active` / `closed` / `unknown`) gives a direct close signal for listings older than the 7-day window. The spec's stricter reading (one request an hour, pages included) is kept for v1; adopting the status endpoint would close Jobicy-only postings without waiting for the 60-day age-out — a candidate for a follow-up decision.
+- **Published category lists** of Jobicy and Remotive (checked 2026-10-02) are static in the source registry for AC-24, because fetching them at run time would cost a read; Himalayas publishes none and keeps the 7-day rule.
+

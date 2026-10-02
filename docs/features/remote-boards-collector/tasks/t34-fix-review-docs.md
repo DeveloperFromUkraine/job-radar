@@ -9,7 +9,7 @@ files_hint: ["docs/features/remote-boards-collector/spec.md", "docs/features/rem
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T34 — Record the review decisions in spec, SAD, ADR-0004 and screens

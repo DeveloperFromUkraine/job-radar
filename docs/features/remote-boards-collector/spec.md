@@ -206,6 +206,8 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 **When** its listing is collected
 **Then** the posting's location restriction is recorded as unknown, never as "anywhere"
 
+> Jobicy writes `jobGeo: "Anywhere"` when the employer named no region ("`Anywhere` when no region is specified", Jobicy API docs, read 2026-10-02), so that value counts as stating nothing and is recorded as unknown. Decided in review 2026-10-02 (B11); to re-check against a recorded live response — ADR-0004 addendum.
+
 ### AC-23 (US-08) — happy
 **Given** the owner's tech category list, kept in their settings file, does not include a source's category
 **When** that source offers a listing in it
