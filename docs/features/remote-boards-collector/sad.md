@@ -336,72 +336,96 @@ flowchart TB
 
 ## 9. Architecture decisions
 
-<!-- 🎯 Why: the REVERSE INDEX onto the adr/ folder. `ls adr/` gives the files; §9 gives the
-     semantics — why they exist, which SAD section they attach to, what status.
-     📋 Write: a 4-column table, one row per ADR. Mixed status is fine.
-     📌 e.g. «0001 | Store content as a table of typed blocks | Accepted | §4». -->
-
 | # | Title | Status | Section |
 |---|---|---|---|
-| <NNNN> | <imperative — e.g. "Use a sliding-window counter for rate limiting"> | Accepted | §<N> |
-| <NNNN> | <imperative — e.g. "Co-locate the worker in the API process"> | Accepted | §<N> |
+| [0001](adr/0001-ship-collector-as-server-module-plus-web-source-health.md) | Ship the collector as a server module plus a web source-health screen | Accepted | §4 |
+| [0002](adr/0002-fetch-ui-data-with-tanstack-query-and-poll-run-progress.md) | Fetch UI data with TanStack Query and poll run progress | Accepted | §4 |
+| [0003](adr/0003-drive-collection-from-a-one-minute-due-check-over-persisted-state.md) | Drive collection from a one-minute due-check over persisted state | Accepted | §4 |
+| [0004](adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md) | Normalize sources through one adapter contract with per-source close signals | Accepted | §4 |
+| [0005](adr/0005-store-postings-and-listings-separately-and-merge-at-collection-time.md) | Store postings and listings separately and merge at collection time | Accepted | §4 |
+| [0006](adr/0006-keep-owner-marks-behind-a-port-the-collector-consults-before-removal.md) | Keep owner marks behind a port the collector consults before removal | Accepted | §5 |
+| [0007](adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md) | Allow only loopback, same-origin requests, without accounts | Accepted | §8 |
 
-ADR files live under `docs/features/<slug>/adr/NNNN-<title>.md`.
+ADR files live under `docs/features/remote-boards-collector/adr/NNNN-<title>.md`. Project-wide decisions this feature builds on: `docs/adr/0001-typescript-monorepo-react-fastify.md`, `docs/adr/0002-feature-modules-mirror-roadmap.md`, `docs/adr/0003-sqlite-with-drizzle.md`.
+
+Decided inline (below the ADR threshold): settings as `apps/server/data/settings.json` re-read every run (§5); two-phase run — ingest per source, closures only in finalize (§6); Fastify serves the built SPA (§7).
 
 ## 10. Quality requirements
 
-<!-- 🎯 Why: the QUALITY TREE — take a goal from §1 and break it into concrete leaves: tests,
-     metrics, configs, drills. ⭐ Without §10, §1 is a manifesto. With §10 each declaration maps
-     to something PROVABLE.
-     📋 Write: per §1 goal — When / Then / How-verify. Numbers from spec §6 NFR VERBATIM (don't
-     round ≤250ms to ≤300ms — that's a critic F6 hit).
-     📌 e.g. «p95 ≤ 500 ms on a block update, verified by a 100 req/s load test». -->
+Each §1 goal expanded into a full scenario; numbers are quoted from spec §6 NFR and §7 KPIs.
 
-Each top-3 goal from §1 expanded into a full scenario:
+**QG-1. Freshness within source terms**
+- **When:** a source makes a new tech listing available while the app runs, and scheduled runs, catch-up runs, restarts and repeated collect-now presses all happen over days.
+- **Then:** "≤ 2 h from a source making a listing available to the posting being in job-radar, p90, while the app runs" for hourly-allowed sources; "Remotive ≤ 30 h, Himalayas ≤ 30 h" for slower sources; and reads stay "never above each source's published limit (Jobicy ≤ 1 per hour; Remotive ≤ 4 per day and ≤ 2 per minute; Himalayas ≤ 4 per day …; We Work Remotely 0 …)" over rolling 60-minute / 24-hour windows, pages and failed requests included. (How the 2 h is measured for Jobicy is open — §11 R1.)
+- **How verify:** unit tests of due-ness and rate windows driven by a fake clock over 7 simulated days with restarts, interrupted runs and collect-now every minute, asserting reads per rolling window per source never exceed the limit; integration test against a local fake source server counting requests; freshness metric "per-posting difference between the source's publication time and first collection time, reported per source" shown in source health and checked against the KPI "p90 ≤ 2 h for hourly-allowed sources while the app runs, within 14 days of shipping".
 
-**QG-1. <quality attribute>**
-- **When:** <trigger condition>
-- **Then:** <expected behaviour with numbers from spec §6 NFR>
-- **How verify:** <test / chaos drill / load test / metric>
+**QG-2. Collection integrity over time**
+- **When:** a source fetch fails, is cut short, is capped, or a run is interrupted; or a source would close many postings at once; or the same role arrives from several sources.
+- **Then:** "a failed or partial fetch never closes a posting" (AC-08); a posting closes only when every source listing it confirms (AC-07, AC-09); when "a source lists at least 10 open postings, and a single run of it would actually close … more than 30% of them" the closures are held back (AC-14); listings matching AC-04 become one posting and AC-05 cases stay separate; owner marks survive merge, close, reopen and clean-up (AC-06, AC-07, AC-10, AC-11).
+- **How verify:** domain unit tests per AC-04/05/07/08/09/11/14 fed by recorded responses from each source (complete, capped, failed, expired items); integration test that stops a run between two sources and restarts the app, asserting no closures and the AC-20 last-success rules; marks fake for the `MarkedPostings` port (ADR-0006); KPI "0 of 20 spot-checked closed postings found still open at their source, in the first 30 days".
 
-**QG-2. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-3. No silent failure**
+- **When:** a source fails on two consecutive due runs, returns zero items on two consecutive due runs, is not read for more than twice its interval while the app runs, has its closures held back, or shows an unusual unknown-location share.
+- **Then:** "a failing or silent source flagged within 2 of its own intervals"; the flag carries a plain-language reason in source health, the main screen shows a problem marker, and the flag clears after the next successful read that returns items (AC-13, AC-14, AC-25).
+- **How verify:** fake-clock unit tests for each flag rule; component test that SCR-01 shows the marker when any source is flagged and links to SCR-02; KPI "0 source outages lasting more than 2 of that source's intervals without a flag in source health, in the first 30 days".
 
-**QG-3. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-4. Responsive while collecting**
+- **When:** the app starts with a catch-up due or the first 30-day fill running.
+- **Then:** "the app responds to the owner ≤ 5 s after start, even while catch-up or the first fill runs".
+- **How verify:** "start-up smoke test in CI", run with a fake source serving 30 days of listings.
+
+**QG-5. Run duration**
+- **When:** a regular run, and the first fill of each source.
+- **Then:** "≤ 5 min p95 for a regular run; first 30-day fill ≤ 30 min for hourly-allowed sources, and within 24 h for slower sources, whose fill continues over later runs inside their allowed rate".
+- **How verify:** "run start/finish times recorded per run; first-fill completion time per source", visible in source health.
+
+**QG-6. Retention bound**
+- **When:** the daily clean-up runs after the day's first successful collection run.
+- **Then:** unmarked postings more than 60 days past closing or past the last offer from an enabled source are removed; "count of such unmarked postings = 0 after clean-up"; marked postings stay.
+- **How verify:** fake-clock unit test of the retention rule including disabled-only days (AC-10, AC-26); integration test of the clean-up against a temporary database.
 
 ## 11. Risks and technical debt
 
-<!-- 🎯 Why: ⭐ collects EVERYTHING that can break — not only the technical. Without §11 risks get
-     discussed at standups and lost; debt lives only in the head of whoever accepted it.
-     📋 Write: a risk/debt table — severity — mitigation — owner. Accepted debt in its own block.
-     📌 The first risk is often a product risk, not a technical one. That's normal. -->
-
-<!-- Severity literals: Low / Medium / High for regular risks; "Open question" for rows created by
-     a Save-as-OQ resolution during the Socratic walk (see references/socratic.md). -->
-
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <e.g. Worker lag may reach hours during a downstream outage> | Medium | <alert >10 min, on-call playbook, retry backoff> | <DevOps> |
-| <e.g. No event-schema versioning in v1> | Medium | <ADR-NNNN planned for v2, tolerate unknown fields> | <Backend> |
-| Open architectural decision: <decision-headline> | Open question | Resolve before <stage trigger or YYYY-MM-DD>; <inline rationale from the Save-as-OQ> | <owner> |
+| Open architectural decision: how freshness is measured for Jobicy — Jobicy's API publishes listings with a 3-hour delay (verified 2026-10-02), so "≤ 2 h p90" measured from the source's publication time can never be met by the only hourly-allowed source | Open question | Resolve before `/sdd:plan-tests`; recommendation: measure from when the source made the listing available (Jobicy: publication time + 3 h), matching spec §6's wording, or change the target; the design stores both publication time and first-collection time, so either choice needs no architecture change | Volodymyr Kozlov |
+| Himalayas yields at most 80 listings a day (≤ 20 per request × ≤ 4 reads a day), which may miss tech postings and threaten the ≥ 95% completeness KPI | High | Use Himalayas' filtered search (tech categories, newest first) so every read counts; measure the per-source baseline in the first 7 days (spec §7); spec §8 Q3 to verify the real allowed rate | Volodymyr Kozlov |
+| A Jobicy listing older than its 7-day window can no longer confirm a closure, so a posting that holds one closes only by the 60-day age-out (ADR-0004) | Medium | Accepted for v1; revisit if the false-closure / stale-posting spot checks (spec §7) show many stale merged postings | Volodymyr Kozlov |
+| A wrong merge is permanent — there is no un-merge in v1 (ADR-0005) | Medium | Merge only on exact equality of the normalized key within 7 days; unit tests built from AC-04 / AC-05 examples; add un-merge if spot checks find false merges | Tech Lead |
+| A source changes its response shape, categories or window | Medium | Schema validation turns a shape change into a flagged failure (AC-03); category drift is reported (AC-24); the 30% hold-back stops mass false closures (AC-14) | Tech Lead |
+| Collection shares the event loop with the API (ADR-0001) | Low | Chunked normalization that yields; short per-source transactions; the ≤ 5 s start-up smoke test | Tech Lead |
+| Owner-mark protection is proven only with a test fake until roadmap step 6 (ADR-0006) | Low | Re-verify AC-06/07/10/11 against real marks when step 6 ships (spec §5 note) | Volodymyr Kozlov |
+| Spec §8 Q1 (We Work Remotely limits and location data) and Q3 (Himalayas' real rate) are still open; defaults are in force — WWR disabled, Himalayas ≤ 4 reads a day | Medium | Verify both and update spec + settings defaults; the adapter contract and settings file absorb either answer without design change | Volodymyr Kozlov — before `/sdd:tasks` |
+| `docs/architecture-map.md` is behind the code and this design (says TypeScript 5, repo has `^7.0.2`; "State / data-fetching: not decided" is now ADR-0002) | Low | Re-run `/sdd:survey` after this feature lands | Volodymyr Kozlov |
+| Development restarts (`tsx watch`) and crashes consume reads, because a read is counted when recorded, before it is sent | Low | Deliberately conservative (ADR-0003, AC-20); a dev setting can disable the scheduler while working on unrelated code | Tech Lead |
 
 **Accepted debt (acceptable in v1, plan to fix later):**
-- <e.g. the entity is immutable / unversioned — OK for v1, may need audit versioning in v2>
+- No un-merge of postings (ADR-0005).
+- No history of location statements — the latest statement replaces the stored one (AC-21).
+- No authentication for access from other devices — loopback only (ADR-0007, spec §3).
+- Mark preservation verified through a port fake until roadmap step 6 (ADR-0006).
 
 ## 12. Glossary
 
-<!-- 🎯 Why: ⭐ the DOMAIN GLOSSARY that ends arguments a year later («checkpoint — weekly or
-     biweekly? quarter — calendar or fiscal?»).
-     📋 Write: a term / meaning table. Business + technical terms mixed.
-     📌 e.g. «Lesson | a unit inside a course made of blocks (text, video)». -->
+Canonical domain terms come from `CONTEXT.md` §Glossary (repo root); this table repeats the ones the SAD uses and adds the design terms this document introduces.
 
 | Term | Meaning |
 |---|---|
-| <e.g. domain object A> | <its meaning in this domain> |
-| <e.g. domain object B> | <its meaning> |
-| <e.g. domain invariant name> | <the rule, in plain language> |
+| Owner | The one person who runs job-radar on their own machine; the only human role in v1 (CONTEXT). |
+| Visitor | Anyone who can reach the owner's machine over a network but is not the owner (CONTEXT). |
+| Source | An external job board or feed job-radar reads postings from — Jobicy, Himalayas, Remotive, We Work Remotely (CONTEXT). |
+| Listing | One source's copy of a posting, with that source's link, text and publication time (CONTEXT). |
+| Posting | One open role at one company as the owner sees it; may hold listings from several sources (CONTEXT). |
+| Closed posting | A posting every source listing it has confirmed as no longer open (CONTEXT). |
+| Updated posting | A known posting whose title, text, location restriction or link changed, that gained a listing, or that reopened (CONTEXT). |
+| Location restriction | What a source states about where a candidate may work from, kept exactly as stated; `unknown` when it states nothing (CONTEXT). |
+| Collection run | One pass over every enabled source that is due, with a per-source outcome (CONTEXT). |
+| Source health | The owner-visible state of one source: last success, last run's counts, next due, flags (CONTEXT). |
+| Request ledger *(design term)* | Persisted record of every request made to a source, written before it is sent; the basis for rolling-window limits (ADR-0003). |
+| Read budget *(design term)* | How many requests a source may still make in this run without exceeding its rolling windows (ADR-0003). |
+| Completeness verdict *(design term)* | An adapter's statement about a fetch: `complete`, `capped`, `partial` or `failed`; only `complete` fetches and direct signals may close listings (ADR-0004). |
+| Close signal *(design term)* | The per-source evidence that a listing is no longer open — absence from a complete fetch, a passed `expiryDate`, or none (ADR-0004). |
+| Match key *(design term)* | Normalized company + title used to merge a listing into an existing posting (ADR-0005, AC-04). |
+| Ingest / finalize *(design terms)* | The two phases of a collection run: per-source storing and merging, then closures and flags only when the run completes (§6). |
+
+Design terms marked *(design term)* are not in `CONTEXT.md` yet — run `/sdd:glossary remote-boards-collector` if they should become canonical.
