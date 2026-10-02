@@ -59,6 +59,7 @@ until then.
 | InlineBanner | `apps/web/src/components/InlineBanner.tsx:18` | error (alert, Retry), warning, info (status) | Request failures and notices next to what they are about; API text rendered as text. |
 | SkeletonRow | `apps/web/src/components/SkeletonRow.tsx:2` | loading | Card-shaped placeholder for list loading. |
 | Badge | `apps/web/src/components/Badge.tsx:11` | enabled, problem, notice, disabled, not_verified | Short status label on cards. |
+| SourceCard | `apps/web/src/features/source-health/SourceCard.tsx:6` | healthy, flagged, possibly changed, category notice, filling, disabled, not verified, never collected | One source's health on SCR-02 (remote-boards-collector); composes Badge. |
 
 ## Interaction & writing conventions
 

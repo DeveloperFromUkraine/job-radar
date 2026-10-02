@@ -242,6 +242,6 @@ Per-source state, settings notices, collect-now and the run in progress. Data: `
 | SkeletonRow (shared) | The canon prescribes skeleton rows for loading lists; nothing implements one yet | done |
 | Badge (shared; tones enabled / problem / notice / disabled / not verified) | Short status labels on cards; no label primitive exists | done |
 | ProblemMarker (feature: `features/source-health/`) | A danger-toned link block specific to this feature's marker rule; built from InlineBanner styling but owns its link and copy | pending |
-| SourceCard (feature) | One source's health — layout specific to source health; composes Badge and the flag list | pending |
+| SourceCard (feature) | One source's health — layout specific to source health; composes Badge and the flag list | done |
 | RunProgress (feature) | Per-source outcome list of a run, polled; specific to this feature | pending |
 | CollectNowAction (feature) | Button + the answer banners of `collectNow` (02-g); wraps the mutation states | pending |
