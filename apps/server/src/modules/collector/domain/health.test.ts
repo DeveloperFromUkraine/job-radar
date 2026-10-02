@@ -220,3 +220,39 @@ describe("clearing only on the evidence each AC names (review A5, C4)", () => {
     expect(kinds(base({ recentOutcomes: [limited, limited] }))).toEqual([]);
   });
 });
+
+describe("held_back needs a real re-check (round-2 review R2)", () => {
+  const capped = { ...ok(), outcome: "capped" as const };
+
+  it("stays after a capped run when the source closes only by absence", () => {
+    expect(
+      evaluateFlags(
+        base({ recentOutcomes: [capped], held: null, currentFlags: ["held_back"], closuresRechecked: false }),
+      ).cleared,
+    ).toEqual([]);
+  });
+
+  it("clears after a capped run of a source whose close signal is an expiry date", () => {
+    expect(
+      evaluateFlags(
+        base({ recentOutcomes: [capped], held: null, currentFlags: ["held_back"], closuresRechecked: true }),
+      ).cleared,
+    ).toEqual(["held_back"]);
+  });
+});
+
+describe("overdue wording (round-2 review R3)", () => {
+  const sessions = [{ startedAt: NOW - 10 * HOUR, lastSeenAt: NOW }];
+
+  it("says the source was not read when it was not", () => {
+    expect(overdueReason(NOW - 3 * HOUR, HOUR, sessions, NOW)).toBe(
+      "Not read for 3 h while the app was running - it is due every 1 h.",
+    );
+  });
+
+  it("says no read returned items when reads were attempted", () => {
+    expect(overdueReason(NOW - 3 * HOUR, HOUR, sessions, NOW, { attemptedSince: true })).toBe(
+      "No successful read with items for 3 h while the app was running - it is due every 1 h.",
+    );
+  });
+});

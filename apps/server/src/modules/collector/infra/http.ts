@@ -44,6 +44,8 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
 
   return {
     async getJson(url) {
+      // Shutdown has begun: nothing is sent, so nothing is charged to the source's rate (review R6).
+      if (options.signal?.aborted) throw new CollectorStopping();
       const now = options.now();
       if (!windowAllows(source, readTimesSince(db, source.id, now - DAY), now)) return { kind: "limited" };
       recordRead(db, source.id, now);

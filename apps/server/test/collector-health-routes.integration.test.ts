@@ -187,6 +187,16 @@ describe("collector read routes (Flow 10)", () => {
     expect(jobicy.freshness).toEqual({ p90_minutes: 270, sample_size: 10, without_publication_time: 1 });
   });
 
+  it("the contract has an example with a limited fill and a settings fallback (round-2 review R10)", () => {
+    const example = contractExample("getSourceHealth", 200, "settings_fallback") as {
+      settings: { running_on: string };
+      sources: { fill: { status: string } }[];
+    };
+    expectContract("getSourceHealth", 200, example);
+    expect(example.settings.running_on).toBe("defaults");
+    expect(example.sources.some((s) => s.fill.status === "limited")).toBe(true);
+  });
+
   it("matches the contract's own examples (the web app's mocks)", () => {
     expectContract("getSourceHealth", 200, contractExample("getSourceHealth", 200, "collected"));
     expectContract("getCollectorProblems", 200, contractExample("getCollectorProblems", 200, "problem"));
@@ -206,6 +216,10 @@ describe("collector read routes (Flow 10)", () => {
       source_id: "jobicy",
       kind: "overdue",
     });
+    const jobicy = (await get("source-health", "getSourceHealth")).json().sources[0];
+    expect(jobicy.flags[0].reason).toBe(
+      "No successful read with items for 4 h while the app was running - it is due every 1 h.",
+    );
   });
 
   it("does not raise the marker for flags of a source that is no longer read (AC-26)", async () => {

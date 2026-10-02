@@ -238,4 +238,32 @@ describe("start-up after a pause or an interrupted run (Flow 3)", () => {
     release();
     await scheduler.stop();
   });
+  it("a failing heartbeat is reported, never thrown out of the scheduler (round-2 review R4)", async () => {
+    const errors: unknown[] = [];
+    const scheduler = createScheduler(deps, {
+      executeRun: async () => {},
+      intervalMs: 20,
+      onError: (e) => errors.push(e),
+    });
+    db.db.run(sql`drop table collector_app_sessions`); // touchSession now throws
+
+    await expect(scheduler.start()).rejects.toThrow(); // startUp itself opens a session
+    await scheduler.stop();
+  });
+
+  it("a heartbeat error during a tick goes to onError and ticks keep coming", async () => {
+    const errors: unknown[] = [];
+    const scheduler = createScheduler(deps, {
+      executeRun: async () => {},
+      intervalMs: 20,
+      onError: (e) => errors.push(e),
+    });
+    await scheduler.start();
+    db.db.run(sql`drop table collector_app_sessions`);
+
+    await new Promise((r) => setTimeout(r, 90));
+    await scheduler.stop();
+
+    expect(errors.length).toBeGreaterThanOrEqual(2);
+  });
 });

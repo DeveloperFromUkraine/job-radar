@@ -106,7 +106,12 @@ export async function ingestSource(
       runId: run.runId,
       now,
       isFirstFill: source.fillStatus === "pending",
-      fetchedItemIds,
+      presence: {
+        complete: fetched.completeness === "complete",
+        coversPublishedAfter: fetched.coversPublishedAfter,
+        fetchedItemIds,
+        runId: run.runId,
+      },
     });
     updateRunSource(tx, run.runId, sourceId, {
       outcome: fetched.completeness,

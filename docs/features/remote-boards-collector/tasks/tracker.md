@@ -39,7 +39,7 @@
 | T32 | [Keep the heartbeat during long runs and abort in-flight reads on shutdown](./t32-fix-heartbeat-and-shutdown.md) | app | Volodymyr Kozlov | M | T31 | done |
 | T33 | [Settings fallback in the contract, SCR-02 polling and the remaining screen fixes](./t33-fix-source-health-ui.md) | ui | Volodymyr Kozlov | M | T32 | done |
 | T34 | [Record the review decisions in spec, SAD, ADR-0004 and screens](./t34-fix-review-docs.md) | docs | Volodymyr Kozlov | M | T33 | done |
-| T35 | [Close the round-2 review findings in code and tests](./t35-fix-rereview-code.md) | app | Volodymyr Kozlov | M | T34 | todo |
+| T35 | [Close the round-2 review findings in code and tests](./t35-fix-rereview-code.md) | app | Volodymyr Kozlov | M | T34 | done |
 | T36 | [Add the limited fill state to the runtime and UX flows](./t36-fix-rereview-docs.md) | docs | Volodymyr Kozlov | M | T35 | todo |
 
 **Total:** 36 tasks (T25–T34 review follow-ups, T35–T36 re-review follow-ups, 2026-10-02).

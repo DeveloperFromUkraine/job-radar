@@ -140,4 +140,44 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
       { fill_status: "continuing" },
     ]);
   });
+  it("a fill that fails while storing keeps the source's read and outcome (round-2 review R8)", async () => {
+    deps.sources = SOURCES.map((s) => (s.id === "himalayas" ? { ...s, limits: { perDay: 8 } } : s));
+    deps.adapters.himalayas = {
+      id: "himalayas",
+      fetchLatest: async () => empty({ completeness: "capped", itemsReturned: 5, nextCursor: "c2" }),
+      fetchOlder: async () =>
+        empty({
+          completeness: "capped",
+          itemsReturned: 1,
+          nextCursor: null,
+          // A listing the store cannot insert: the failure happens after the page was fetched.
+          listings: [
+            {
+              sourceItemId: null as unknown as string,
+              url: "u",
+              title: "T",
+              company: "C",
+              description: "",
+              locationRestriction: null,
+              categories: ["Developer"],
+              publishedAt: T0 - 2 * HOUR,
+              expiresAt: null,
+            },
+          ],
+        }),
+    };
+    const run = start();
+
+    await executeRun(deps, run, noMarks);
+
+    expect(
+      rows(
+        `select outcome from collector_run_sources where run_id = '${run.runId}' and source_id = 'himalayas'`,
+      ),
+    ).toEqual([{ outcome: "capped" }]);
+    expect(rows(`select status from collector_runs where id = '${run.runId}'`)).toEqual([
+      { status: "finished" },
+    ]);
+    expect(rows("select kind from collector_source_flags where source_id = 'himalayas'")).toEqual([]);
+  });
 });

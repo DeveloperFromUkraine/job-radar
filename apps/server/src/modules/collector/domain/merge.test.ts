@@ -19,6 +19,13 @@ const listing = (over: Partial<NormalizedListing> = {}): NormalizedListing => ({
   ...over,
 });
 
+const complete = (ids: string[]) => ({
+  complete: true,
+  coversPublishedAfter: null,
+  fetchedItemIds: new Set(ids),
+  runId: "run-2",
+});
+
 const candidate = (over: Partial<Candidate> = {}): Candidate => ({
   postingId: "0192-a",
   status: "open",
@@ -183,7 +190,7 @@ describe("same-source items that are both still live (AC-05)", () => {
       listing({ locationRestriction: "Germany" }),
       null,
       [live("United States")],
-      new Set(["r-0", "r-1"]),
+      complete(["r-0", "r-1"]),
     );
     expect(decision).toEqual({ kind: "create" });
   });
@@ -193,7 +200,7 @@ describe("same-source items that are both still live (AC-05)", () => {
       listing({ locationRestriction: null }),
       null,
       [live("United States")],
-      new Set(["r-0", "r-1"]),
+      complete(["r-0", "r-1"]),
     );
     expect(decision).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
   });
@@ -203,8 +210,59 @@ describe("same-source items that are both still live (AC-05)", () => {
       listing({ locationRestriction: "Germany" }),
       null,
       [live("United States")],
-      new Set(["r-1"]),
+      complete(["r-1"]),
     );
     expect(decision).toMatchObject({ kind: "replace-same-source", replacesListingId: "l-r0" });
+  });
+});
+
+describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
+  const own = (over: Partial<Candidate["listings"][number]> = {}) =>
+    candidate({
+      listings: [
+        {
+          listingId: "l-h0",
+          sourceId: "remotive",
+          sourceItemId: "h-0",
+          locationRestriction: "Germany",
+          lastSeenRunId: "run-1",
+          publishedAt: T - DAY,
+          ...over,
+        },
+      ],
+    });
+  const capped = {
+    complete: false,
+    coversPublishedAfter: null,
+    fetchedItemIds: new Set(["r-1"]),
+    runId: "run-2",
+  };
+
+  it("a capped fetch is no proof: a different stated location makes a second posting", () => {
+    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], capped)).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("a capped fetch is no proof: without a location conflict the item attaches, nothing is deleted", () => {
+    expect(decideMerge(listing({ locationRestriction: null }), null, [own()], capped)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
+    });
+  });
+
+  it("an old item already seen in this run is live, even if this page does not return it", () => {
+    const sameRun = { ...complete(["r-1"]), runId: "run-1" };
+    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], sameRun)).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("a complete fetch is no proof for an item older than the window it covers", () => {
+    const window = { ...complete(["r-1"]), coversPublishedAfter: T };
+    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], window)).toEqual({
+      kind: "create",
+    });
   });
 });

@@ -157,6 +157,27 @@ paths:
                         fill: { status: pending, reached_at: null, next_part_due_at: null, completed_at: null }
                         reads: { last_60_min: 0, last_24_h: 0 }
                         freshness: { p90_minutes: null, sample_size: 0, without_publication_time: 0 }
+                settings_fallback:
+                  summary: Unreadable settings on a first start, and a fill the allowed rate cannot extend
+                  value:
+                    any_run_finished: true
+                    settings:
+                      notice: null
+                      problem: The settings file is not valid JSON.
+                      problem_since: "2026-10-02T08:00:00Z"
+                      running_on: defaults
+                    current_run: null
+                    last_run: null
+                    sources:
+                      - source_id: himalayas
+                        state: enabled
+                        last_success_at: "2026-10-02T06:00:00Z"
+                        next_due_at: "2026-10-02T12:00:00Z"
+                        last_outcome: null
+                        flags: []
+                        fill: { status: limited, reached_at: "2026-09-30T06:00:00Z", next_part_due_at: null, completed_at: null }
+                        reads: { last_60_min: 0, last_24_h: 1 }
+                        freshness: { p90_minutes: null, sample_size: 0, without_publication_time: 0 }
         "403": { $ref: "#/components/responses/ForbiddenHost" }
         "500": { $ref: "#/components/responses/Internal" }
 

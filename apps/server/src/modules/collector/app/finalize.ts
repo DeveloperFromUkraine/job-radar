@@ -64,6 +64,10 @@ export function finalizeRun(
         // The published list where the source has one (static, AC-24); otherwise the 7-day rule.
         publishedCategories: sourceById(sourceId).publishedCategories ?? null,
         categoriesMatchedLast7Days: categoriesSeenSince(tx, sourceId, now - 7 * DAY),
+        closuresRechecked:
+          verdicts.find((v) => v.sourceId === sourceId)?.completeness === "complete" ||
+          (verdicts.find((v) => v.sourceId === sourceId)?.completeness === "capped" &&
+            sourceById(sourceId).closesByExpiry === true),
       });
       applyFlags(tx, sourceId, flags.raised, flags.cleared, now);
     }

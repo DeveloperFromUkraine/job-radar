@@ -100,3 +100,4 @@ Flags: 3 supporting, 0 core failing. All three are resolved above. None needs an
 
 - `FillState.status` gains `limited` (T30, review B12) — origin `data-model.md → collector_sources.fill_status`, high. New column `collector_sources.fill_cursor` is internal (no contract field).
 - `SettingsStatus.running_on` (T33, review A8) — origin: derived from `collector_state.settings_problem` + `last_valid_settings` (copy present → `last_valid`, absent → `defaults`), high.
+- Example `settings_fallback` on `getSourceHealth` shows `running_on: defaults` and a `limited` fill (round-2 review R10).

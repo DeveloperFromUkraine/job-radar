@@ -47,9 +47,11 @@ function overdueFor(
   sessions: Session[],
   now: number,
 ) {
-  const since = lastReadWithItems(deps.db, source.id) ?? row.lastReadAt;
+  const good = lastReadWithItems(deps.db, source.id);
+  const since = good ?? row.lastReadAt;
   if (state !== "enabled" || since === null) return null;
-  return overdueReason(since, source.intervalMs, sessions, now);
+  const attemptedSince = good !== null && row.lastReadAt !== null && row.lastReadAt > good;
+  return overdueReason(since, source.intervalMs, sessions, now, { attemptedSince });
 }
 
 export function getProblems(deps: CollectorDeps) {

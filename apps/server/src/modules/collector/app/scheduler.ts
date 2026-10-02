@@ -24,7 +24,12 @@ export function createScheduler(deps: CollectorDeps, options: SchedulerOptions):
 
   const tick = (trigger: "catch_up" | "schedule") => {
     // The app is running even while a long run is busy: overdue counts that time (AC-13).
-    heartbeat(deps, sessionId);
+    // A failing heartbeat is reported, never thrown out of a timer (review R4).
+    try {
+      heartbeat(deps, sessionId);
+    } catch (err) {
+      options.onError?.(err);
+    }
     if (busy) return busy; // a run is still executing; the unique index guards the rest
     busy = (async () => {
       try {

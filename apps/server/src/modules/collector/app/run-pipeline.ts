@@ -38,6 +38,7 @@ export async function executeRun(
         verdict = { sourceId, completeness: "failed", coversPublishedAfter: null, nextCursor: null };
       }
       verdicts.push(verdict);
+      if (deps.signal?.aborted) throw new CollectorStopping();
       try {
         await continueFill(deps, run, verdict);
         if (deps.signal?.aborted) throw new CollectorStopping();

@@ -311,4 +311,27 @@ describe("ingest one due source (Flows 5 and 6)", () => {
       ),
     ).toEqual([{ updated: 0, new_listings: 0 }]);
   });
+  it("a capped read never replaces a live same-title role it merely did not return (AC-05, review R1)", async () => {
+    const job = (n: number, place: string) => ({
+      guid: `https://jobs.example.test/himalayas/${n}`,
+      title: "Senior Backend Engineer",
+      companyName: "Example Co",
+      parentCategories: ["Developer"],
+      locationRestrictions: [place],
+      timezoneRestrictions: [],
+      pubDate: Math.floor((T0 - n * HOUR) / 1000),
+      expiryDate: Math.floor((T0 + 30 * 24 * HOUR) / 1000),
+    });
+    fake.route("/jobs/api", json(JSON.stringify({ jobs: [job(2, "Germany")], nextCursor: null })));
+    await runSource("himalayas");
+    fake.route("/jobs/api", json(JSON.stringify({ jobs: [job(1, "USA")], nextCursor: null })));
+    now = T0 + 6 * HOUR;
+
+    await runSource("himalayas");
+
+    expect(rows("select location_restriction from collector_listings order by location_restriction")).toEqual(
+      [{ location_restriction: "Germany" }, { location_restriction: "USA" }],
+    );
+    expect(rows("select count(*) as n from collector_postings")).toEqual([{ n: 2 }]);
+  });
 });

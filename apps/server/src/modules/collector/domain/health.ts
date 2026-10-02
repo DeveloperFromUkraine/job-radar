@@ -29,6 +29,11 @@ export interface FlagInput {
   /** The source's published category list, or null when it publishes none. */
   publishedCategories: readonly string[] | null;
   categoriesMatchedLast7Days: string[];
+  /**
+   * Whether this run could re-check closures (AC-14): a complete fetch, or a capped one for a source
+   * whose close signal is an expiry date. Defaults to "the latest outcome is complete".
+   */
+  closuresRechecked?: boolean;
 }
 
 export interface FlagDraft {
@@ -75,8 +80,8 @@ export function evaluateFlags(input: FlagInput): { raised: FlagDraft[]; cleared:
     input.held
       ? `Would close ${pct(input.held.held / input.held.open)} of its ${input.held.open} open postings - ${input.held.held} closures held back.`
       : null,
-    // Only a fetch that could re-check the held closures settles them.
-    latest?.outcome === "complete" || latest?.outcome === "capped",
+    // Only a fetch that could re-check the held closures settles them (review R2).
+    input.closuresRechecked ?? latest?.outcome === "complete",
   );
 
   // unknown location share (AC-25).
@@ -145,15 +150,18 @@ export function runningTimeSince(since: number, sessions: readonly Session[], no
 
 /** Overdue (AC-13): not read for more than twice its interval while the app was running. */
 export function overdueReason(
-  lastReadAt: number,
+  since: number,
   intervalMs: number,
   sessions: readonly Session[],
   now: number,
+  options: { attemptedSince?: boolean } = {},
 ): string | null {
-  const running = runningTimeSince(lastReadAt, sessions, now);
+  const running = runningTimeSince(since, sessions, now);
   if (running <= 2 * intervalMs) return null;
   const h = (ms: number) => `${Math.round(ms / HOUR)} h`;
-  return `Not read for ${h(running)} while the app was running - it is due every ${h(intervalMs)}.`;
+  // Reads were attempted but none returned items: say so, not "not read" (review R3).
+  const what = options.attemptedSince ? "No successful read with items" : "Not read";
+  return `${what} for ${h(running)} while the app was running - it is due every ${h(intervalMs)}.`;
 }
 
 const FAILURE_TEXT: Record<FailureCode, string> = {

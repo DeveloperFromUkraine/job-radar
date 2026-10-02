@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/domain/merge.ts", "apps/server/s
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T35 — Close the round-2 review findings in code and tests

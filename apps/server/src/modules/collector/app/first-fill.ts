@@ -84,7 +84,8 @@ export async function continueFill(
         runId: run.runId,
         now: deps.now(),
         isFirstFill: true,
-        fetchedItemIds,
+        // A fill page proves nothing about other items (review R1).
+        presence: { complete: false, coversPublishedAfter: null, fetchedItemIds, runId: run.runId },
       });
       const before = readRunSource(tx, run.runId, id);
       if (before) {

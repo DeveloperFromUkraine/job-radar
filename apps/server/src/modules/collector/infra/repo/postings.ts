@@ -4,7 +4,13 @@ import { and, eq, gte, inArray, lt, max, min, or } from "drizzle-orm";
 import { newId } from "../../../../core/id.js";
 import type { NormalizedListing } from "../../domain/adapter.js";
 import type { ClosureListing } from "../../domain/closures.js";
-import { type Candidate, decideMerge, earliestPublishedAt, matchKey } from "../../domain/merge.js";
+import {
+  type Candidate,
+  decideMerge,
+  earliestPublishedAt,
+  matchKey,
+  type Presence,
+} from "../../domain/merge.js";
 import type { SourceId } from "../../domain/sources.js";
 import { listings, postings } from "../schema.js";
 import type { DbOrTx } from "./tx.js";
@@ -21,8 +27,8 @@ export interface ApplyContext {
   runId: string;
   now: number;
   isFirstFill: boolean;
-  /** Every item id this fetch returned, kept or not (AC-04 re-post rule). */
-  fetchedItemIds: ReadonlySet<string>;
+  /** What this fetch proves about the source's items (AC-04 re-post rule, review R1). */
+  presence: Presence;
 }
 
 /** Stores one normalized listing and merges it; returns its effect on postings and whether the item is new. */
@@ -49,7 +55,7 @@ export function applyListing(
         }
       : null,
     known ? [] : candidatesFor(db, key),
-    ctx.fetchedItemIds,
+    ctx.presence,
   );
   const fields = {
     url: listing.url,
@@ -164,6 +170,8 @@ function candidatesFor(db: DbOrTx, key: string): Candidate[] {
         sourceId: l.sourceId as Candidate["listings"][number]["sourceId"],
         sourceItemId: l.sourceItemId,
         locationRestriction: l.locationRestriction,
+        lastSeenRunId: l.lastSeenRunId,
+        publishedAt: l.publishedAt,
       })),
   }));
 }

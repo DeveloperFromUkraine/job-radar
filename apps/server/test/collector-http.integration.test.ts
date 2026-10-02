@@ -53,6 +53,17 @@ describe("ledgered source HTTP (sad §8 Outbound HTTP)", () => {
     expect(fake.requests).toHaveLength(1);
   });
 
+  it("records no read once shutdown has begun (round-2 review R6)", async () => {
+    fake.route("/x", json("{}"));
+    const stopping = new AbortController();
+    stopping.abort();
+    const http = createSourceHttp(db.db, sourceById("jobicy"), { now: () => NOW, signal: stopping.signal });
+
+    await expect(http.getJson(`${fake.baseUrl}/x`)).rejects.toThrow(/stopping/);
+    expect(readTimesSince(db.db, "jobicy", 0)).toEqual([]);
+    expect(fake.requests).toEqual([]);
+  });
+
   it("identifies itself with the personal-use User-Agent", async () => {
     let agent = "";
     fake.route("/x", (req, res) => {

@@ -87,7 +87,33 @@ export interface Candidate {
     sourceId: SourceId;
     sourceItemId: string;
     locationRestriction: string | null;
+    lastSeenRunId?: string;
+    publishedAt?: number | null;
   }[];
+}
+
+/** What this fetch proves about the source's items (AC-04 re-post rule, review R1). */
+export interface Presence {
+  /** Only a complete fetch can prove an item is gone; a capped or partial one, or a fill page, cannot. */
+  complete: boolean;
+  /** A complete fetch speaks only for items published after this time (Jobicy's window); null = all. */
+  coversPublishedAfter: number | null;
+  fetchedItemIds: ReadonlySet<string>;
+  runId: string;
+}
+
+const PROVES_ALL: Presence = {
+  complete: true,
+  coversPublishedAfter: null,
+  fetchedItemIds: new Set(),
+  runId: "",
+};
+
+function provenGone(l: Candidate["listings"][number], presence: Presence): boolean {
+  if (!presence.complete || presence.fetchedItemIds.has(l.sourceItemId)) return false;
+  if (l.lastSeenRunId !== undefined && l.lastSeenRunId === presence.runId) return false; // seen in this run
+  if (presence.coversPublishedAfter === null) return true;
+  return l.publishedAt != null && l.publishedAt > presence.coversPublishedAfter;
 }
 
 export interface KnownListing {
@@ -118,8 +144,8 @@ export function decideMerge(
   listing: NormalizedListing,
   known: KnownListing | null,
   candidates: readonly Candidate[],
-  /** Item ids the source returned in this fetch: a live item is never treated as re-posted. */
-  fetchedItemIds: ReadonlySet<string> = new Set(),
+  /** What the fetch proves: an item not proven gone is live, never a re-post. */
+  presence: Presence = PROVES_ALL,
 ): MergeDecision {
   if (known) {
     return {
@@ -135,11 +161,9 @@ export function decideMerge(
     .sort(byPreference);
 
   for (const c of inWindow) {
-    // A re-post replaces the source's old item only once that item is gone from the source (AC-04);
-    // two live items are two roles, decided by the location rule below (AC-05).
-    const own = c.listings.find(
-      (l) => l.sourceId === listing.sourceId && !fetchedItemIds.has(l.sourceItemId),
-    );
+    // A re-post replaces the source's old item only once the fetch proves that item gone (AC-04);
+    // otherwise the two items are two roles, decided by the location rule below (AC-05).
+    const own = c.listings.find((l) => l.sourceId === listing.sourceId && provenGone(l, presence));
     if (own) {
       return {
         kind: "replace-same-source",

@@ -7,6 +7,7 @@ import { type MarkedPostings, noMarks } from "./app/marked-postings.js";
 import { executeRun } from "./app/run-pipeline.js";
 import { createScheduler, type StartedRun } from "./app/scheduler.js";
 import { startUp } from "./app/startup.js";
+import { CollectorStopping } from "./infra/http.js";
 import { settingsPathFor } from "./infra/settings.js";
 import { createAdapters } from "./infra/sources/index.js";
 import { collectorRoutes } from "./ports/routes.js";
@@ -37,9 +38,11 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
     const log = app.log.child({ module: "collector" });
     const running = new Set<Promise<void>>();
     const execute = (run: StartedRun) => {
-      const p = executeRun(deps, run, marks, log).catch((err) =>
-        log.error({ err, runId: run.runId }, "run failed"),
-      );
+      const p = executeRun(deps, run, marks, log).catch((err) => {
+        // A run cut short by shutdown is expected, not a failure (review R7).
+        if (err instanceof CollectorStopping) log.info({ runId: run.runId }, "run interrupted by shutdown");
+        else log.error({ err, runId: run.runId }, "run failed");
+      });
       running.add(p);
       void p.finally(() => running.delete(p));
       return p;

@@ -20,6 +20,8 @@ export interface SourceDefinition {
    * at run time would cost a read. Absent for a source that publishes none (7-day rule instead).
    */
   publishedCategories?: readonly string[];
+  /** Its close signal is an expiry date, so even a capped read re-checks closures (ADR-0004). */
+  closesByExpiry?: boolean;
 }
 
 const HOUR = 60 * 60 * 1000;
@@ -62,6 +64,7 @@ export const SOURCES: readonly SourceDefinition[] = [
     name: "Himalayas",
     siteUrl: "https://himalayas.app",
     intervalMs: 6 * HOUR,
+    closesByExpiry: true,
     // ≤ 4 a day until spec §8 Q3 verifies the real rate.
     limits: { perDay: 4 },
   },

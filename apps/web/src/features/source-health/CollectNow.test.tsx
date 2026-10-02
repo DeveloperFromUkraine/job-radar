@@ -155,10 +155,10 @@ describe("collect now and run progress (SCR-02, Flow 2)", () => {
     expect(await screen.findByText(/Last run finished/)).toBeTruthy();
     const settled = healthCalls();
 
-    await vi.advanceTimersByTimeAsync(10_000);
-    expect(healthCalls()).toBe(settled); // no 2 s polling once idle
     await vi.advanceTimersByTimeAsync(50_000);
-    expect(healthCalls()).toBe(settled + 1); // the 60 s idle refresh
+    expect(healthCalls()).toBe(settled); // no 2 s polling once idle — 10 s short of the 60 s refresh
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(healthCalls()).toBe(settled + 1); // the 60 s idle refresh, with a 5 s margin
   });
 
   it("a 409 refreshes source health, so a run the page did not know about appears (review C7)", async () => {
