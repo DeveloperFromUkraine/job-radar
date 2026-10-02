@@ -30,6 +30,12 @@ export function registerErrorHandling(app: FastifyInstance): void {
     if (err instanceof AppError) {
       return reply.status(err.statusCode).send(envelope(err.code, err.message));
     }
+    // Fastify's own content-type rejection keeps the contract code (ADR-0007, api-sync-report F-2).
+    if (err.statusCode === 415) {
+      return reply
+        .status(415)
+        .send(envelope("UNSUPPORTED_MEDIA_TYPE", "Send the request body as application/json."));
+    }
     if (err.validation) {
       return reply.status(400).send(envelope("VALIDATION_ERROR", err.message));
     }
