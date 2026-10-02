@@ -1,0 +1,552 @@
+openapi: 3.1.0
+
+info:
+  title: job-radar Collector API
+  version: 0.1.0
+  description: |
+    The owner finds remote jobs by opening several job boards by hand; the collector reads every
+    enabled source on its own schedule, merges the same role from several boards into one posting,
+    closes postings only on a reliable signal and keeps source health visible, so a broken source is
+    never silent (spec §1). This API is the web app's window onto that work: whether any source has
+    a problem (the main-screen marker), the source-health screen with the run in progress, and
+    collect-now. Postings themselves are browsed from roadmap step 3; settings live only in the
+    owner's local settings file, so there is no settings endpoint.
+
+    Access (ADR-0007): no accounts. The server listens on 127.0.0.1 only; a request whose `Host` is
+    not `127.0.0.1` or `localhost` on the configured port is rejected; a state-changing request must
+    carry a JSON body and is rejected when `Sec-Fetch-Site` is `cross-site`; no CORS headers are sent.
+    Errors use the repo's single envelope `{ "error": { "code", "message" } }` (core/errors.ts).
+    Times are ISO 8601 UTC strings, converted from the stored epoch milliseconds.
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+
+# No authentication scheme: access is limited by the network boundary (ADR-0007), not by credentials.
+security: []
+
+tags:
+  - name: collector
+    description: Source health, problem marker and collect-now
+
+paths:
+  /api/v1/collector/problems:
+    get:
+      tags: [collector]
+      summary: Whether any source has a problem that can cost the owner postings
+      description: |
+        Drives the problem marker on the main screen (SCR-01, AC-13 note). Lists every raised
+        problem that shows the marker — failing, silent, overdue, held-back closures, unusual
+        unknown-location share, unreadable settings file. Category warnings and "defaults in use"
+        show only in source health and are not listed here. Overdue is computed at read time
+        (sad.md §6 Flow 10).
+      operationId: getCollectorProblems
+      responses:
+        "200":
+          description: Problem summary
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ProblemSummary" }
+              examples:
+                problem:
+                  summary: One source failing
+                  value:
+                    has_problem: true
+                    problems:
+                      - source_id: remotive
+                        kind: failing
+                none:
+                  summary: Nothing to show
+                  value:
+                    has_problem: false
+                    problems: []
+        "403": { $ref: "#/components/responses/ForbiddenHost" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/collector/source-health:
+    get:
+      tags: [collector]
+      summary: Source health — per-source state, settings notices and the current run
+      description: |
+        Everything SCR-02 shows (AC-12): per source when it last succeeded, what its last run added,
+        updated, closed and held, when it is next due, its flags with plain-language reasons, its
+        first-fill progress and its reads in the rolling windows; the settings notice or problem; the
+        run in progress and the latest finished or interrupted run. The web app polls this every 2 s
+        while `current_run` is not null (ADR-0002, sad.md §6 Flow 2).
+      operationId: getSourceHealth
+      responses:
+        "200":
+          description: Source health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SourceHealth" }
+              examples:
+                collected:
+                  summary: After runs have finished, one source flagged, a run in progress
+                  value:
+                    any_run_finished: true
+                    settings:
+                      notice: null
+                      problem: null
+                      problem_since: null
+                    current_run:
+                      id: 01920f3a-7b2c-7d4e-8f00-0000000000a1
+                      trigger: collect_now
+                      status: running
+                      started_at: "2026-10-02T09:00:00Z"
+                      finished_at: null
+                      sources:
+                        - source_id: jobicy
+                          outcome: complete
+                          failure_reason: null
+                          counts: { added: 4, updated: 1, closed: 0, held: 0, no_category: 2 }
+                          fetch_finished_at: "2026-10-02T09:00:04Z"
+                        - source_id: remotive
+                          outcome: pending
+                          failure_reason: null
+                          counts: { added: 0, updated: 0, closed: 0, held: 0, no_category: 0 }
+                          fetch_finished_at: null
+                    last_run: null
+                    sources:
+                      - source_id: remotive
+                        state: enabled
+                        last_success_at: "2026-10-01T18:00:00Z"
+                        next_due_at: "2026-10-02T09:00:00Z"
+                        last_outcome:
+                          source_id: remotive
+                          outcome: failed
+                          failure_reason: The source did not answer within 30 seconds.
+                          counts: { added: 0, updated: 0, closed: 0, held: 0, no_category: 0 }
+                          fetch_finished_at: null
+                        flags:
+                          - kind: failing
+                            reason: Failed on the last 2 due runs - the source did not answer within 30 seconds.
+                            raised_at: "2026-10-02T06:00:10Z"
+                            raises_marker: true
+                        fill: { status: complete, reached_at: "2026-09-02T00:00:00Z", next_part_due_at: null, completed_at: "2026-09-30T12:00:00Z" }
+                        reads: { last_60_min: 0, last_24_h: 3 }
+                        freshness: { p90_minutes: 1500, sample_size: 212, without_publication_time: 0 }
+                      - source_id: weworkremotely
+                        state: disabled
+                        last_success_at: null
+                        next_due_at: null
+                        last_outcome: null
+                        flags: []
+                        fill: { status: pending, reached_at: null, next_part_due_at: null, completed_at: null }
+                        reads: { last_60_min: 0, last_24_h: 0 }
+                        freshness: { p90_minutes: null, sample_size: 0, without_publication_time: 0 }
+                nothing_yet:
+                  summary: No run has finished yet
+                  value:
+                    any_run_finished: false
+                    settings:
+                      notice: defaults_in_use
+                      problem: null
+                      problem_since: null
+                    current_run: null
+                    last_run: null
+                    sources:
+                      - source_id: jobicy
+                        state: enabled
+                        last_success_at: null
+                        next_due_at: "2026-10-02T09:01:00Z"
+                        last_outcome: null
+                        flags: []
+                        fill: { status: pending, reached_at: null, next_part_due_at: null, completed_at: null }
+                        reads: { last_60_min: 0, last_24_h: 0 }
+                        freshness: { p90_minutes: null, sample_size: 0, without_publication_time: 0 }
+        "403": { $ref: "#/components/responses/ForbiddenHost" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/collector/runs:
+    post:
+      tags: [collector]
+      summary: Collect now
+      description: |
+        Starts a collection run for every enabled source whose interval has passed since its last
+        read (AC-15). Repeated presses can never exceed a source's allowed rate (AC-02): if no
+        enabled source may be read yet, no run starts and the answer lists when each source is next
+        due (200, `started: false`). If a run is already in progress, no second run starts (409,
+        AC-16). The run continues after the response; follow it through `getSourceHealth`.
+
+        No `Idempotency-Key`: the operation is safe to repeat by construction — at most one run is
+        in progress (unique index `collector_runs_one_running_uq`) and due-ness is checked against
+        the request ledger, so a retried press either joins nothing or gets 409.
+
+        The body must be the empty JSON object `{}` — required so that browsers send a CORS
+        preflight for cross-site attempts, which the server never approves (ADR-0007).
+      operationId: collectNow
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CollectNowRequest" }
+            example: {}
+      responses:
+        "202":
+          description: A run started for the sources that may be read now
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CollectNowResult" }
+              example:
+                started: true
+                run:
+                  id: 01920f3a-7b2c-7d4e-8f00-0000000000a1
+                  trigger: collect_now
+                  status: running
+                  started_at: "2026-10-02T09:00:00Z"
+                  finished_at: null
+                  sources:
+                    - source_id: jobicy
+                      outcome: pending
+                      failure_reason: null
+                      counts: { added: 0, updated: 0, closed: 0, held: 0, no_category: 0 }
+                      fetch_finished_at: null
+                next_due:
+                  - { source_id: jobicy, state: enabled, next_due_at: null }
+                  - { source_id: himalayas, state: enabled, next_due_at: "2026-10-02T12:00:00Z" }
+                  - { source_id: remotive, state: enabled, next_due_at: "2026-10-02T14:00:00Z" }
+                  - { source_id: weworkremotely, state: disabled, next_due_at: null }
+        "200":
+          description: No enabled source may be read yet — no run started (AC-15)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CollectNowResult" }
+              example:
+                started: false
+                run: null
+                next_due:
+                  - { source_id: jobicy, state: enabled, next_due_at: "2026-10-02T09:41:00Z" }
+                  - { source_id: himalayas, state: enabled, next_due_at: "2026-10-02T12:00:00Z" }
+                  - { source_id: remotive, state: enabled, next_due_at: "2026-10-02T14:00:00Z" }
+                  - { source_id: weworkremotely, state: not_verified, next_due_at: null }
+        "400":
+          description: The body is not the empty JSON object
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              example:
+                error: { code: VALIDATION_ERROR, message: "body must NOT have additional properties" }
+        "403":
+          description: Foreign Host header or a cross-site request (ADR-0007)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              examples:
+                host:
+                  value:
+                    error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+                cross_site:
+                  value:
+                    error: { code: CROSS_SITE_REQUEST, message: "Cross-site requests are not accepted." }
+        "409":
+          description: A run is already in progress — no second run (AC-16)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              example:
+                error: { code: COLLECTOR_RUN_IN_PROGRESS, message: "A collection run is already in progress." }
+        "415":
+          description: The request has no JSON body (ADR-0007 requires one)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              example:
+                error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
+        "500": { $ref: "#/components/responses/Internal" }
+
+components:
+  responses:
+    ForbiddenHost:
+      description: The Host header is not 127.0.0.1 or localhost on the configured port (ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+    Internal:
+      description: Unexpected server error — the web app shows its inline error banner (sad.md §6 Flow 10)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: INTERNAL, message: "Internal server error" }
+
+  schemas:
+    # Repo envelope (apps/server/src/core/errors.ts) — deviation from the flat {code, message, details?} default.
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Z][A-Z0-9_]*$"
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (COLLECTOR_...)
+            message:
+              type: string
+
+    Timestamp:
+      type: string
+      format: date-time
+      description: ISO 8601 UTC, converted from a stored epoch-milliseconds column
+
+    SourceId:
+      type: string
+      enum: [jobicy, himalayas, remotive, weworkremotely]
+      description: collector_sources.id — the source code from the adapter registry
+
+    SourceState:
+      type: string
+      enum: [enabled, disabled, not_verified]
+      description: |
+        From the settings in force (file or last valid copy) and the adapter registry.
+        `not_verified` = enabled by the owner while its allowed rate is 0 — "enabled, not read until
+        its limits are verified", never flagged silent (AC-27).
+
+    FlagKind:
+      type: string
+      enum: [failing, silent, overdue, held_back, unknown_location, category_unmatched]
+
+    SourceFlag:
+      type: object
+      required: [kind, reason, raised_at, raises_marker]
+      additionalProperties: false
+      properties:
+        kind: { $ref: "#/components/schemas/FlagKind" }
+        reason:
+          type: string
+          description: Plain-language reason; names the number for held_back and unknown_location (AC-14, AC-25)
+        raised_at:
+          type: [string, "null"]
+          format: date-time
+          description: collector_source_flags.raised_at; null for overdue, which is computed at read time
+        raises_marker:
+          type: boolean
+          description: false only for category_unmatched (AC-13 note)
+
+    RunCounts:
+      type: object
+      required: [added, updated, closed, held, no_category]
+      additionalProperties: false
+      description: Per posting outcome, credited to the source that caused it (AC-12 note)
+      properties:
+        added: { type: integer, minimum: 0 }
+        updated: { type: integer, minimum: 0 }
+        closed: { type: integer, minimum: 0 }
+        held: { type: integer, minimum: 0 }
+        no_category: { type: integer, minimum: 0 }
+
+    RunSourceOutcome:
+      type: object
+      required: [source_id, outcome, failure_reason, counts, fetch_finished_at]
+      additionalProperties: false
+      properties:
+        source_id: { $ref: "#/components/schemas/SourceId" }
+        outcome:
+          type: string
+          enum: [pending, complete, capped, partial, failed]
+          description: pending = not read yet in this run, or left so by an interrupted run
+        failure_reason:
+          type: [string, "null"]
+          description: Plain-language reason when outcome is failed (AC-03)
+        counts: { $ref: "#/components/schemas/RunCounts" }
+        fetch_finished_at:
+          type: [string, "null"]
+          format: date-time
+
+    Run:
+      type: object
+      required: [id, trigger, status, started_at, finished_at, sources]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        trigger:
+          type: string
+          enum: [schedule, catch_up, collect_now]
+        status:
+          type: string
+          enum: [running, finished, incomplete]
+          description: incomplete = interrupted, nothing closed on its basis (AC-20)
+        started_at: { $ref: "#/components/schemas/Timestamp" }
+        finished_at:
+          type: [string, "null"]
+          format: date-time
+        sources:
+          type: array
+          description: One entry per source on the run's due list
+          items: { $ref: "#/components/schemas/RunSourceOutcome" }
+
+    FillState:
+      type: object
+      required: [status, reached_at, next_part_due_at, completed_at]
+      additionalProperties: false
+      description: First 30-day fill (AC-19, sad.md §6 Flow 8)
+      properties:
+        status:
+          type: string
+          enum: [pending, continuing, complete]
+        reached_at:
+          type: [string, "null"]
+          format: date-time
+          description: Oldest publication time the fill has reached
+        next_part_due_at:
+          type: [string, "null"]
+          format: date-time
+        completed_at:
+          type: [string, "null"]
+          format: date-time
+
+    ReadCounts:
+      type: object
+      required: [last_60_min, last_24_h]
+      additionalProperties: false
+      description: Reads in the rolling windows, pages and failed requests included (spec §6 Source request rate)
+      properties:
+        last_60_min: { type: integer, minimum: 0 }
+        last_24_h: { type: integer, minimum: 0 }
+
+    Freshness:
+      type: object
+      required: [p90_minutes, sample_size, without_publication_time]
+      additionalProperties: false
+      description: |
+        Publication-to-collection time per listing, p90 (spec §6 Freshness). The sample excludes
+        first-fill listings, listings published while the app was not running, and listings with no
+        publication time — those are counted in without_publication_time.
+      properties:
+        p90_minutes:
+          type: [integer, "null"]
+          minimum: 0
+          description: null while the sample is empty
+        sample_size: { type: integer, minimum: 0 }
+        without_publication_time: { type: integer, minimum: 0 }
+
+    SourceHealthRow:
+      type: object
+      required: [source_id, state, last_success_at, next_due_at, last_outcome, flags, fill, reads, freshness]
+      additionalProperties: false
+      properties:
+        source_id: { $ref: "#/components/schemas/SourceId" }
+        state: { $ref: "#/components/schemas/SourceState" }
+        last_success_at:
+          type: [string, "null"]
+          format: date-time
+        next_due_at:
+          type: [string, "null"]
+          format: date-time
+          description: null when the source is disabled or not_verified (AC-02, AC-26, AC-27)
+        last_outcome:
+          description: The source's outcome in the latest run that read it (AC-12)
+          oneOf:
+            - { $ref: "#/components/schemas/RunSourceOutcome" }
+            - type: "null"
+        flags:
+          type: array
+          items: { $ref: "#/components/schemas/SourceFlag" }
+        fill: { $ref: "#/components/schemas/FillState" }
+        reads: { $ref: "#/components/schemas/ReadCounts" }
+        freshness: { $ref: "#/components/schemas/Freshness" }
+
+    SettingsStatus:
+      type: object
+      required: [notice, problem, problem_since]
+      additionalProperties: false
+      description: What the app made of the settings file (AC-27)
+      properties:
+        notice:
+          type: [string, "null"]
+          enum: [defaults_in_use, null]
+          description: Shown in source health only, no marker
+        problem:
+          type: [string, "null"]
+          description: Plain-language reason the file is unreadable; collection runs on the last valid settings
+        problem_since:
+          type: [string, "null"]
+          format: date-time
+
+    SourceHealth:
+      type: object
+      required: [any_run_finished, settings, current_run, last_run, sources]
+      additionalProperties: false
+      properties:
+        any_run_finished:
+          type: boolean
+          description: false → "nothing collected yet" state of SCR-02
+        settings: { $ref: "#/components/schemas/SettingsStatus" }
+        current_run:
+          description: The run in progress; poll while not null
+          oneOf:
+            - { $ref: "#/components/schemas/Run" }
+            - type: "null"
+        last_run:
+          description: The latest finished or interrupted run (an interrupted one shows as incomplete, AC-20)
+          oneOf:
+            - { $ref: "#/components/schemas/Run" }
+            - type: "null"
+        sources:
+          type: array
+          description: One row per source in the adapter registry, in a fixed order
+          items: { $ref: "#/components/schemas/SourceHealthRow" }
+
+    ProblemKind:
+      type: string
+      enum: [failing, silent, overdue, held_back, unknown_location, settings_unreadable]
+
+    ProblemSummary:
+      type: object
+      required: [has_problem, problems]
+      additionalProperties: false
+      properties:
+        has_problem: { type: boolean }
+        problems:
+          type: array
+          items:
+            type: object
+            required: [source_id, kind]
+            additionalProperties: false
+            properties:
+              source_id:
+                description: null for settings_unreadable, which belongs to no source
+                oneOf:
+                  - { $ref: "#/components/schemas/SourceId" }
+                  - type: "null"
+              kind: { $ref: "#/components/schemas/ProblemKind" }
+
+    CollectNowRequest:
+      type: object
+      additionalProperties: false
+      maxProperties: 0
+      description: Always the empty object {} (ADR-0007)
+
+    NextDue:
+      type: object
+      required: [source_id, state, next_due_at]
+      additionalProperties: false
+      properties:
+        source_id: { $ref: "#/components/schemas/SourceId" }
+        state: { $ref: "#/components/schemas/SourceState" }
+        next_due_at:
+          type: [string, "null"]
+          format: date-time
+          description: null when the source is read in this run, disabled or not_verified
+
+    CollectNowResult:
+      type: object
+      required: [started, run, next_due]
+      additionalProperties: false
+      properties:
+        started: { type: boolean }
+        run:
+          description: The started run; null when started is false
+          oneOf:
+            - { $ref: "#/components/schemas/Run" }
+            - type: "null"
+        next_due:
+          type: array
+          items: { $ref: "#/components/schemas/NextDue" }
