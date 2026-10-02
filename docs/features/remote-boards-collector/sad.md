@@ -187,31 +187,97 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- 🎯 Why: the RUNTIME FLOW of 1–2 critical scenarios — who talks to whom, when, in what order.
-     Without §6, §5 is just boxes with no life.
-     📋 Write: a Mermaid sequenceDiagram. Participants are names from §5 (don't invent new ones).
-     Messages are semantic («saves a draft»), NO HTTP verbs / paths / status codes — endpoint-level
-     sequences arrive at the `api` stage.
-     📌 e.g. «author → web: composes draft → web → content API: save». Seed the primary flow(s) here;
-     the `sequences` stage then covers every §5 AC (no cap). Never N/A for M+; XS/S keeps ≥1 happy-path flow. -->
+Participants are the §5 containers. Messages are semantic — endpoint shapes arrive at the `api` stage. design seeds the three critical flows below; the `sequences` stage covers every remaining §5 AC.
 
-**Critical flow 1: <flow name>**
+**Run phases.** A collection run has two phases. *Ingest* — per due source, in turn: record the read in the ledger, fetch, then in one transaction store or update its listings, merge them into postings, record the source's outcome and, when the fetch finished, its last success; this is kept even if the run is later interrupted (AC-20). *Finalize* — after every due source is done: apply the listing closures each source's verdict allows (ADR-0004), hold back a source's closures when they exceed 30% of its open postings (AC-14), close postings whose every listing is closed (AC-07, AC-09), compute health flags (AC-13, AC-25) and mark the run finished. An interrupted run never reaches finalize, so nothing is closed on its basis.
+
+**Critical flow 1: scheduled collection run (happy path + one source failing)**
 
 ```mermaid
 sequenceDiagram
-    actor Actor
-    participant Web
-    participant Service
-    participant Store
-    Actor->>Web: <action>
-    Web->>Service: <call>
-    Service->>Store: <write>
-    Store-->>Service: ok
-    Service-->>Web: result
-    Web-->>Actor: confirmation
+    participant Runner as Collection runner
+    participant Settings as Settings file
+    participant DB as Local database
+    participant Adapter as Source adapters
+    participant Src as Job sources
+    Runner->>DB: which enabled sources are due, is a run in progress
+    DB-->>Runner: Jobicy due, no run in progress
+    Runner->>Settings: read enabled sources and tech categories
+    Settings-->>Runner: valid settings
+    Runner->>DB: store as last valid settings, open run as running
+    loop each due source
+        Runner->>DB: record the read in the request ledger before sending
+        Runner->>Adapter: fetch within the source's read budget
+        Adapter->>Src: request listings
+        alt source answers
+            Src-->>Adapter: listings
+            Adapter-->>Runner: normalized listings, completeness, close signals
+            Runner->>DB: store listings, merge into postings, record last success
+        else source fails, refuses or returns unreadable data
+            Adapter-->>Runner: failed with a plain-language reason
+            Runner->>DB: record the failure for this source only
+        end
+    end
+    Runner->>DB: finalize - apply allowed closures, hold back above 30 percent, set flags
+    Runner->>DB: mark run finished
 ```
 
-**Critical flow 2: <e.g. async event propagation>** — <if applicable, otherwise N/A>.
+**Critical flow 2: collect-now from source health**
+
+```mermaid
+sequenceDiagram
+    actor Owner
+    participant Web as Web app
+    participant API as Collector API
+    participant Runner as Collection runner
+    participant DB as Local database
+    Owner->>Web: presses Collect now
+    Web->>API: start a collection
+    API->>Runner: collect now
+    Runner->>DB: is a run in progress, which enabled sources may be read now
+    alt a run is already in progress
+        Runner-->>API: already running
+        API-->>Web: a run is already in progress
+        Web-->>Owner: told in place, no second run
+    else no source may be read yet
+        Runner-->>API: nothing due, next due times
+        API-->>Web: no run started, next due per source
+        Web-->>Owner: sees when each source is next due
+    else at least one source may be read
+        Runner->>DB: open run as running
+        Runner-->>API: run started
+        API-->>Web: run started
+        loop every 2 s while the run is in progress
+            Web->>API: run status and source health
+            API->>DB: read run and per-source outcomes
+            DB-->>API: progress
+            API-->>Web: progress per source
+        end
+        Web-->>Owner: each source's outcome
+    end
+```
+
+**Critical flow 3: start-up after a pause or an interrupted run**
+
+```mermaid
+sequenceDiagram
+    participant API as Collector API
+    participant Runner as Collection runner
+    participant DB as Local database
+    API->>Runner: server ready, start the scheduler
+    Runner->>DB: any run still marked running
+    alt previous run was interrupted
+        DB-->>Runner: one run left running
+        Runner->>DB: mark it incomplete, no closures from it
+    else clean shutdown
+        DB-->>Runner: none
+    end
+    Runner->>DB: which enabled sources are due or never read
+    DB-->>Runner: due and never-read sources
+    Note over Runner: first due-check right after start, then every minute
+    Runner->>Runner: start a catch-up run within one minute
+    Note over API: the API keeps answering within 5 s while the run works
+```
 
 ## 7. Deployment view
 
