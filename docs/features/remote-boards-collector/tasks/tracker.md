@@ -12,7 +12,7 @@
 | T5 | [Define the adapter contract and normalize listings (plain text, location as stated, category filter)](./t05-domain-listing-normalize.md) | domain | Volodymyr Kozlov | M | — | done |
 | T6 | [Implement the match key and the merge decision](./t06-domain-merge.md) | domain | Volodymyr Kozlov | M | T5 | done |
 | T7 | [Implement listing closures per source verdict and the 30% hold-back](./t07-domain-closures.md) | domain | Volodymyr Kozlov | M | T5 | done |
-| T8 | [Implement the source health flags, overdue and the marker rule](./t08-domain-health-flags.md) | domain | Volodymyr Kozlov | M | T3 | todo |
+| T8 | [Implement the source health flags, overdue and the marker rule](./t08-domain-health-flags.md) | domain | Volodymyr Kozlov | M | T3 | done |
 | T9 | [Implement the retention clock and the once-a-day clean-up rule](./t09-domain-retention.md) | domain | Volodymyr Kozlov | S | — | done |
 | T10 | [Read, create and fall back on the settings file, persisting the last valid copy](./t10-infra-settings-file.md) | infra | Volodymyr Kozlov | M | T1, T4 | todo |
 | T11 | [Build the ledgered HTTP client and the Jobicy adapter](./t11-infra-http-and-jobicy.md) | infra | Volodymyr Kozlov | L | T1, T3, T5 | todo |
