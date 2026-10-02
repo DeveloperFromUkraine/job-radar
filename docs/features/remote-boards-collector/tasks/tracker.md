@@ -29,5 +29,15 @@
 | T22 | [Build the SCR-02 page states and settings / interrupted-run banners](./t22-ui-source-health-page.md) | ui | Volodymyr Kozlov | M | T21 | done |
 | T23 | [Build CollectNowAction and RunProgress with 2 s polling](./t23-ui-collect-now-and-progress.md) | ui | Volodymyr Kozlov | M | T22 | done |
 | T24 | [Prove limits, interruption and start-up end to end against a fake source server](./t24-tests-collection-integration.md) | tests | Volodymyr Kozlov | M | T12, T16, T17, T19 | done |
+| T25 | [Keep a failing run from staying running and a failing fill from faking a source failure](./t25-fix-run-pipeline-failures.md) | app | Volodymyr Kozlov | M | T24 | todo |
+| T26 | [Mark every fetched item as seen before the category filter](./t26-fix-presence-before-category-filter.md) | app | Volodymyr Kozlov | M | T25 | todo |
+| T27 | [Replace a same-source item only when the old one is gone and locations agree](./t27-fix-same-source-repost.md) | domain | Volodymyr Kozlov | M | T26 | todo |
+| T28 | [Clear each flag only on the evidence its AC names and ignore flags of sources that are not read](./t28-fix-flag-clearing.md) | domain | Volodymyr Kozlov | M | T27 | todo |
+| T29 | [Check owner categories against the published lists of Jobicy and Remotive](./t29-fix-published-category-lists.md) | domain | Volodymyr Kozlov | M | T28 | todo |
+| T30 | [Show a rate-limited fill as stopped and resume a fill from its saved cursor](./t30-fix-fill-stopped-and-cursor.md) | migration | Volodymyr Kozlov | M | T29 | todo |
+| T31 | [Move app-layer SQL into infra and keep id lists under SQLite's variable limit](./t31-fix-infra-hygiene.md) | infra | Volodymyr Kozlov | M | T30 | todo |
+| T32 | [Keep the heartbeat during long runs and abort in-flight reads on shutdown](./t32-fix-heartbeat-and-shutdown.md) | app | Volodymyr Kozlov | M | T31 | todo |
+| T33 | [Settings fallback in the contract, SCR-02 polling and the remaining screen fixes](./t33-fix-source-health-ui.md) | ui | Volodymyr Kozlov | M | T32 | todo |
+| T34 | [Record the review decisions in spec, SAD, ADR-0004 and screens](./t34-fix-review-docs.md) | docs | Volodymyr Kozlov | M | T33 | todo |
 
-**Total:** 24 tasks, ~23 person-days (S = ½ day, M/L = 1 day; L marks a full day).
+**Total:** 34 tasks (T25–T34 are review follow-ups, 2026-10-02).

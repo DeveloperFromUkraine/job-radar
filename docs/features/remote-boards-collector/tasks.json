@@ -491,6 +491,214 @@
         "apps/server/test/helpers/fake-sources.ts"
       ],
       "file": "docs/features/remote-boards-collector/tasks/t24-tests-collection-integration.md"
+    },
+    {
+      "id": "T25",
+      "title": "Keep a failing run from staying running and a failing fill from faking a source failure",
+      "layer": "app",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-08",
+        "AC-15",
+        "AC-16",
+        "AC-18",
+        "AC-19"
+      ],
+      "dod": "integration tests: a throwing finalize leaves the run incomplete and the next run starts; a throwing fill keeps one complete verdict, the outcome unchanged and no failing flag; a throwing ingest fails that source only",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/run-pipeline.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/test/collector-pipeline-failures.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t25-fix-run-pipeline-failures.md"
+    },
+    {
+      "id": "T26",
+      "title": "Mark every fetched item as seen before the category filter",
+      "layer": "app",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-23",
+        "AC-07",
+        "AC-14"
+      ],
+      "dod": "integration test: removing a category from settings closes nothing and raises no hold-back flag while the source still offers those items",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/ingest.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/test/collector-finalize.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t26-fix-presence-before-category-filter.md"
+    },
+    {
+      "id": "T27",
+      "title": "Replace a same-source item only when the old one is gone and locations agree",
+      "layer": "domain",
+      "deps": [
+        "T26"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-04",
+        "AC-12",
+        "AC-25"
+      ],
+      "dod": "unit + integration tests: two live same-title items with different stated locations stay two postings and stop flipping between runs; a real re-post (old item gone) still replaces",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/domain/merge.test.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/test/collector-ingest.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t27-fix-same-source-repost.md"
+    },
+    {
+      "id": "T28",
+      "title": "Clear each flag only on the evidence its AC names and ignore flags of sources that are not read",
+      "layer": "domain",
+      "deps": [
+        "T27"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-14",
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "tests: held_back clears only after a complete re-check, unknown_location only after a read with new listings, overdue measured from the last successful read with items, a rate-limited empty partial is not silent, flags of disabled / not-verified sources do not raise the marker",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/health.ts",
+        "apps/server/src/modules/collector/domain/health.test.ts",
+        "apps/server/src/modules/collector/app/source-health.ts",
+        "apps/server/src/modules/collector/app/finalize.ts",
+        "apps/server/src/modules/collector/infra/sources/types.ts",
+        "apps/server/test/collector-health-routes.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t28-fix-flag-clearing.md"
+    },
+    {
+      "id": "T29",
+      "title": "Check owner categories against the published lists of Jobicy and Remotive",
+      "layer": "domain",
+      "deps": [
+        "T28"
+      ],
+      "acs": [
+        "AC-24"
+      ],
+      "dod": "integration test: a category missing from Remotive's published list is flagged in the first run, without 7 days of history",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/sources.ts",
+        "apps/server/src/modules/collector/app/finalize.ts",
+        "apps/server/test/collector-finalize.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t29-fix-published-category-lists.md"
+    },
+    {
+      "id": "T30",
+      "title": "Show a rate-limited fill as stopped and resume a fill from its saved cursor",
+      "layer": "migration",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "tests: with no spare read the fill is recorded as limited with no next-part time; a later part resumes from the saved cursor; the fill NFR scenario pages a source that really pages",
+      "files_hint": [
+        "apps/server/src/modules/collector/infra/schema.ts",
+        "apps/server/drizzle/",
+        "apps/server/src/modules/collector/app/first-fill.ts",
+        "apps/server/test/collector-first-fill.integration.test.ts",
+        "apps/server/test/collector-e2e.integration.test.ts",
+        "apps/web/src/features/source-health/SourceCard.tsx"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t30-fix-fill-stopped-and-cursor.md"
+    },
+    {
+      "id": "T31",
+      "title": "Move app-layer SQL into infra and keep id lists under SQLite's variable limit",
+      "layer": "infra",
+      "deps": [
+        "T30"
+      ],
+      "acs": [],
+      "dod": "no drizzle query builders in app/; listings of open postings fetched by subquery; id lists chunked; a test closes and removes more ids than one chunk",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/cleanup.ts",
+        "apps/server/src/modules/collector/app/first-fill.ts",
+        "apps/server/src/modules/collector/infra/repo/"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t31-fix-infra-hygiene.md"
+    },
+    {
+      "id": "T32",
+      "title": "Keep the heartbeat during long runs and abort in-flight reads on shutdown",
+      "layer": "app",
+      "deps": [
+        "T31"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-20"
+      ],
+      "dod": "tests: heartbeat advances while a run is busy; closing the app aborts an in-flight slow read quickly and the run is incomplete at next start",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/scheduler.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/src/modules/collector/infra/http.ts",
+        "apps/server/src/modules/collector/app/first-fill.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t32-fix-heartbeat-and-shutdown.md"
+    },
+    {
+      "id": "T33",
+      "title": "Settings fallback in the contract, SCR-02 polling and the remaining screen fixes",
+      "layer": "ui",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-27",
+        "AC-12",
+        "AC-15",
+        "AC-16",
+        "AC-23",
+        "AC-24"
+      ],
+      "dod": "contract + component tests: running_on last_valid | defaults rendered; SCR-02 polls every 60 s when idle and 2 s during a run; Collect now disabled while loading; a 409 refreshes source health; notice badge tone; rounded-card token",
+      "files_hint": [
+        "docs/features/remote-boards-collector/contracts/openapi.yaml",
+        "docs/features/remote-boards-collector/contracts/api-sync-report.md",
+        "apps/server/src/modules/collector/app/source-health.ts",
+        "apps/web/src/"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t33-fix-source-health-ui.md"
+    },
+    {
+      "id": "T34",
+      "title": "Record the review decisions in spec, SAD, ADR-0004 and screens",
+      "layer": "docs",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-21",
+        "AC-22"
+      ],
+      "dod": "spec AC-22 note on Jobicy \"Anywhere\"; ADR-0004 addendum; sad §11 Himalayas search cannot filter by category with the risk re-rated; screens.md: stacked cards at every width and the 60 s idle refresh",
+      "files_hint": [
+        "docs/features/remote-boards-collector/spec.md",
+        "docs/features/remote-boards-collector/sad.md",
+        "docs/features/remote-boards-collector/adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md",
+        "docs/features/remote-boards-collector/screens.md"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t34-fix-review-docs.md"
     }
   ]
 }
