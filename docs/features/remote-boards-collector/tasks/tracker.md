@@ -16,7 +16,7 @@
 | T9 | [Implement the retention clock and the once-a-day clean-up rule](./t09-domain-retention.md) | domain | Volodymyr Kozlov | S | — | done |
 | T10 | [Read, create and fall back on the settings file, persisting the last valid copy](./t10-infra-settings-file.md) | infra | Volodymyr Kozlov | M | T1, T4 | done |
 | T11 | [Build the ledgered HTTP client and the Jobicy adapter](./t11-infra-http-and-jobicy.md) | infra | Volodymyr Kozlov | L | T1, T3, T5 | done |
-| T12 | [Verify spec §8 Q1/Q3, then build the Remotive, Himalayas and We Work Remotely adapters](./t12-infra-remaining-adapters.md) | infra | Volodymyr Kozlov | L | T11 | todo |
+| T12 | [Verify spec §8 Q1/Q3, then build the Remotive, Himalayas and We Work Remotely adapters](./t12-infra-remaining-adapters.md) | infra | Volodymyr Kozlov | L | T11 | done |
 | T13 | [Run the one-minute scheduler, start-up recovery and run opening](./t13-app-scheduler-and-run-start.md) | app | Volodymyr Kozlov | L | T1, T3, T4, T10 | todo |
 | T14 | [Ingest each due source and merge its listings in one transaction](./t14-app-ingest-and-merge.md) | app | Volodymyr Kozlov | L | T6, T11, T13 | todo |
 | T15 | [Finalize a run: apply closures, hold-back, flags and per-source counts](./t15-app-finalize.md) | app | Volodymyr Kozlov | L | T7, T8, T14 | todo |
