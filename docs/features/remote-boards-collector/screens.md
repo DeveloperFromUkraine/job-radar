@@ -236,11 +236,11 @@ Per-source state, settings notices, collect-now and the run in progress. Data: `
 
 | Component | Why no existing primitive fits | Registered in design-system |
 |---|---|---|
-| AppNav (shared, `components/`) | The inventory has only the App shell; two routes now need navigation (ADR-0002 router) | pending |
-| Button (shared) | No button primitive exists; the canon needs a disabled-with-spinner state for actions | pending |
-| InlineBanner (shared; variants error / warning / info) | The canon prescribes inline banners for errors and notices; nothing implements one yet | pending |
-| SkeletonRow (shared) | The canon prescribes skeleton rows for loading lists; nothing implements one yet | pending |
-| Badge (shared; tones enabled / problem / notice / disabled / not verified) | Short status labels on cards; no label primitive exists | pending |
+| AppNav (shared, `components/`) | The inventory has only the App shell; two routes now need navigation (ADR-0002 router) | done |
+| Button (shared) | No button primitive exists; the canon needs a disabled-with-spinner state for actions | done |
+| InlineBanner (shared; variants error / warning / info) | The canon prescribes inline banners for errors and notices; nothing implements one yet | done |
+| SkeletonRow (shared) | The canon prescribes skeleton rows for loading lists; nothing implements one yet | done |
+| Badge (shared; tones enabled / problem / notice / disabled / not verified) | Short status labels on cards; no label primitive exists | done |
 | ProblemMarker (feature: `features/source-health/`) | A danger-toned link block specific to this feature's marker rule; built from InlineBanner styling but owns its link and copy | pending |
 | SourceCard (feature) | One source's health — layout specific to source health; composes Badge and the flag list | pending |
 | RunProgress (feature) | Per-source outcome list of a run, polled; specific to this feature | pending |
