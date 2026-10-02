@@ -5,7 +5,7 @@
 
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
-| T1 | [Promote the collector schema: Drizzle schema.ts + generated migration 0001](./t01-collector-schema.md) | migration | Volodymyr Kozlov | M | — | todo |
+| T1 | [Promote the collector schema: Drizzle schema.ts + generated migration 0001](./t01-collector-schema.md) | migration | Volodymyr Kozlov | M | — | done |
 | T2 | [Enforce loopback-only, same-origin access in core and map Fastify 415](./t02-core-access-guard.md) | ports | Volodymyr Kozlov | M | — | todo |
 | T3 | [Model the source registry, due-ness and rolling-window rate limits](./t03-domain-source-schedule.md) | domain | Volodymyr Kozlov | M | — | todo |
 | T4 | [Define the settings schema, built-in defaults and per-source state](./t04-domain-settings.md) | domain | Volodymyr Kozlov | S | — | todo |
