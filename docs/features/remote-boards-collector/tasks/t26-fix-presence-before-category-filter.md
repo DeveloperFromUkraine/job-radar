@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/app/ingest.ts", "apps/server/src
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T26 — Mark every fetched item as seen before the category filter

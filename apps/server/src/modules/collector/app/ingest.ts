@@ -6,7 +6,7 @@ import { failureReasonText } from "../domain/health.js";
 import { filterByCategories, normalizeListing } from "../domain/listing.js";
 import { type SourceId, sourceById } from "../domain/sources.js";
 import { createSourceHttp } from "../infra/http.js";
-import { applyListing } from "../infra/repo/postings.js";
+import { applyListing, markSeen } from "../infra/repo/postings.js";
 import { updateRunSource } from "../infra/repo/runs.js";
 import { readSource, updateSource } from "../infra/repo/sources.js";
 import type { DbOrTx } from "../infra/repo/tx.js";
@@ -43,7 +43,10 @@ export async function normalizeAndFilter(
     for (const r of raw.slice(i, i + CHUNK)) normalized.push(normalizeListing(sourceId, r));
     await yieldToEventLoop();
   }
-  return filterByCategories(normalized, ownerCategories);
+  const { kept, noCategory } = filterByCategories(normalized, ownerCategories);
+  const keptIds = new Set(kept.map((l) => l.sourceItemId));
+  const dropped = normalized.filter((l) => !keptIds.has(l.sourceItemId)).map((l) => l.sourceItemId);
+  return { kept, noCategory, dropped };
 }
 
 /** Stores and merges kept listings; returns the per-posting counts for this source (AC-12, AC-25). */
@@ -89,7 +92,7 @@ export async function ingestSource(
     return verdict;
   }
 
-  const { kept, noCategory } = await normalizeAndFilter(
+  const { kept, noCategory, dropped } = await normalizeAndFilter(
     sourceId,
     fetched.listings,
     run.settings.sources[sourceId].categories,
@@ -98,6 +101,7 @@ export async function ingestSource(
   db.transaction((tx) => {
     // The first read of a never-read source starts its fill; later regular reads are regular (spec §6).
     const source = readSource(tx, sourceId);
+    markSeen(tx, sourceId, dropped, { runId: run.runId, now });
     const counts = storeListings(tx, kept, {
       runId: run.runId,
       now,

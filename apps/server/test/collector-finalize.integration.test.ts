@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
@@ -8,6 +8,7 @@ import { finalizeRun } from "../src/modules/collector/app/finalize.js";
 import { type FetchVerdict, ingestSource } from "../src/modules/collector/app/ingest.js";
 import { openRun } from "../src/modules/collector/app/open-run.js";
 import { startUp } from "../src/modules/collector/app/startup.js";
+import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
 import { type FakeSources, json, startFakeSources } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
@@ -184,5 +185,27 @@ describe("finalize a run (Flow 7)", () => {
     const verdicts = [];
     for (const s of run.due) verdicts.push(await ingestSource(deps, run, s));
     expect(finalizeRun(deps, run, verdicts)).toEqual({ cleanupDay: "2026-10-02" });
+  });
+  it("keeps postings open when the owner removes their category while the source still offers them (AC-23)", async () => {
+    const ten = Array.from({ length: 10 }, (_, i) => i + 1);
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([])));
+    fake.route("/api/remote-jobs", json(remotivePage(ten)));
+    await fullRun(T0);
+    writeFileSync(
+      deps.settingsFile,
+      JSON.stringify({
+        sources: { ...DEFAULT_SETTINGS.sources, remotive: { enabled: true, categories: ["Devops"] } },
+      }),
+    );
+
+    await fullRun(T0 + 6 * HOUR);
+
+    expect(rows("select count(*) as n from collector_postings where status = 'open'")).toEqual([{ n: 10 }]);
+    expect(rows("select count(*) as n from collector_listings where status = 'open'")).toEqual([{ n: 10 }]);
+    expect(rows("select kind from collector_source_flags where source_id = 'remotive'")).toEqual([]);
+    // Still offered but no longer in the owner's categories: they age out as usual (no new offer time).
+    expect(rows("select distinct last_offered_at from collector_postings")).toEqual([
+      { last_offered_at: T0 },
+    ]);
   });
 });

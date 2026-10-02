@@ -269,3 +269,24 @@ export function removePostings(db: DbOrTx, ids: readonly string[]): void {
     .where(inArray(postings.id, [...ids]))
     .run();
 }
+
+/**
+ * Known items the fetch returned but the category filter dropped: still offered by the source, so
+ * they are seen in this run and never "absent" (AC-23, AC-07). Their offer time is not renewed —
+ * postings outside the owner's categories age out as usual.
+ */
+export function markSeen(
+  db: DbOrTx,
+  sourceId: SourceId,
+  sourceItemIds: readonly string[],
+  ctx: { runId: string; now: number },
+): void {
+  for (let i = 0; i < sourceItemIds.length; i += 500) {
+    db.update(listings)
+      .set({ lastSeenAt: ctx.now, lastSeenRunId: ctx.runId })
+      .where(
+        and(eq(listings.sourceId, sourceId), inArray(listings.sourceItemId, sourceItemIds.slice(i, i + 500))),
+      )
+      .run();
+  }
+}

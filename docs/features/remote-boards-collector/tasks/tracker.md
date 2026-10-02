@@ -30,7 +30,7 @@
 | T23 | [Build CollectNowAction and RunProgress with 2 s polling](./t23-ui-collect-now-and-progress.md) | ui | Volodymyr Kozlov | M | T22 | done |
 | T24 | [Prove limits, interruption and start-up end to end against a fake source server](./t24-tests-collection-integration.md) | tests | Volodymyr Kozlov | M | T12, T16, T17, T19 | done |
 | T25 | [Keep a failing run from staying running and a failing fill from faking a source failure](./t25-fix-run-pipeline-failures.md) | app | Volodymyr Kozlov | M | T24 | done |
-| T26 | [Mark every fetched item as seen before the category filter](./t26-fix-presence-before-category-filter.md) | app | Volodymyr Kozlov | M | T25 | todo |
+| T26 | [Mark every fetched item as seen before the category filter](./t26-fix-presence-before-category-filter.md) | app | Volodymyr Kozlov | M | T25 | done |
 | T27 | [Replace a same-source item only when the old one is gone and locations agree](./t27-fix-same-source-repost.md) | domain | Volodymyr Kozlov | M | T26 | todo |
 | T28 | [Clear each flag only on the evidence its AC names and ignore flags of sources that are not read](./t28-fix-flag-clearing.md) | domain | Volodymyr Kozlov | M | T27 | todo |
 | T29 | [Check owner categories against the published lists of Jobicy and Remotive](./t29-fix-published-category-lists.md) | domain | Volodymyr Kozlov | M | T28 | todo |
