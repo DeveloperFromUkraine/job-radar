@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/domain/health.ts", "apps/server/
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T28 — Clear each flag only on the evidence its AC names and ignore flags of sources that are not read

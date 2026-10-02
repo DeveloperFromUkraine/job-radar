@@ -190,4 +190,35 @@ describe("collector read routes (Flow 10)", () => {
     expectContract("getSourceHealth", 200, contractExample("getSourceHealth", 200, "collected"));
     expectContract("getCollectorProblems", 200, contractExample("getCollectorProblems", 200, "problem"));
   });
+  it("measures overdue from the last successful read with items, not from a failed attempt (AC-13)", async () => {
+    exec(sql`insert into collector_runs (id, trigger, status, started_at, finished_at) values
+      ('01920000-0000-7000-8000-0000000000a1', 'schedule', 'finished', ${T0 - 4 * HOUR}, ${T0 - 4 * HOUR}),
+      ('01920000-0000-7000-8000-0000000000a2', 'schedule', 'finished', ${T0 - 30 * MIN}, ${T0 - 30 * MIN})`);
+    exec(sql`insert into collector_run_sources (run_id, source_id, outcome, failure_reason, items_returned, new_listings,
+        unknown_location_new, added, updated, closed, held, no_category, fetch_finished_at) values
+      ('01920000-0000-7000-8000-0000000000a1', 'jobicy', 'complete', null, 5, 0, 0, 0, 0, 0, 0, 0, ${T0 - 4 * HOUR}),
+      ('01920000-0000-7000-8000-0000000000a2', 'jobicy', 'failed', 'x', null, 0, 0, 0, 0, 0, 0, 0, null)`);
+    exec(sql`update collector_sources set last_read_at = ${T0 - 30 * MIN} where id = 'jobicy'`);
+    exec(sql`update collector_app_sessions set started_at = ${T0 - 5 * HOUR}, last_seen_at = ${T0}`);
+
+    expect((await get("problems", "getCollectorProblems")).json().problems).toContainEqual({
+      source_id: "jobicy",
+      kind: "overdue",
+    });
+  });
+
+  it("does not raise the marker for flags of a source that is no longer read (AC-26)", async () => {
+    writeFileSync(
+      deps.settingsFile,
+      JSON.stringify({ sources: { remotive: { enabled: false, categories: [] } } }),
+    );
+    openRun(deps, "schedule"); // the run start reads the settings
+    exec(sql`insert into collector_source_flags (source_id, kind, reason, raised_at)
+      values ('remotive', 'failing', 'Failed on the last 2 due runs.', ${T0})`);
+
+    expect((await get("problems", "getCollectorProblems")).json()).toEqual({
+      has_problem: false,
+      problems: [],
+    });
+  });
 });

@@ -14,6 +14,7 @@ import {
   anyRunFinished,
   freshnessRows,
   lastOutcome,
+  lastReadWithItems,
   latestEndedRun,
   readsSince,
   runOutcomes,
@@ -37,15 +38,18 @@ function settingsInForce(deps: CollectorDeps): Settings {
   return parsed?.ok ? parsed.settings : DEFAULT_SETTINGS;
 }
 
+/** Overdue clears only after a successful read that returned items (AC-13), not after any attempt. */
 function overdueFor(
+  deps: CollectorDeps,
   source: SourceDefinition,
   row: SourceRow,
   state: SourceState,
   sessions: Session[],
   now: number,
 ) {
-  if (state !== "enabled" || row.lastReadAt === null) return null;
-  return overdueReason(row.lastReadAt, source.intervalMs, sessions, now);
+  const since = lastReadWithItems(deps.db, source.id) ?? row.lastReadAt;
+  if (state !== "enabled" || since === null) return null;
+  return overdueReason(since, source.intervalMs, sessions, now);
 }
 
 export function getProblems(deps: CollectorDeps) {
@@ -57,10 +61,12 @@ export function getProblems(deps: CollectorDeps) {
   for (const source of SOURCES) {
     const row = rows.find((r) => r.id === source.id);
     if (!row) continue;
-    for (const flag of readFlags(deps.db, source.id)) {
+    // A disabled or not-verified source is never read, so its old flags can never clear (AC-26).
+    const read = sourceState(settings, source) === "enabled";
+    for (const flag of read ? readFlags(deps.db, source.id) : []) {
       if (raisesMarker(flag.kind)) problems.push({ source_id: source.id, kind: flag.kind });
     }
-    if (overdueFor(source, row, sourceState(settings, source), sessions, now)) {
+    if (overdueFor(deps, source, row, sourceState(settings, source), sessions, now)) {
       problems.push({ source_id: source.id, kind: "overdue" });
     }
   }
@@ -126,7 +132,7 @@ export function getSourceHealth(deps: CollectorDeps) {
   const sources = SOURCES.map((source) => {
     const row = rows.find((r) => r.id === source.id) as SourceRow;
     const sourceStateNow = sourceState(settings, source);
-    const overdue = overdueFor(source, row, sourceStateNow, sessions, now);
+    const overdue = overdueFor(deps, source, row, sourceStateNow, sessions, now);
     const fresh = freshnessRows(db, source.id, now - 30 * DAY);
     const sample = fresh
       .filter((f): f is { publishedAt: number; firstCollectedAt: number } => f.publishedAt !== null)

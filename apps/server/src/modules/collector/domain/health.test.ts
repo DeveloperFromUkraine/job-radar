@@ -187,3 +187,36 @@ describe("plain-language failure reasons (AC-03)", () => {
     expect(failureReasonText(code)).toBe(text);
   });
 });
+
+describe("clearing only on the evidence each AC names (review A5, C4)", () => {
+  it("keeps held_back after a run that could not re-check closures", () => {
+    expect(
+      evaluateFlags(base({ recentOutcomes: [failed(), ok()], held: null, currentFlags: ["held_back"] }))
+        .cleared,
+    ).toEqual([]);
+    const partial = { ...ok(), outcome: "partial" as const };
+    expect(
+      evaluateFlags(base({ recentOutcomes: [partial], held: null, currentFlags: ["held_back"] })).cleared,
+    ).toEqual([]);
+  });
+
+  it("clears held_back after a complete re-check at or under 30%", () => {
+    expect(
+      evaluateFlags(base({ recentOutcomes: [ok()], held: null, currentFlags: ["held_back"] })).cleared,
+    ).toEqual(["held_back"]);
+  });
+
+  it("keeps unknown_location after a run with no new listings", () => {
+    expect(
+      evaluateFlags(base({ recentOutcomes: [failed()], currentFlags: ["unknown_location"] })).cleared,
+    ).not.toContain("unknown_location");
+    expect(
+      evaluateFlags(base({ recentOutcomes: [ok(5, 0)], currentFlags: ["unknown_location"] })).cleared,
+    ).not.toContain("unknown_location");
+  });
+
+  it("does not count a rate-limited empty read as silent", () => {
+    const limited = { ...ok(), outcome: "partial" as const, itemsReturned: null };
+    expect(kinds(base({ recentOutcomes: [limited, limited] }))).toEqual([]);
+  });
+});

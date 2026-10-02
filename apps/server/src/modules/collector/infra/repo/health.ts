@@ -62,3 +62,21 @@ export function freshnessRows(db: Db, sourceId: SourceId, since: number) {
     )
     .all();
 }
+
+/** When the source last answered a read with items — the evidence that clears overdue (AC-13). */
+export function lastReadWithItems(db: Db, sourceId: SourceId): number | null {
+  const row = db
+    .select({ at: runSources.fetchFinishedAt })
+    .from(runSources)
+    .where(
+      and(
+        eq(runSources.sourceId, sourceId),
+        inArray(runSources.outcome, ["complete", "capped", "partial"]),
+        gt(runSources.itemsReturned, 0),
+      ),
+    )
+    .orderBy(desc(runSources.runId))
+    .limit(1)
+    .get();
+  return row?.at ?? null;
+}

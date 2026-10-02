@@ -18,7 +18,8 @@ export interface SourceAdapter {
 /** The FetchResult for a request that did not return a usable body. */
 export function notOk(result: Exclude<HttpResult, { kind: "ok" }>): FetchResult {
   return result.kind === "limited"
-    ? { completeness: "partial", listings: [], itemsReturned: 0, coversPublishedAfter: null }
+    ? // Nothing was asked of the source: not "zero items", so never silent (AC-13, sad §8).
+      { completeness: "partial", listings: [], itemsReturned: null, coversPublishedAfter: null }
     : {
         completeness: "failed",
         listings: [],

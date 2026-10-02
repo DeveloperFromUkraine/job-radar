@@ -32,7 +32,7 @@
 | T25 | [Keep a failing run from staying running and a failing fill from faking a source failure](./t25-fix-run-pipeline-failures.md) | app | Volodymyr Kozlov | M | T24 | done |
 | T26 | [Mark every fetched item as seen before the category filter](./t26-fix-presence-before-category-filter.md) | app | Volodymyr Kozlov | M | T25 | done |
 | T27 | [Replace a same-source item only when the old one is gone and locations agree](./t27-fix-same-source-repost.md) | domain | Volodymyr Kozlov | M | T26 | done |
-| T28 | [Clear each flag only on the evidence its AC names and ignore flags of sources that are not read](./t28-fix-flag-clearing.md) | domain | Volodymyr Kozlov | M | T27 | todo |
+| T28 | [Clear each flag only on the evidence its AC names and ignore flags of sources that are not read](./t28-fix-flag-clearing.md) | domain | Volodymyr Kozlov | M | T27 | done |
 | T29 | [Check owner categories against the published lists of Jobicy and Remotive](./t29-fix-published-category-lists.md) | domain | Volodymyr Kozlov | M | T28 | todo |
 | T30 | [Show a rate-limited fill as stopped and resume a fill from its saved cursor](./t30-fix-fill-stopped-and-cursor.md) | migration | Volodymyr Kozlov | M | T29 | todo |
 | T31 | [Move app-layer SQL into infra and keep id lists under SQLite's variable limit](./t31-fix-infra-hygiene.md) | infra | Volodymyr Kozlov | M | T30 | todo |

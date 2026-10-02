@@ -75,7 +75,8 @@ export function evaluateFlags(input: FlagInput): { raised: FlagDraft[]; cleared:
     input.held
       ? `Would close ${pct(input.held.held / input.held.open)} of its ${input.held.open} open postings - ${input.held.held} closures held back.`
       : null,
-    true,
+    // Only a fetch that could re-check the held closures settles them.
+    latest?.outcome === "complete" || latest?.outcome === "capped",
   );
 
   // unknown location share (AC-25).
@@ -97,7 +98,12 @@ export function evaluateFlags(input: FlagInput): { raised: FlagDraft[]; cleared:
       unknownReason = `${pct(share)} of new listings state no location restriction (usually ${pct(average)}).`;
     }
   }
-  settle("unknown_location", unknownReason, latest !== undefined);
+  // Back under the threshold only on evidence: a successful read with new listings.
+  settle(
+    "unknown_location",
+    unknownReason,
+    latest !== undefined && isSuccess(latest) && latest.newListings > 0,
+  );
 
   // category matched nothing (AC-24).
   const unmatched = input.ownerCategories.filter((c) =>
