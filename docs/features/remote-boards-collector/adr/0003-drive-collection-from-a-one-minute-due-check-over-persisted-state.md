@@ -27,12 +27,12 @@ Sources must be read on their own cadence (Jobicy 1 h, Remotive 6 h, Himalayas 6
 ## Considered options
 
 1. **One-minute due-check over persisted state** — a tick (every 60 s and once at start) computes due sources from a persisted request ledger and last-success times; a `collection_run` row in status `running` is the run lock.
-2. **One in-memory timer per source** — `setTimeout` to each source's next due time, limits counted in memory.
+2. **Persist only each source's last read time** — the same due-check, but the database keeps one "last read at" per source instead of a request ledger.
 3. **A persisted job-queue library** — a ready-made scheduler storing jobs in SQLite.
 
 ## Decision outcome
 
-**Chosen:** Option 1. Persisting every request before it is sent makes the rolling-window limit hold across sleep, crash and restart (option 2 forgets it on every restart); a due-check needs no special path for catch-up or sleep; a queue library (option 3) would still need our own rolling-window and one-run-for-all-sources rules on top of its own tables.
+**Chosen:** Option 1. Persisting every request before it is sent makes the rolling-window limit hold across sleep, crash and restart and counts pages and failed requests (option 2 cannot: one timestamp per source does not count a multi-page Himalayas fill or a failed request inside a rolling 24-hour window, spec §6); a due-check needs no special path for catch-up or sleep; a queue library (option 3) would still need our own rolling-window and one-run-for-all-sources rules on top of its own tables.
 
 ## Consequences
 

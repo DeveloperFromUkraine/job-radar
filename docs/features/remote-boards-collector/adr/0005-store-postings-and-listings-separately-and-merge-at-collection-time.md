@@ -27,11 +27,11 @@ The same role is often advertised on several sources and should reach the owner 
 ## Considered options
 
 1. **Two levels, merged at collection time** — `posting` and `listing` tables; a listing belongs to exactly one posting; the merge decision is made once at ingest and stored.
-2. **Listings only, merged at read time** — "posting" is a grouping computed by queries over listings.
+2. **One `posting` table, source copies in a JSON column** — each posting row holds an array of its sources' copies (name, link, text, publication time).
 
 ## Decision outcome
 
-**Chosen:** Option 1. A domain function computes a match key (company and title normalized per AC-04: case, punctuation, generic "remote" wording, legal suffixes) and attaches a new listing to an existing, not-removed posting with the same key whose latest offer is within 7 days of the listing's publication time — reopening it if closed (AC-11) — or creates a new posting. Listing identity is (source, source item id), so a re-seen item updates its own row. Option 2 has no stable id for marks and could split a marked posting when the rule changes, breaking AC-06/AC-21.
+**Chosen:** Option 1. A domain function computes a match key (company and title normalized per AC-04: case, punctuation, generic "remote" wording, legal suffixes) and attaches a new listing to an existing, not-removed posting with the same key whose latest offer is within 7 days of the listing's publication time — reopening it if closed (AC-11) — or creates a new posting. Listing identity is (source, source item id), so a re-seen item updates its own row. Option 2 keeps the stable id but makes per-listing state awkward — closure per source (AC-07, AC-09), the per-source item lookup on every fetch, and per-source counts in source health would all query inside JSON. (Merging at read time was not considered: AC-21 forbids re-deciding merges.)
 
 ## Consequences
 

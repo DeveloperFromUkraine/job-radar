@@ -26,7 +26,7 @@ Each source differs in shape, paging, freshness and what it can say about a list
 
 ## Considered options
 
-1. **One adapter contract + per-source signals, Jobicy closes inside its window** — Remotive: absent from a complete fetch of the same category; Himalayas: `expiryDate` passed; Jobicy: absent from an untruncated response (fewer items than requested) while its publication time is inside the 7-day window minus a 12-hour margin; We Work Remotely: none.
+1. **One adapter contract + per-source signals, Jobicy closes inside its window** — Remotive: one unfiltered request per run (categories filtered locally), absent from that complete fetch; Himalayas: `expiryDate` passed; Jobicy: absent from an untruncated response (fewer items than requested) while its publication time is inside the 7-day window minus a 12-hour margin; We Work Remotely: none.
 2. **One adapter contract + per-source signals, Jobicy never auto-closes** — as option 1 but Jobicy listings only age out.
 
 ## Decision outcome
@@ -35,7 +35,7 @@ Each source differs in shape, paging, freshness and what it can say about a list
 
 | Source | Completeness | Closing signal | Never closes on |
 |---|---|---|---|
-| Remotive | `complete` when every configured category request succeeded | listing absent from a complete fetch of a category it was listed in | failed or partial fetch |
+| Remotive | `complete` when the single unfiltered request succeeded — one read per run, inside ≤ 4 a day | listing absent from that complete fetch | failed or partial fetch |
 | Himalayas | `capped` (≤ 20 per request, ≤ 4 requests a day) | `expiryDate` in the past | absence |
 | Jobicy | `complete` within the window when the response has fewer items than requested, else `capped` | absent from a complete response and published after (now − 7 days + 12 h) | a listing older than the window; a capped response |
 | We Work Remotely | — (disabled) | none — ages out only (AC-10) | anything |

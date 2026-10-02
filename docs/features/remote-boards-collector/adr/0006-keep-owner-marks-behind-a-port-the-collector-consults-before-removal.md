@@ -26,11 +26,11 @@ Applied/skipped marks are introduced by roadmap step 6 (tracking module), yet th
 ## Considered options
 
 1. **A `MarkedPostings` port owned by the collector** — "which of these posting ids carry a mark?"; default implementation answers none; tracking implements it in step 6 with its own table referencing `posting`.
-2. **Mark columns on the collector's `posting` table now** — tracking later writes into the collector's table.
+2. **Never delete postings — hide them instead** — retention marks a posting as removed and hides it, so marks can never be lost and the collector needs no knowledge of them. (Mark columns on the collector's table were not considered: project ADR-0002 keeps each module's data in its own `infra`.)
 
 ## Decision outcome
 
-**Chosen:** Option 1. The collector keeps posting ids stable through merge, close and reopen (ADR-0005), consults the port before removing anything, and never reads or writes marks itself. In step 6 the tracking module provides the implementation through its `app` exports and its marks table references `posting` with delete restricted, so the database also refuses to remove a marked posting.
+**Chosen:** Option 1. Option 2 breaks the retention bound — spec §6 requires unmarked postings to be removed, and the database would grow without limit. The collector keeps posting ids stable through merge, close and reopen (ADR-0005), consults the port before removing anything, and never reads or writes marks itself. In step 6 the tracking module provides the implementation through its `app` exports and its marks table references `posting` with delete restricted, so the database also refuses to remove a marked posting.
 
 ## Consequences
 
