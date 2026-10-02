@@ -20,7 +20,8 @@ export async function continueFill(
   deps: CollectorDeps,
   run: Pick<StartedRun, "runId" | "settings">,
   verdict: FetchVerdict,
-  source: SourceDefinition = sourceById(verdict.sourceId),
+  source: SourceDefinition = deps.sources?.find((s) => s.id === verdict.sourceId) ??
+    sourceById(verdict.sourceId),
 ): Promise<void> {
   const { db } = deps;
   const id = verdict.sourceId;
@@ -58,8 +59,9 @@ export async function continueFill(
       });
     if (!fillReadAllowed(source, reads, now)) return continueLater();
 
-    const page = await adapter.fetchOlder({ http, now }, cursor);
-    if (page.completeness === "failed" || page.completeness === "partial") return continueLater();
+    // A refused or throwing page ends this part of the fill; it is never a source failure (Flow 8).
+    const page = await adapter.fetchOlder({ http, now }, cursor).catch(() => null);
+    if (!page || page.completeness === "failed" || page.completeness === "partial") return continueLater();
 
     const { kept, noCategory } = await normalizeAndFilter(
       id,

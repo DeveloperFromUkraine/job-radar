@@ -14,6 +14,13 @@ export function runningRun(db: Db): RunRow | null {
 }
 
 /** An interrupted run is recorded as incomplete; nothing is closed on its basis (AC-20). */
+export function markRunIncomplete(db: Db, runId: string): void {
+  db.update(runs)
+    .set({ status: "incomplete" })
+    .where(and(eq(runs.id, runId), eq(runs.status, "running")))
+    .run();
+}
+
 export function markRunningIncomplete(db: Db): void {
   db.update(runs).set({ status: "incomplete" }).where(eq(runs.status, "running")).run();
 }

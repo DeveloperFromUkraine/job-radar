@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/app/run-pipeline.ts", "apps/serv
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T25 — Keep a failing run from staying running and a failing fill from faking a source failure
