@@ -65,37 +65,46 @@ target_surfaces: []  # filled in §4 — subset of: backend-service | web-fronte
 
 ## 3. Context and scope
 
-<!-- 🎯 Why: draws the SYSTEM BOUNDARY — who talks to it from outside, where the trust zone ends.
-     Without §3, §5 and §8 (authorization) blur — unclear what's «inside» vs «outside».
-     📋 Write: 2–3 sentences of business context + an external-systems table + a C4Context block.
-     📌 «External: none (deliberate, no third-party in v1)» is itself a decision worth stating.
-     Trust boundary — the line past which you don't trust data without checking it.
-     Never N/A — greenfield still draws the planned actors + external systems. -->
+The owner runs job-radar on their own laptop to find global remote tech roles. This feature adds the inbound edge of the system: job-radar reads public remote job boards on each board's allowed schedule, keeps one posting per role, and tells the owner — on a source-health screen and a main-screen marker — when a board misbehaves. Every byte that arrives from a board is untrusted input; the only human allowed in is the owner on the same machine.
 
-<Business context in 2–3 sentences. What the system does for whom.>
-
-<!-- brownfield: <one-line scan summary> (or «N/A — greenfield repo» if no source existed) -->
+<!-- brownfield: scaffold skeleton only (commit 2a6215c) — Fastify app with a reference `health` module, Drizzle + SQLite with an empty initial migration, temp-DB test helper, React placeholder `App.tsx`, Vite proxy `/api` → 127.0.0.1:3000; map `docs/architecture-map.md` (mode greenfield-bootstrap) describes the target. No collector code exists. -->
 
 **External systems (in / out):**
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <author role> | Person | <what they do> |
-| <external service> | System (internal/external) | <interaction> |
-| <identity provider> | System (external) | <provides auth tokens> |
+| Owner | Person | Opens the web app on their own machine: source health, collect-now, the main-screen problem marker; edits the local settings file outside the app |
+| Visitor | Person (external) | Anyone else on the network, the owner's phone included — cannot connect at all (AC-17) |
+| Jobicy | System (external) | Read at most once an hour over HTTPS (JSON); last 7 days only; freshness source |
+| Himalayas | System (external) | Read at most 4 times a day over HTTPS (JSON, 20 records per request); completeness + location data; `expiryDate` per job |
+| Remotive | System (external) | Read at most 4 times a day over HTTPS (JSON); all active listings per category, 24 h delayed |
+| We Work Remotely | System (external) | Disabled — 0 reads until spec §8 Q1 verifies its terms and limits |
+| Local settings file | Data input (owner's file system) | Enabled sources + tech categories per source; read by job-radar at the start of every run, never written except to create it with defaults (AC-27) |
 
-**C4 Context (L1):** <!-- syntax → references/c4-mermaid-syntax.md. Real names, no <placeholder> stubs. -->
+Trust boundary: the job-radar process on the owner's machine. Source responses cross it as untrusted content (size-capped, schema-checked, stored as plain text — §8); the browser crosses it only over the loopback interface.
+
+**C4 Context (L1):**
 
 ```mermaid
 C4Context
-    title <feature> — System Context
+    title remote-boards-collector — System Context
 
-    Person(actor, "<Actor role>", "<intent>")
-    System(app, "<Our system>", "<one-sentence description>")
-    System_Ext(ext, "<External system>", "<one-sentence description>")
+    Person(owner, "Owner", "Runs job-radar on their own machine to find global remote roles")
+    Person_Ext(visitor, "Visitor", "Anyone else on the network, the owner's phone included")
 
-    Rel(actor, app, "<interaction>", "<protocol>")
-    Rel(app, ext, "<interaction>", "<protocol>")
+    System(jobradar, "job-radar", "Collects postings from job sources, keeps one posting per role, shows source health")
+
+    System_Ext(jobicy, "Jobicy", "Remote job feed - hourly, last 7 days")
+    System_Ext(himalayas, "Himalayas", "Remote job feed - daily data, 20 per request")
+    System_Ext(remotive, "Remotive", "Remote job feed - all active listings, 24 h delayed")
+    System_Ext(wwr, "We Work Remotely", "Remote job feed - disabled until terms are verified")
+
+    Rel(owner, jobradar, "Views source health, starts collect-now, edits the settings file", "browser on loopback")
+    Rel(visitor, jobradar, "Cannot connect", "blocked")
+    Rel(jobradar, jobicy, "Reads listings at most hourly", "HTTPS JSON")
+    Rel(jobradar, himalayas, "Reads listings at most 4 a day", "HTTPS JSON")
+    Rel(jobradar, remotive, "Reads listings at most 4 a day", "HTTPS JSON")
+    Rel(jobradar, wwr, "Not read in v1", "none")
 ```
 
 ## 4. Solution strategy
