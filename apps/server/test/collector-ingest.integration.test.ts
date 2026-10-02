@@ -79,6 +79,7 @@ describe("ingest one due source (Flows 5 and 6)", () => {
       sourceId: "jobicy",
       completeness: "complete",
       coversPublishedAfter: expect.any(Number),
+      nextCursor: null,
     });
     expect(
       rows("select title, company, published_at, status from collector_postings order by title"),

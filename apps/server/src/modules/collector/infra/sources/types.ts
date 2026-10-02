@@ -11,6 +11,8 @@ export interface SourceAdapter {
   id: SourceId;
   /** The regular read: the newest listings within the source's read budget. */
   fetchLatest(ctx: FetchContext): Promise<FetchResult>;
+  /** The next older page, for sources that can page back in time (first fill). */
+  fetchOlder?(ctx: FetchContext, cursor: string): Promise<FetchResult>;
 }
 
 /** The FetchResult for a request that did not return a usable body. */

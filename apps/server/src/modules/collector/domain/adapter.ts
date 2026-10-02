@@ -45,5 +45,7 @@ export interface FetchResult {
   /** Items the source returned, before any filtering — zero twice in a row means silent (AC-13). */
   itemsReturned: number;
   coversPublishedAfter: number | null;
+  /** Where an older page starts, for sources that page back in time (first fill, AC-19). */
+  nextCursor?: string | null;
   failure?: { code: FailureCode; detail: string };
 }

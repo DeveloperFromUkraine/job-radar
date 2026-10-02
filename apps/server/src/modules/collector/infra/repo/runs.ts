@@ -90,3 +90,13 @@ export function recentOutcomes(db: DbOrTx, sourceId: SourceId, since: number) {
 export function finishRun(db: DbOrTx, runId: string, at: number): void {
   db.update(runs).set({ status: "finished", finishedAt: at }).where(eq(runs.id, runId)).run();
 }
+
+export function readRunSource(db: DbOrTx, runId: string, sourceId: SourceId): RunSourceRow | null {
+  return (
+    db
+      .select()
+      .from(runSources)
+      .where(and(eq(runSources.runId, runId), eq(runSources.sourceId, sourceId)))
+      .get() ?? null
+  );
+}

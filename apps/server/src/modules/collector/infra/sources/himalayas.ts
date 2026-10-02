@@ -8,25 +8,30 @@ import { type FetchContext, isObject, notOk, type SourceAdapter, unreadable } fr
 export function himalayasAdapter(baseUrl = "https://himalayas.app"): SourceAdapter {
   return {
     id: "himalayas",
-    async fetchLatest(ctx: FetchContext): Promise<FetchResult> {
-      const res = await ctx.http.getJson(`${baseUrl}/jobs/api?limit=20`);
-      if (res.kind !== "ok") return notOk(res);
-      const body = res.body;
-      if (!isObject(body) || !Array.isArray(body.jobs)) return unreadable("no jobs array");
+    fetchLatest: (ctx: FetchContext) => page(ctx, `${baseUrl}/jobs/api?limit=20`),
+    fetchOlder: (ctx: FetchContext, cursor: string) =>
+      page(ctx, `${baseUrl}/jobs/api?limit=20&cursor=${encodeURIComponent(cursor)}`),
+  };
+}
 
-      const listings: RawListing[] = [];
-      for (const job of body.jobs) {
-        const listing = toListing(job);
-        if (!listing) return unreadable("unexpected job shape");
-        listings.push(listing);
-      }
-      return {
-        completeness: "capped",
-        listings,
-        itemsReturned: body.jobs.length,
-        coversPublishedAfter: null,
-      };
-    },
+async function page(ctx: FetchContext, url: string): Promise<FetchResult> {
+  const res = await ctx.http.getJson(url);
+  if (res.kind !== "ok") return notOk(res);
+  const body = res.body;
+  if (!isObject(body) || !Array.isArray(body.jobs)) return unreadable("no jobs array");
+
+  const listings: RawListing[] = [];
+  for (const job of body.jobs) {
+    const listing = toListing(job);
+    if (!listing) return unreadable("unexpected job shape");
+    listings.push(listing);
+  }
+  return {
+    completeness: "capped",
+    listings,
+    itemsReturned: body.jobs.length,
+    coversPublishedAfter: null,
+    nextCursor: typeof body.nextCursor === "string" && body.nextCursor !== "" ? body.nextCursor : null,
   };
 }
 
