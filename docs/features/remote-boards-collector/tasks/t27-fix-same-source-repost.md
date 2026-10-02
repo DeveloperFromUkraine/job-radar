@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/domain/merge.ts", "apps/server/s
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T27 — Replace a same-source item only when the old one is gone and locations agree

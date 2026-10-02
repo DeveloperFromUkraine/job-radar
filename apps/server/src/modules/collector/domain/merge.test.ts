@@ -169,3 +169,42 @@ describe("posting display fields (AC-04 note)", () => {
     expect(earliestPublishedAt(T, null)).toBe(T);
   });
 });
+
+describe("same-source items that are both still live (AC-05)", () => {
+  const live = (location: string | null) =>
+    candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: location },
+      ],
+    });
+
+  it("keeps two live roles with different stated locations as two postings", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "Germany" }),
+      null,
+      [live("United States")],
+      new Set(["r-0", "r-1"]),
+    );
+    expect(decision).toEqual({ kind: "create" });
+  });
+
+  it("does not replace a live item; a duplicate without a location conflict attaches instead", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: null }),
+      null,
+      [live("United States")],
+      new Set(["r-0", "r-1"]),
+    );
+    expect(decision).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+  });
+
+  it("replaces the old item when it is gone from the fetch — a real re-post", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "Germany" }),
+      null,
+      [live("United States")],
+      new Set(["r-1"]),
+    );
+    expect(decision).toMatchObject({ kind: "replace-same-source", replacesListingId: "l-r0" });
+  });
+});

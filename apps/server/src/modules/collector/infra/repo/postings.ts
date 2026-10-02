@@ -15,6 +15,8 @@ export interface ApplyContext {
   runId: string;
   now: number;
   isFirstFill: boolean;
+  /** Every item id this fetch returned, kept or not (AC-04 re-post rule). */
+  fetchedItemIds: ReadonlySet<string>;
 }
 
 /** Stores one normalized listing and merges it; returns its effect on postings and whether the item is new. */
@@ -41,6 +43,7 @@ export function applyListing(
         }
       : null,
     known ? [] : candidatesFor(db, key),
+    ctx.fetchedItemIds,
   );
   const fields = {
     url: listing.url,

@@ -63,13 +63,18 @@ export async function continueFill(
     const page = await adapter.fetchOlder({ http, now }, cursor).catch(() => null);
     if (!page || page.completeness === "failed" || page.completeness === "partial") return continueLater();
 
-    const { kept, noCategory } = await normalizeAndFilter(
+    const { kept, noCategory, fetchedItemIds } = await normalizeAndFilter(
       id,
       page.listings,
       run.settings.sources[id].categories,
     );
     db.transaction((tx) => {
-      const counts = storeListings(tx, kept, { runId: run.runId, now: deps.now(), isFirstFill: true });
+      const counts = storeListings(tx, kept, {
+        runId: run.runId,
+        now: deps.now(),
+        isFirstFill: true,
+        fetchedItemIds,
+      });
       const before = readRunSource(tx, run.runId, id);
       if (before) {
         updateRunSource(tx, run.runId, id, {

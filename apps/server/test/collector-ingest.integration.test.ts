@@ -290,4 +290,25 @@ describe("ingest one due source (Flows 5 and 6)", () => {
     expect(again.completeness).toBe("partial");
     expect(DEFAULT_SETTINGS.sources.jobicy.enabled).toBe(true);
   });
+  it("keeps two live same-title roles at one source apart and stable across runs (AC-05)", async () => {
+    const page = jobicyPage([
+      jobicyJob({ id: 1, url: "https://jobs.example.test/jobicy/1", jobGeo: "USA" }),
+      jobicyJob({ id: 2, url: "https://jobs.example.test/jobicy/2", jobGeo: "Germany" }),
+    ]);
+    fake.route("/api/v2/remote-jobs", json(page));
+    await runSource("jobicy");
+    now = T0 + HOUR;
+
+    const { run } = await runSource("jobicy");
+
+    expect(rows("select location_restriction from collector_listings order by location_restriction")).toEqual(
+      [{ location_restriction: "Germany" }, { location_restriction: "USA" }],
+    );
+    expect(rows("select count(*) as n from collector_postings")).toEqual([{ n: 2 }]);
+    expect(
+      rows(
+        `select updated, new_listings from collector_run_sources where run_id = '${run.runId}' and source_id = 'jobicy'`,
+      ),
+    ).toEqual([{ updated: 0, new_listings: 0 }]);
+  });
 });

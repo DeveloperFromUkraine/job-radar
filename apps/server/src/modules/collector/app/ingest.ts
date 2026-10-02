@@ -46,7 +46,7 @@ export async function normalizeAndFilter(
   const { kept, noCategory } = filterByCategories(normalized, ownerCategories);
   const keptIds = new Set(kept.map((l) => l.sourceItemId));
   const dropped = normalized.filter((l) => !keptIds.has(l.sourceItemId)).map((l) => l.sourceItemId);
-  return { kept, noCategory, dropped };
+  return { kept, noCategory, dropped, fetchedItemIds: new Set(normalized.map((l) => l.sourceItemId)) };
 }
 
 /** Stores and merges kept listings; returns the per-posting counts for this source (AC-12, AC-25). */
@@ -92,7 +92,7 @@ export async function ingestSource(
     return verdict;
   }
 
-  const { kept, noCategory, dropped } = await normalizeAndFilter(
+  const { kept, noCategory, dropped, fetchedItemIds } = await normalizeAndFilter(
     sourceId,
     fetched.listings,
     run.settings.sources[sourceId].categories,
@@ -106,6 +106,7 @@ export async function ingestSource(
       runId: run.runId,
       now,
       isFirstFill: source.fillStatus === "pending",
+      fetchedItemIds,
     });
     updateRunSource(tx, run.runId, sourceId, {
       outcome: fetched.completeness,

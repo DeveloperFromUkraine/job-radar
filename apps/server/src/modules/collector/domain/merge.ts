@@ -111,12 +111,15 @@ const byPreference = (a: Candidate, b: Candidate) =>
 
 /**
  * `candidates` are the not-removed postings with the listing's match key. Same-source re-posts are
- * checked before the cross-source merge, so a board re-posting a role never adds a second listing.
+ * checked before the cross-source merge, so a board re-posting a role never adds a second listing;
+ * an item the source still returns is never a re-post.
  */
 export function decideMerge(
   listing: NormalizedListing,
   known: KnownListing | null,
   candidates: readonly Candidate[],
+  /** Item ids the source returned in this fetch: a live item is never treated as re-posted. */
+  fetchedItemIds: ReadonlySet<string> = new Set(),
 ): MergeDecision {
   if (known) {
     return {
@@ -132,7 +135,11 @@ export function decideMerge(
     .sort(byPreference);
 
   for (const c of inWindow) {
-    const own = c.listings.find((l) => l.sourceId === listing.sourceId);
+    // A re-post replaces the source's old item only once that item is gone from the source (AC-04);
+    // two live items are two roles, decided by the location rule below (AC-05).
+    const own = c.listings.find(
+      (l) => l.sourceId === listing.sourceId && !fetchedItemIds.has(l.sourceItemId),
+    );
     if (own) {
       return {
         kind: "replace-same-source",
