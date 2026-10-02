@@ -7,7 +7,7 @@
 |---|---|---|---|---|---|---|
 | T1 | [Promote the collector schema: Drizzle schema.ts + generated migration 0001](./t01-collector-schema.md) | migration | Volodymyr Kozlov | M | — | done |
 | T2 | [Enforce loopback-only, same-origin access in core and map Fastify 415](./t02-core-access-guard.md) | ports | Volodymyr Kozlov | M | — | done |
-| T3 | [Model the source registry, due-ness and rolling-window rate limits](./t03-domain-source-schedule.md) | domain | Volodymyr Kozlov | M | — | todo |
+| T3 | [Model the source registry, due-ness and rolling-window rate limits](./t03-domain-source-schedule.md) | domain | Volodymyr Kozlov | M | — | done |
 | T4 | [Define the settings schema, built-in defaults and per-source state](./t04-domain-settings.md) | domain | Volodymyr Kozlov | S | — | todo |
 | T5 | [Define the adapter contract and normalize listings (plain text, location as stated, category filter)](./t05-domain-listing-normalize.md) | domain | Volodymyr Kozlov | M | — | todo |
 | T6 | [Implement the match key and the merge decision](./t06-domain-merge.md) | domain | Volodymyr Kozlov | M | T5 | todo |
