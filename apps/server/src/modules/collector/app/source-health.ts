@@ -181,6 +181,7 @@ export function getSourceHealth(deps: CollectorDeps) {
       notice: state.settingsNotice,
       problem: state.settingsProblem,
       problem_since: iso(state.settingsProblemAt),
+      running_on: state.settingsProblem ? (state.lastValidSettings ? "last_valid" : "defaults") : null,
     },
     current_run: runJson(deps, current),
     last_run: runJson(deps, latestEndedRun(db)),

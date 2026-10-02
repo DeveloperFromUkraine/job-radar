@@ -17,13 +17,15 @@ export function SourceCard({ row, now = Date.now() }: { row: SourceHealthRow; no
       <Badge tone="not_verified">Not verified</Badge>
     ) : problems.length > 0 ? (
       <Badge tone="problem">Problem</Badge>
+    ) : notices.length > 0 || (counts?.no_category ?? 0) > 0 ? (
+      <Badge tone="notice">Notice</Badge>
     ) : (
       <Badge tone="enabled">Enabled</Badge>
     );
 
   return (
     <article
-      className={`flex flex-col gap-1 rounded-[var(--radius-card)] border border-border p-3 text-sm ${muted ? "opacity-80" : ""}`}
+      className={`flex flex-col gap-1 rounded-card border border-border p-3 text-sm ${muted ? "opacity-80" : ""}`}
     >
       <header className="flex items-center justify-between gap-2">
         <a

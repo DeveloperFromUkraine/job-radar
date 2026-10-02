@@ -65,7 +65,12 @@ export interface SourceHealthRow {
 
 export interface SourceHealth {
   any_run_finished: boolean;
-  settings: { notice: "defaults_in_use" | null; problem: string | null; problem_since: string | null };
+  settings: {
+    notice: "defaults_in_use" | null;
+    problem: string | null;
+    problem_since: string | null;
+    running_on: "last_valid" | "defaults" | null;
+  };
   current_run: Run | null;
   last_run: Run | null;
   sources: SourceHealthRow[];

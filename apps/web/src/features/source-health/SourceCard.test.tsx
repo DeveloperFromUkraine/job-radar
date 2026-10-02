@@ -104,6 +104,7 @@ describe("SourceCard (SCR-02 source card states)", () => {
     card(row);
 
     expect(screen.queryByText("Problem")).toBeNull();
+    expect(screen.getByText("Notice")).toBeTruthy(); // the notice badge tone (review C8)
     expect(screen.getByText('Category "devops" matched nothing at the source.')).toBeTruthy();
     expect(screen.getByText("3 listings had no category and were skipped.")).toBeTruthy();
   });

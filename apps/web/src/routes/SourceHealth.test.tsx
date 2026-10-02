@@ -77,6 +77,7 @@ describe("SCR-02 source health page", () => {
       notice: null,
       problem: "The settings file is not valid JSON.",
       problem_since: "2026-10-02T09:00:00Z",
+      running_on: "last_valid",
     };
     open(health);
 
@@ -101,5 +102,37 @@ describe("SCR-02 source health page", () => {
     expect(
       await screen.findByText("The last run was interrupted. Nothing was closed because of it."),
     ).toBeTruthy();
+  });
+  it("settings: says when collection runs on the built-in defaults instead (AC-27, review A8)", async () => {
+    const health = collected();
+    health.settings = {
+      notice: null,
+      problem: "The settings file is not valid JSON.",
+      problem_since: "2026-10-02T09:00:00Z",
+      running_on: "defaults",
+    };
+    open(health);
+
+    expect(
+      await screen.findByText("Collection runs on the built-in defaults until the file can be read."),
+    ).toBeTruthy();
+    expect(screen.queryByText("Collection keeps running on your last valid settings.")).toBeNull();
+  });
+
+  it("loading: Collect now is disabled until source health has loaded (02-a, review A7)", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {})),
+    );
+    renderWithProviders(<App />, { route: "/sources" });
+    expect(screen.getByRole("button", { name: "Collect now" }).hasAttribute("disabled")).toBe(true);
+  });
+
+  it("uses the card radius token, never an arbitrary value (design-system, review C9)", async () => {
+    const files = import.meta.glob("../**/*.tsx", { query: "?raw", import: "default", eager: true });
+    const offenders = Object.entries(files)
+      .filter(([path, src]) => !path.endsWith(".test.tsx") && String(src).includes("rounded-["))
+      .map(([path]) => path);
+    expect(offenders).toEqual([]);
   });
 });

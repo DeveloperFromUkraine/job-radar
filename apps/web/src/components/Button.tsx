@@ -12,7 +12,7 @@ export function Button({ pending = false, disabled, children, className = "", ..
       {...rest}
       disabled={disabled || pending}
       aria-busy={pending || undefined}
-      className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-[var(--radius-card)] bg-accent px-4 font-medium text-accent-contrast disabled:opacity-60 md:w-auto ${className}`}
+      className={`inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-card bg-accent px-4 font-medium text-accent-contrast disabled:opacity-60 md:w-auto ${className}`}
     >
       {pending && (
         <span

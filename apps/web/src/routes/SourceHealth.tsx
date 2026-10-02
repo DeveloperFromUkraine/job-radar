@@ -13,7 +13,7 @@ export function SourceHealth() {
   return (
     <div className="flex flex-col gap-3">
       <h1 className="text-xl font-semibold">Source health</h1>
-      <CollectNowAction />
+      <CollectNowAction disabled={health.isPending} />
 
       {health.isPending && [0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)}
 
@@ -27,7 +27,9 @@ export function SourceHealth() {
         <>
           {data.settings.problem && (
             <InlineBanner tone="warning" title={`Your settings file can't be read: ${data.settings.problem}`}>
-              Collection keeps running on your last valid settings.
+              {data.settings.running_on === "defaults"
+                ? "Collection runs on the built-in defaults until the file can be read."
+                : "Collection keeps running on your last valid settings."}
             </InlineBanner>
           )}
           {data.settings.notice === "defaults_in_use" && (

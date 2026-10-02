@@ -37,7 +37,7 @@ export function RunProgress({
   });
 
   return (
-    <section className="flex flex-col gap-1 rounded-[var(--radius-card)] border border-border p-3 text-sm">
+    <section className="flex flex-col gap-1 rounded-card border border-border p-3 text-sm">
       {run.status === "running" ? (
         <p className="font-medium" title={exact(run.started_at)}>
           Run in progress · started {time}

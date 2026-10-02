@@ -9,7 +9,7 @@ files_hint: ["docs/features/remote-boards-collector/contracts/openapi.yaml", "do
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T33 — Settings fallback in the contract, SCR-02 polling and the remaining screen fixes

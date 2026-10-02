@@ -89,6 +89,7 @@ paths:
                       notice: null
                       problem: null
                       problem_since: null
+                      running_on: null
                     current_run:
                       id: 01920f3a-7b2c-7d4e-8f00-0000000000a1
                       trigger: collect_now
@@ -143,6 +144,7 @@ paths:
                       notice: defaults_in_use
                       problem: null
                       problem_since: null
+                      running_on: null
                     current_run: null
                     last_run: null
                     sources:
@@ -457,7 +459,7 @@ components:
 
     SettingsStatus:
       type: object
-      required: [notice, problem, problem_since]
+      required: [notice, problem, problem_since, running_on]
       additionalProperties: false
       description: What the app made of the settings file (AC-27)
       properties:
@@ -471,6 +473,12 @@ components:
         problem_since:
           type: [string, "null"]
           format: date-time
+        running_on:
+          type: [string, "null"]
+          enum: [last_valid, defaults, null]
+          description: |
+            While the file is unreadable: whether collection runs on the last valid copy or, when there
+            is none yet, on the built-in defaults (review 2026-10-02, A8); null when the file is fine.
 
     SourceHealth:
       type: object

@@ -17,7 +17,7 @@ export function useSourceHealth() {
     queryKey: ["collector", "source-health"],
     queryFn: getSourceHealth,
     refetchOnWindowFocus: true,
-    // Run progress: every 2 s while a run is in progress, otherwise no polling (ADR-0002).
-    refetchInterval: (query) => (query.state.data?.current_run ? 2_000 : false),
+    // Every 2 s while a run is in progress, otherwise every 60 s (ADR-0002, sad §4).
+    refetchInterval: (query) => (query.state.data?.current_run ? 2_000 : 60_000),
   });
 }

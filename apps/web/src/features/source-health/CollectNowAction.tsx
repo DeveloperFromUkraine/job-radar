@@ -13,18 +13,19 @@ function nextDueText(result: CollectNowResult, now: number): string {
     .join(" · ");
 }
 
-export function CollectNowAction() {
+export function CollectNowAction({ disabled = false }: { disabled?: boolean }) {
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: collectNow,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["collector"] }),
+    // Settled, not only success: a 409 means a run the page may not know about yet (AC-16).
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ["collector"] }),
   });
   const error = mutation.error;
   const alreadyRunning = error instanceof ApiError && error.code === "COLLECTOR_RUN_IN_PROGRESS";
 
   return (
     <div className="flex flex-col gap-2">
-      <Button pending={mutation.isPending} onClick={() => mutation.mutate()}>
+      <Button pending={mutation.isPending} disabled={disabled} onClick={() => mutation.mutate()}>
         Collect now
       </Button>
       {mutation.data && !mutation.data.started && (

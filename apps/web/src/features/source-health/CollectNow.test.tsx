@@ -33,7 +33,12 @@ describe("collect now and run progress (SCR-02, Flow 2)", () => {
     vi.useRealTimers();
   });
 
-  const button = () => screen.findByRole("button", { name: "Collect now" });
+  // The button is disabled while source health loads (02-a), so wait until it can be pressed.
+  const button = async () => {
+    const b = await screen.findByRole("button", { name: "Collect now" });
+    await waitFor(() => expect(b.hasAttribute("disabled")).toBe(false));
+    return b;
+  };
 
   it("idle → started: the run in progress appears (AC-15)", async () => {
     const { calls } = mockApi({
@@ -135,7 +140,7 @@ describe("collect now and run progress (SCR-02, Flow 2)", () => {
     expect(progress.textContent).toContain("disabled");
   });
 
-  it("polls every 2 s while a run is in progress and stops when it ends", async () => {
+  it("polls every 2 s during a run, then every 60 s when idle (ADR-0002, review A6)", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const { calls } = mockApi({
       [PROBLEMS]: noProblems,
@@ -149,9 +154,30 @@ describe("collect now and run progress (SCR-02, Flow 2)", () => {
     await vi.advanceTimersByTimeAsync(2_000);
     expect(await screen.findByText(/Last run finished/)).toBeTruthy();
     const settled = healthCalls();
-    expect(settled).toBeGreaterThanOrEqual(3);
 
     await vi.advanceTimersByTimeAsync(10_000);
-    expect(healthCalls()).toBe(settled);
+    expect(healthCalls()).toBe(settled); // no 2 s polling once idle
+    await vi.advanceTimersByTimeAsync(50_000);
+    expect(healthCalls()).toBe(settled + 1); // the 60 s idle refresh
+  });
+
+  it("a 409 refreshes source health, so a run the page did not know about appears (review C7)", async () => {
+    const { calls } = mockApi({
+      [PROBLEMS]: noProblems,
+      [HEALTH]: [{ body: idle() }, { body: running() }],
+      [RUNS]: {
+        status: 409,
+        body: {
+          error: { code: "COLLECTOR_RUN_IN_PROGRESS", message: "A collection run is already in progress." },
+        },
+      },
+    });
+    renderWithProviders(<App />, { route: "/sources" });
+    fireEvent.click(await button());
+
+    expect(await screen.findByText(/Run in progress · started/)).toBeTruthy();
+    expect(calls.filter((c) => c.path === "/api/v1/collector/source-health").length).toBeGreaterThanOrEqual(
+      2,
+    );
   });
 });

@@ -19,7 +19,7 @@ export function InlineBanner({ tone, title, children, onRetry }: InlineBannerPro
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
-      className={`flex flex-col gap-2 rounded-[var(--radius-card)] border bg-surface-muted p-3 text-sm md:flex-row md:items-center ${TONES[tone]}`}
+      className={`flex flex-col gap-2 rounded-card border bg-surface-muted p-3 text-sm md:flex-row md:items-center ${TONES[tone]}`}
     >
       <div className="flex-1">
         <p className="font-medium">{title}</p>

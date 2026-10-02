@@ -4,7 +4,7 @@ export function SkeletonRow() {
     <div
       data-testid="skeleton-row"
       aria-hidden="true"
-      className="h-20 animate-pulse rounded-[var(--radius-card)] bg-surface-muted"
+      className="h-20 animate-pulse rounded-card bg-surface-muted"
     />
   );
 }

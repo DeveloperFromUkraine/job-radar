@@ -131,6 +131,7 @@ describe("collector read routes (Flow 10)", () => {
       notice: null,
       problem: "The settings file is not valid JSON.",
       problem_since: new Date(T0).toISOString(),
+      running_on: "defaults", // no valid copy yet on a first start (review A8)
     });
   });
 
@@ -219,6 +220,19 @@ describe("collector read routes (Flow 10)", () => {
     expect((await get("problems", "getCollectorProblems")).json()).toEqual({
       has_problem: false,
       problems: [],
+    });
+  });
+  it("says collection runs on the last valid copy when one exists (AC-27, review A8)", async () => {
+    writeFileSync(deps.settingsFile, JSON.stringify({ sources: {} }));
+    openRun(deps, "schedule");
+    exec(sql`update collector_runs set status = 'finished'`);
+    writeFileSync(deps.settingsFile, "{ nope");
+    now = T0 + 7 * HOUR;
+    openRun(deps, "schedule");
+
+    expect((await get("source-health", "getSourceHealth")).json().settings).toMatchObject({
+      problem: "The settings file is not valid JSON.",
+      running_on: "last_valid",
     });
   });
 });
