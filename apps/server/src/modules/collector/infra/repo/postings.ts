@@ -1,6 +1,6 @@
 // Postings + listings: applying the merge decision (ADR-0005, sad §6 Flow 6) inside the ingest
 // transaction. The decision itself is the pure domain rule in domain/merge.ts.
-import { and, eq, gte, inArray, max } from "drizzle-orm";
+import { and, eq, gte, inArray, lt, max, or } from "drizzle-orm";
 import { newId } from "../../../../core/id.js";
 import type { NormalizedListing } from "../../domain/adapter.js";
 import type { ClosureListing } from "../../domain/closures.js";
@@ -223,4 +223,49 @@ export function categoriesSeenSince(db: DbOrTx, sourceId: SourceId, since: numbe
     for (const c of JSON.parse(row.categories) as string[]) seen.add(c);
   }
   return [...seen];
+}
+
+/**
+ * Postings that may be past retention: closed more than 60 days ago, or open and last offered more
+ * than 60 days ago. A superset — disabled-only days only make a posting younger (AC-10, AC-26).
+ */
+export function retentionCandidates(db: DbOrTx, cutoff: number) {
+  const found = db
+    .select({
+      id: postings.id,
+      status: postings.status,
+      closedAt: postings.closedAt,
+      lastOfferedAt: postings.lastOfferedAt,
+    })
+    .from(postings)
+    .where(
+      or(
+        and(eq(postings.status, "closed"), lt(postings.closedAt, cutoff)),
+        and(eq(postings.status, "open"), lt(postings.lastOfferedAt, cutoff)),
+      ),
+    )
+    .all();
+  if (found.length === 0) return [];
+  const sourcesOf = db
+    .selectDistinct({ postingId: listings.postingId, sourceId: listings.sourceId })
+    .from(listings)
+    .where(
+      inArray(
+        listings.postingId,
+        found.map((p) => p.id),
+      ),
+    )
+    .all();
+  return found.map((p) => ({
+    ...p,
+    sourceIds: sourcesOf.filter((s) => s.postingId === p.id).map((s) => s.sourceId),
+  }));
+}
+
+/** Removes postings with their listings (cascade). */
+export function removePostings(db: DbOrTx, ids: readonly string[]): void {
+  if (ids.length === 0) return;
+  db.delete(postings)
+    .where(inArray(postings.id, [...ids]))
+    .run();
 }
