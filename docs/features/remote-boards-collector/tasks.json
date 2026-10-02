@@ -699,6 +699,55 @@
         "docs/features/remote-boards-collector/screens.md"
       ],
       "file": "docs/features/remote-boards-collector/tasks/t34-fix-review-docs.md"
+    },
+    {
+      "id": "T35",
+      "title": "Close the round-2 review findings in code and tests",
+      "layer": "app",
+      "deps": [
+        "T34"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-04",
+        "AC-14",
+        "AC-13",
+        "AC-18",
+        "AC-19",
+        "AC-20",
+        "AC-15",
+        "AC-27"
+      ],
+      "dod": "tests: a capped Himalayas read never replaces a live same-title role with a different location; held_back survives a capped Jobicy/Remotive run; the heartbeat error reaches onError; the overdue reason names a failed read truthfully; no ledger read after shutdown; shutdown logged at info; the pipeline fill catch is exercised; the idle-poll test has margins; contract examples show limited and running_on",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/app/",
+        "apps/server/src/modules/collector/domain/health.ts",
+        "apps/server/src/modules/collector/infra/http.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/test/",
+        "apps/web/src/features/source-health/CollectNow.test.tsx",
+        "docs/features/remote-boards-collector/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t35-fix-rereview-code.md"
+    },
+    {
+      "id": "T36",
+      "title": "Add the limited fill state to the runtime and UX flows",
+      "layer": "docs",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "sad Flow 8 and ux-flows US-06 show the limited branch; the staged migration comment lists limited; mermaid blocks parse",
+      "files_hint": [
+        "docs/features/remote-boards-collector/sad.md",
+        "docs/features/remote-boards-collector/ux-flows.md",
+        "docs/features/remote-boards-collector/migrations/01_create_sources.up.sql"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t36-fix-rereview-docs.md"
     }
   ]
 }
