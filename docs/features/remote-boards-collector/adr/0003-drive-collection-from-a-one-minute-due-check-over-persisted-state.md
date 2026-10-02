@@ -46,6 +46,7 @@ Sources must be read on their own cadence (Jobicy 1 h, Remotive 6 h, Himalayas 6
 
 **Neutral**
 - A request recorded but never sent (crash between write and send) counts against the limit — deliberately conservative (AC-20: "every read it made counts").
+- "Due" means the source's interval has passed since its last read, for scheduled, catch-up and collect-now alike; the first fill only uses the budget left after regular reads, and a limit used up mid-fetch makes that fetch partial, not a failure (spec AC-02, AC-15, AC-19, §6, clarified 2026-10-02).
 
 ## Links
 

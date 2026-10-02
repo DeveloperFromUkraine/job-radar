@@ -15,7 +15,7 @@ ticket: "roadmap step 2 — remote-boards-collector"
 
 ## Context
 
-Each source differs in shape, paging, freshness and what it can say about a listing being gone. A posting may close only when every source listing it confirms it is no longer open, and a failed, cut-short or most-recent-only fetch must never close anything (CONTEXT "Closed posting", AC-07, AC-08, AC-09). Spec §8 Q2 asks design to name each source's closing signal; with none named, a source never auto-closes. Source behaviour verified 2026-10-02 from each source's API documentation: Remotive returns all active listings per category; Himalayas returns ≤ 20 records per request with an `expiryDate` per job; Jobicy returns only the last 7 days, ≤ 200 per request.
+Each source differs in shape, paging, freshness and what it can say about a listing being gone. A posting may close only when every enabled source listing it confirms it is no longer open (a disabled source's listing does not count; at least one must confirm — spec AC-07, AC-26, clarified 2026-10-02), and a failed, cut-short or most-recent-only fetch must never close anything (CONTEXT "Closed posting", AC-07, AC-08, AC-09). Spec §8 Q2 asks design to name each source's closing signal; with none named, a source never auto-closes. Source behaviour verified 2026-10-02 from each source's API documentation: Remotive returns all active listings per category; Himalayas returns ≤ 20 records per request with an `expiryDate` per job; Jobicy returns only the last 7 days, ≤ 200 per request.
 
 ## Decision drivers
 
