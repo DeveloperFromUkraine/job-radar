@@ -1,0 +1,59 @@
+{
+  "apiVersion": "2.2.18",
+  "jobCount": 3,
+  "lastUpdate": "2026-10-02T10:00:00+00:00",
+  "nextCursor": null,
+  "hasMore": false,
+  "appliedFilters": {
+    "count": 200
+  },
+  "jobs": [
+    {
+      "id": 900003,
+      "url": "https://jobs.example.test/jobicy/900003",
+      "jobSlug": "900003-role",
+      "jobTitle": "Senior Backend Engineer",
+      "companyName": "Example Co",
+      "companyLogo": "",
+      "jobIndustry": ["Software Engineering"],
+      "jobType": ["full-time"],
+      "jobGeo": "Europe",
+      "jobLevel": "Senior",
+      "jobExcerpt": "Short summary.",
+      "jobDescription": "<p>Build &amp; ship <b>APIs</b>.</p>",
+      "pubDate": "2026-10-02T10:00:00+00:00"
+    },
+    {
+      "id": 900002,
+      "url": "https://jobs.example.test/jobicy/900002",
+      "jobSlug": "900002-role",
+      "jobTitle": "DevOps Engineer (Remote)",
+      "companyName": "Sample Labs Inc.",
+      "companyLogo": "",
+      "jobIndustry": ["DevOps &amp; Infrastructure"],
+      "jobType": ["full-time"],
+      "jobGeo": "Anywhere",
+      "jobLevel": "Senior",
+      "jobExcerpt": "Short summary.",
+      "jobDescription": "<p>Build &amp; ship <b>APIs</b>.</p>",
+      "pubDate": "2026-10-02T08:30:00+00:00"
+    },
+    {
+      "id": 900001,
+      "url": "https://jobs.example.test/jobicy/900001",
+      "jobSlug": "900001-role",
+      "jobTitle": "Growth Marketer",
+      "companyName": "Example Co",
+      "companyLogo": "",
+      "jobIndustry": ["Marketing &amp; Sales"],
+      "jobType": ["full-time"],
+      "jobGeo": "USA",
+      "jobLevel": "Senior",
+      "jobExcerpt": "Short summary.",
+      "jobDescription": "<p>Build &amp; ship <b>APIs</b>.</p>",
+      "pubDate": "2026-10-01T22:00:00+00:00"
+    }
+  ],
+  "statusCode": 200,
+  "success": true
+}

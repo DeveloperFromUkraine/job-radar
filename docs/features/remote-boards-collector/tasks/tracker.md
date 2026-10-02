@@ -15,7 +15,7 @@
 | T8 | [Implement the source health flags, overdue and the marker rule](./t08-domain-health-flags.md) | domain | Volodymyr Kozlov | M | T3 | done |
 | T9 | [Implement the retention clock and the once-a-day clean-up rule](./t09-domain-retention.md) | domain | Volodymyr Kozlov | S | — | done |
 | T10 | [Read, create and fall back on the settings file, persisting the last valid copy](./t10-infra-settings-file.md) | infra | Volodymyr Kozlov | M | T1, T4 | done |
-| T11 | [Build the ledgered HTTP client and the Jobicy adapter](./t11-infra-http-and-jobicy.md) | infra | Volodymyr Kozlov | L | T1, T3, T5 | todo |
+| T11 | [Build the ledgered HTTP client and the Jobicy adapter](./t11-infra-http-and-jobicy.md) | infra | Volodymyr Kozlov | L | T1, T3, T5 | done |
 | T12 | [Verify spec §8 Q1/Q3, then build the Remotive, Himalayas and We Work Remotely adapters](./t12-infra-remaining-adapters.md) | infra | Volodymyr Kozlov | L | T11 | todo |
 | T13 | [Run the one-minute scheduler, start-up recovery and run opening](./t13-app-scheduler-and-run-start.md) | app | Volodymyr Kozlov | L | T1, T3, T4, T10 | todo |
 | T14 | [Ingest each due source and merge its listings in one transaction](./t14-app-ingest-and-merge.md) | app | Volodymyr Kozlov | L | T6, T11, T13 | todo |
