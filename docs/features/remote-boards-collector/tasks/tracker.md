@@ -10,7 +10,7 @@
 | T3 | [Model the source registry, due-ness and rolling-window rate limits](./t03-domain-source-schedule.md) | domain | Volodymyr Kozlov | M | — | done |
 | T4 | [Define the settings schema, built-in defaults and per-source state](./t04-domain-settings.md) | domain | Volodymyr Kozlov | S | — | done |
 | T5 | [Define the adapter contract and normalize listings (plain text, location as stated, category filter)](./t05-domain-listing-normalize.md) | domain | Volodymyr Kozlov | M | — | done |
-| T6 | [Implement the match key and the merge decision](./t06-domain-merge.md) | domain | Volodymyr Kozlov | M | T5 | todo |
+| T6 | [Implement the match key and the merge decision](./t06-domain-merge.md) | domain | Volodymyr Kozlov | M | T5 | done |
 | T7 | [Implement listing closures per source verdict and the 30% hold-back](./t07-domain-closures.md) | domain | Volodymyr Kozlov | M | T5 | todo |
 | T8 | [Implement the source health flags, overdue and the marker rule](./t08-domain-health-flags.md) | domain | Volodymyr Kozlov | M | T3 | todo |
 | T9 | [Implement the retention clock and the once-a-day clean-up rule](./t09-domain-retention.md) | domain | Volodymyr Kozlov | S | — | done |
