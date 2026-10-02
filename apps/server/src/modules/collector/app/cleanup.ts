@@ -1,17 +1,13 @@
 // Daily clean-up (sad §6 Flow 9, AC-10): once per calendar day, after the day's first finished run.
 // Unmarked postings past 60 counted days are removed; marked ones stay. If the marks port fails,
 // nothing is removed that day — a mark must never be lost.
-import { lt } from "drizzle-orm";
 import { countedAgeMs, isPastRetention, RETENTION_MS } from "../domain/retention.js";
+import { pruneHistory } from "../infra/repo/history.js";
 import { removePostings, retentionCandidates } from "../infra/repo/postings.js";
 import { readDisabledPeriods } from "../infra/repo/sources.js";
 import { readState, updateState } from "../infra/repo/state.js";
-import { appSessions, requestLedger, runs } from "../infra/schema.js";
 import type { CollectorDeps } from "./deps.js";
 import type { MarkedPostings } from "./marked-postings.js";
-
-const HOUR = 60 * 60 * 1000;
-const DAY = 24 * HOUR;
 
 export async function dailyCleanup(
   deps: CollectorDeps,
@@ -44,17 +40,7 @@ export async function dailyCleanup(
     }
   }
 
-  db.transaction((tx) => {
-    tx.delete(requestLedger)
-      .where(lt(requestLedger.sentAt, now - DAY))
-      .run();
-    tx.delete(runs)
-      .where(lt(runs.startedAt, now - 60 * DAY))
-      .run();
-    tx.delete(appSessions)
-      .where(lt(appSessions.lastSeenAt, now - 60 * DAY))
-      .run();
-  });
+  pruneHistory(db, now);
   updateState(db, { lastCleanupOn: day });
   return { ran: true, removed };
 }

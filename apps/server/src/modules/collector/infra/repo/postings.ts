@@ -9,6 +9,12 @@ import type { SourceId } from "../../domain/sources.js";
 import { listings, postings } from "../schema.js";
 import type { DbOrTx } from "./tx.js";
 
+/** Id lists are bound in chunks, far under SQLite's bound-variable limit (32766). */
+const CHUNK = 500;
+function* chunks<T>(items: readonly T[]): Generator<T[]> {
+  for (let i = 0; i < items.length; i += CHUNK) yield items.slice(i, i + CHUNK);
+}
+
 export type ListingEffect = "added" | "updated" | "unchanged";
 
 export interface ApplyContext {
@@ -168,7 +174,8 @@ export function openPostingsTouching(
   sourceIds: readonly SourceId[],
 ): { postingId: string; listings: ClosureListing[] }[] {
   if (sourceIds.length === 0) return [];
-  const ids = db
+  // One subquery instead of an id list: no bound parameter per posting (SQLite's 32766 limit).
+  const touched = db
     .selectDistinct({ id: listings.postingId })
     .from(listings)
     .innerJoin(postings, eq(listings.postingId, postings.id))
@@ -178,41 +185,34 @@ export function openPostingsTouching(
         eq(listings.status, "open"),
         eq(postings.status, "open"),
       ),
-    )
-    .all()
-    .map((r) => r.id);
-  if (ids.length === 0) return [];
-  const all = db.select().from(listings).where(inArray(listings.postingId, ids)).all();
-  return ids.map((postingId) => ({
-    postingId,
-    listings: all
-      .filter((l) => l.postingId === postingId)
-      .map((l) => ({
-        listingId: l.id,
-        sourceId: l.sourceId as SourceId,
-        status: l.status,
-        publishedAt: l.publishedAt,
-        expiresAt: l.expiresAt,
-        lastSeenRunId: l.lastSeenRunId,
-      })),
-  }));
+    );
+  const byPosting = new Map<string, ClosureListing[]>();
+  for (const l of db.select().from(listings).where(inArray(listings.postingId, touched)).all()) {
+    const list = byPosting.get(l.postingId) ?? [];
+    list.push({
+      listingId: l.id,
+      sourceId: l.sourceId as SourceId,
+      status: l.status,
+      publishedAt: l.publishedAt,
+      expiresAt: l.expiresAt,
+      lastSeenRunId: l.lastSeenRunId,
+    });
+    byPosting.set(l.postingId, list);
+  }
+  return [...byPosting].map(([postingId, list]) => ({ postingId, listings: list }));
 }
 
 export function closeListings(db: DbOrTx, ids: readonly string[], at: number): void {
-  if (ids.length === 0) return;
-  db.update(listings)
-    .set({ status: "closed", closedAt: at })
-    .where(inArray(listings.id, [...ids]))
-    .run();
+  for (const chunk of chunks(ids)) {
+    db.update(listings).set({ status: "closed", closedAt: at }).where(inArray(listings.id, chunk)).run();
+  }
 }
 
 /** Closed postings stay with their marks (AC-07); only retention removes them. */
 export function closePostings(db: DbOrTx, ids: readonly string[], at: number): void {
-  if (ids.length === 0) return;
-  db.update(postings)
-    .set({ status: "closed", closedAt: at })
-    .where(inArray(postings.id, [...ids]))
-    .run();
+  for (const chunk of chunks(ids)) {
+    db.update(postings).set({ status: "closed", closedAt: at }).where(inArray(postings.id, chunk)).run();
+  }
 }
 
 /** Category names of this source's listings seen since `since` (AC-24 for sources without a list). */
@@ -248,29 +248,22 @@ export function retentionCandidates(db: DbOrTx, cutoff: number) {
       ),
     )
     .all();
-  if (found.length === 0) return [];
-  const sourcesOf = db
-    .selectDistinct({ postingId: listings.postingId, sourceId: listings.sourceId })
-    .from(listings)
-    .where(
-      inArray(
-        listings.postingId,
-        found.map((p) => p.id),
-      ),
-    )
-    .all();
-  return found.map((p) => ({
-    ...p,
-    sourceIds: sourcesOf.filter((s) => s.postingId === p.id).map((s) => s.sourceId),
-  }));
+  const sourcesOf = new Map<string, string[]>();
+  for (const chunk of chunks(found.map((p) => p.id))) {
+    for (const row of db
+      .selectDistinct({ postingId: listings.postingId, sourceId: listings.sourceId })
+      .from(listings)
+      .where(inArray(listings.postingId, chunk))
+      .all()) {
+      sourcesOf.set(row.postingId, [...(sourcesOf.get(row.postingId) ?? []), row.sourceId]);
+    }
+  }
+  return found.map((p) => ({ ...p, sourceIds: sourcesOf.get(p.id) ?? [] }));
 }
 
 /** Removes postings with their listings (cascade). */
 export function removePostings(db: DbOrTx, ids: readonly string[]): void {
-  if (ids.length === 0) return;
-  db.delete(postings)
-    .where(inArray(postings.id, [...ids]))
-    .run();
+  for (const chunk of chunks(ids)) db.delete(postings).where(inArray(postings.id, chunk)).run();
 }
 
 /**

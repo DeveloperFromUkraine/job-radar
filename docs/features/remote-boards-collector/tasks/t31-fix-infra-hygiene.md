@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/app/cleanup.ts", "apps/server/sr
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T31 — Move app-layer SQL into infra and keep id lists under SQLite's variable limit
