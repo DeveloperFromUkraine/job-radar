@@ -23,6 +23,15 @@ export interface SourceHttpOptions {
   now: () => number;
   timeoutMs?: number;
   maxBytes?: number;
+  /** Shutdown: an aborted read throws instead of recording a source failure. */
+  signal?: AbortSignal;
+}
+
+export class CollectorStopping extends Error {
+  constructor() {
+    super("the collector is stopping");
+    this.name = "CollectorStopping";
+  }
 }
 
 export function createSourceHttp(db: Db, source: SourceDefinition, options: SourceHttpOptions): SourceHttp {
@@ -43,9 +52,10 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
       let tooLarge = false;
       const timer = setTimeout(() => abort.abort(), timeoutMs);
       try {
+        const signal = options.signal ? AbortSignal.any([abort.signal, options.signal]) : abort.signal;
         const res = await fetch(url, {
           headers: { "user-agent": USER_AGENT, accept: "application/json" },
-          signal: abort.signal,
+          signal,
         });
         if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 451) {
           return fail("refused", `HTTP ${res.status}`);
@@ -72,6 +82,7 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
           return fail("unreadable", "not JSON");
         }
       } catch (err) {
+        if (options.signal?.aborted) throw new CollectorStopping();
         if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
         if (abort.signal.aborted) return fail("timed_out", `no answer within ${timeoutMs} ms`);
         return fail("unreachable", (err as Error).message);

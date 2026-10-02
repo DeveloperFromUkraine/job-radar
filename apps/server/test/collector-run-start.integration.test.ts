@@ -222,4 +222,20 @@ describe("start-up after a pause or an interrupted run (Flow 3)", () => {
     await new Promise((r) => setTimeout(r, 60));
     expect(opened.length).toBe(count); // stopped: no more ticks
   });
+  it("keeps the session heartbeat moving while a long run is still busy (AC-13)", async () => {
+    let release: () => void = () => {};
+    const scheduler = createScheduler(deps, {
+      executeRun: () => new Promise<void>((r) => (release = r)),
+      intervalMs: 20,
+    });
+    await scheduler.start();
+    now = T0 + 7 * 60_000;
+    await new Promise((r) => setTimeout(r, 80));
+
+    expect(rows("select max(last_seen_at) as at from collector_app_sessions")).toEqual([
+      { at: T0 + 7 * 60_000 },
+    ]);
+    release();
+    await scheduler.stop();
+  });
 });

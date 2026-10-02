@@ -3,7 +3,7 @@
 // Fill pages never close anything and never raise a failure flag; their listings are first-fill.
 import { fillPossible, fillReadAllowed, nextFillAttemptAt } from "../domain/schedule.js";
 import { type SourceDefinition, sourceById } from "../domain/sources.js";
-import { createSourceHttp } from "../infra/http.js";
+import { CollectorStopping, createSourceHttp } from "../infra/http.js";
 import { oldestPublishedAt } from "../infra/repo/postings.js";
 import { readRunSource, updateRunSource } from "../infra/repo/runs.js";
 import { readSource, readTimesSince, updateSource } from "../infra/repo/sources.js";
@@ -28,7 +28,7 @@ export async function continueFill(
   if (state.fillStatus === "complete" || verdict.completeness === "failed") return;
 
   const adapter = deps.adapters[id];
-  const http = createSourceHttp(db, source, { now: deps.now });
+  const http = createSourceHttp(db, source, { now: deps.now, signal: deps.signal });
   const target = deps.now() - FILL_DAYS * DAY;
   // Resume where the last part stopped; the first part starts after the regular read.
   let cursor = state.fillCursor ?? verdict.nextCursor;
@@ -66,7 +66,10 @@ export async function continueFill(
     if (!fillReadAllowed(source, readTimesSince(db, id, now - DAY), now)) return continueLater();
 
     // A refused or throwing page ends this part of the fill; it is never a source failure (Flow 8).
-    const page = await adapter.fetchOlder({ http, now }, cursor).catch(() => null);
+    const page = await adapter.fetchOlder({ http, now }, cursor).catch((err: unknown) => {
+      if (err instanceof CollectorStopping) throw err;
+      return null;
+    });
     if (!page || page.completeness === "failed" || page.completeness === "partial") return continueLater();
 
     const { kept, noCategory, fetchedItemIds } = await normalizeAndFilter(

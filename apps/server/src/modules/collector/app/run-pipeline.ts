@@ -3,6 +3,7 @@
 // An unexpected error inside one source's ingest fails that source only (sad §8 Error handling);
 // a failing fill page never fakes a source failure (Flow 8); a run the pipeline cannot finish is
 // recorded as incomplete, so it never blocks the next one (AC-20).
+import { CollectorStopping } from "../infra/http.js";
 import { markRunIncomplete, updateRunSource } from "../infra/repo/runs.js";
 import { dailyCleanup } from "./cleanup.js";
 import type { CollectorDeps } from "./deps.js";
@@ -23,10 +24,12 @@ export async function executeRun(
   try {
     const verdicts: FetchVerdict[] = [];
     for (const sourceId of run.due) {
+      if (deps.signal?.aborted) throw new CollectorStopping();
       let verdict: FetchVerdict;
       try {
         verdict = await ingestSource(deps, run, sourceId);
       } catch (err) {
+        if (err instanceof CollectorStopping) throw err; // shutdown, not a source failure
         log?.error({ err, runId: run.runId, source: sourceId }, "source ingest failed");
         updateRunSource(deps.db, run.runId, sourceId, {
           outcome: "failed",
@@ -37,7 +40,9 @@ export async function executeRun(
       verdicts.push(verdict);
       try {
         await continueFill(deps, run, verdict);
+        if (deps.signal?.aborted) throw new CollectorStopping();
       } catch (err) {
+        if (err instanceof CollectorStopping) throw err;
         // The fill stays as it was and continues in a later run; the source's read stands.
         log?.error({ err, runId: run.runId, source: sourceId }, "first fill failed");
       }

@@ -12,4 +12,6 @@ export interface CollectorDeps {
   timeZone: string;
   /** Source definitions, when they differ from the registry (tests of rate-dependent behaviour). */
   sources?: readonly SourceDefinition[];
+  /** Aborted when the app shuts down: in-flight reads stop and the run is left incomplete (AC-20). */
+  signal?: AbortSignal;
 }

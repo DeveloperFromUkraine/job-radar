@@ -24,12 +24,14 @@ export interface CollectorModuleOptions {
 export function collectorModule(options: CollectorModuleOptions): FastifyPluginAsync {
   return async (app) => {
     const handle: DbHandle = openDb(options.databaseFile);
+    const stopping = new AbortController();
     const deps: CollectorDeps = {
       db: handle.db,
       now: options.now ?? Date.now,
       settingsFile: settingsPathFor(options.databaseFile),
       adapters: createAdapters({ baseUrl: options.sourcesBaseUrl }),
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      signal: stopping.signal,
     };
     const marks = options.marks ?? noMarks;
     const log = app.log.child({ module: "collector" });
@@ -52,6 +54,7 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
     if (options.scheduler === false) startUp(deps);
     else app.addHook("onReady", async () => scheduler.start());
     app.addHook("onClose", async () => {
+      stopping.abort(); // in-flight reads end now; the run is left incomplete (AC-20)
       await scheduler.stop();
       await Promise.allSettled([...running]);
       handle.close();

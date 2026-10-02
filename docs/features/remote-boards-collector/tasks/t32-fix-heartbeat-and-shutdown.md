@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/collector/app/scheduler.ts", "apps/server/
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 # T32 — Keep the heartbeat during long runs and abort in-flight reads on shutdown

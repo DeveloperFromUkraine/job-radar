@@ -154,4 +154,25 @@ describe("collect now (Flow 2) and module wiring", () => {
     expect(api.statusCode).toBe(404);
     expect(api.json().error.code).toBe("NOT_FOUND");
   });
+  it("closing the app aborts an in-flight read quickly, records no source failure, and leaves the run incomplete (AC-20)", async () => {
+    fake.route("/api/v2/remote-jobs", delayed(JSON.stringify({ hasMore: false, jobs: [] }), 10_000));
+    const a = await start();
+    await post(a);
+    await new Promise((r) => setTimeout(r, 100)); // the Jobicy read is now in flight
+
+    const started = Date.now();
+    await a.close();
+    app = undefined;
+
+    expect(Date.now() - started).toBeLessThan(2_000);
+    expect(runs()).toEqual([{ trigger: "collect_now", status: "incomplete" }]);
+    const handle = openDb(databaseFile);
+    try {
+      expect(handle.db.all(sql`select outcome from collector_run_sources where outcome = 'failed'`)).toEqual(
+        [],
+      );
+    } finally {
+      handle.close();
+    }
+  }, 20_000);
 });

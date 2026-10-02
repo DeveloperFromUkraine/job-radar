@@ -74,7 +74,7 @@ export async function ingestSource(
   sourceId: SourceId,
 ): Promise<FetchVerdict> {
   const { db } = deps;
-  const http = createSourceHttp(db, sourceById(sourceId), { now: deps.now });
+  const http = createSourceHttp(db, sourceById(sourceId), { now: deps.now, signal: deps.signal });
   const fetched = await deps.adapters[sourceId].fetchLatest({ http, now: deps.now() });
   const verdict: FetchVerdict = {
     sourceId,

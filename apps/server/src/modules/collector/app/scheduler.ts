@@ -23,10 +23,11 @@ export function createScheduler(deps: CollectorDeps, options: SchedulerOptions):
   let busy: Promise<void> | null = null;
 
   const tick = (trigger: "catch_up" | "schedule") => {
+    // The app is running even while a long run is busy: overdue counts that time (AC-13).
+    heartbeat(deps, sessionId);
     if (busy) return busy; // a run is still executing; the unique index guards the rest
     busy = (async () => {
       try {
-        heartbeat(deps, sessionId);
         const result = openRun(deps, trigger);
         if (result.kind === "started") await options.executeRun(result);
       } catch (err) {
