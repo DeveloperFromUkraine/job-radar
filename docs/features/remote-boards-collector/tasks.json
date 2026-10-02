@@ -1,0 +1,496 @@
+{
+  "slug": "remote-boards-collector",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Promote the collector schema: Drizzle schema.ts + generated migration 0001",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "drizzle-kit generates 0001 from collector/infra/schema.ts and an integration test proves the generated schema equals the staged reference SQL (tables, columns, indexes incl. the partial unique index, FKs)",
+      "files_hint": [
+        "apps/server/src/modules/collector/infra/schema.ts",
+        "apps/server/drizzle/",
+        "docs/features/remote-boards-collector/migrations/",
+        "apps/server/test/collector-schema.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t01-collector-schema.md"
+    },
+    {
+      "id": "T2",
+      "title": "Enforce loopback-only, same-origin access in core and map Fastify 415",
+      "layer": "ports",
+      "deps": [],
+      "acs": [
+        "AC-17"
+      ],
+      "dod": "integration tests show a foreign Host gets 403 FORBIDDEN_HOST, a cross-site POST gets 403 CROSS_SITE_REQUEST, a POST without a JSON body gets 415 UNSUPPORTED_MEDIA_TYPE, and the server refuses to start on a non-loopback host",
+      "files_hint": [
+        "apps/server/src/core/access.ts",
+        "apps/server/src/core/errors.ts",
+        "apps/server/src/core/config.ts",
+        "apps/server/src/app.ts",
+        "apps/server/src/main.ts",
+        "apps/web/vite.config.ts",
+        "apps/server/test/access.integration.test.ts",
+        "apps/server/test/app.smoke.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t02-core-access-guard.md"
+    },
+    {
+      "id": "T3",
+      "title": "Model the source registry, due-ness and rolling-window rate limits",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02"
+      ],
+      "dod": "fake-clock unit tests over 7 simulated days with collect-now every minute and restarts never exceed any source's per-window limit, and next-due is the last read plus the interval",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/sources.ts",
+        "apps/server/src/modules/collector/domain/schedule.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t03-domain-source-schedule.md"
+    },
+    {
+      "id": "T4",
+      "title": "Define the settings schema, built-in defaults and per-source state",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-26",
+        "AC-27"
+      ],
+      "dod": "unit tests show a valid file parses, an unknown source or broken rule makes the whole file unreadable with a plain reason, the defaults enable every source except We Work Remotely, and an enabled rate-0 source resolves to not_verified",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/settings.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t04-domain-settings.md"
+    },
+    {
+      "id": "T5",
+      "title": "Define the adapter contract and normalize listings (plain text, location as stated, category filter)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-21",
+        "AC-22",
+        "AC-23"
+      ],
+      "dod": "unit tests show markup becomes plain text, a stated location restriction is kept verbatim and a missing one is unknown (null), and a listing is kept only when at least one category is on the owner's list while uncategorised ones are counted",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/listing.ts",
+        "apps/server/src/modules/collector/domain/adapter.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t05-domain-listing-normalize.md"
+    },
+    {
+      "id": "T6",
+      "title": "Implement the match key and the merge decision",
+      "layer": "domain",
+      "deps": [
+        "T5"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-11"
+      ],
+      "dod": "unit tests built from the AC-04/AC-05 examples merge same-role listings within 7 days, keep different regions/teams or conflicting location statements apart, replace a same-source re-post, and reopen a closed posting under its own id",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t06-domain-merge.md"
+    },
+    {
+      "id": "T7",
+      "title": "Implement listing closures per source verdict and the 30% hold-back",
+      "layer": "domain",
+      "deps": [
+        "T5"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-14",
+        "AC-26"
+      ],
+      "dod": "unit tests fed by per-source verdicts close a posting only when every enabled source confirmed and at least one did, never on a failed/partial/capped-without-signal fetch, and hold back a source's closures above 30% of its ≥10 open postings",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/closures.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t07-domain-closures.md"
+    },
+    {
+      "id": "T8",
+      "title": "Implement the source health flags, overdue and the marker rule",
+      "layer": "domain",
+      "deps": [
+        "T3"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-24",
+        "AC-25"
+      ],
+      "dod": "fake-clock unit tests raise failing, silent, overdue, unknown-location and category flags exactly at their thresholds, clear them after a successful read with items, never count laptop sleep as overdue, and mark only category_unmatched as not raising the marker",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/health.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t08-domain-health-flags.md"
+    },
+    {
+      "id": "T9",
+      "title": "Implement the retention clock and the once-a-day clean-up rule",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-10",
+        "AC-26"
+      ],
+      "dod": "fake-clock unit tests remove only postings more than 60 counted days past closing or last offer, pause the clock while all of a posting's sources are disabled, and allow clean-up once per calendar day in the owner's time zone",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/retention.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t09-domain-retention.md"
+    },
+    {
+      "id": "T10",
+      "title": "Read, create and fall back on the settings file, persisting the last valid copy",
+      "layer": "infra",
+      "deps": [
+        "T1",
+        "T4"
+      ],
+      "acs": [
+        "AC-27"
+      ],
+      "dod": "integration tests against a temp directory and DB create a missing file with defaults and a notice, keep collection on the last valid copy with a plain problem for an unreadable file, use defaults without overwriting when no valid copy exists, and clear the problem after a valid read",
+      "files_hint": [
+        "apps/server/src/modules/collector/infra/settings.ts",
+        "apps/server/src/modules/collector/infra/repo/state.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t10-infra-settings-file.md"
+    },
+    {
+      "id": "T11",
+      "title": "Build the ledgered HTTP client and the Jobicy adapter",
+      "layer": "infra",
+      "deps": [
+        "T1",
+        "T3",
+        "T5"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03"
+      ],
+      "dod": "tests against a local fake server show every request is ledgered before it is sent, responses over 10 MB or 30 s fail with a plain reason, and the Jobicy adapter turns recorded responses into normalized listings with completeness complete or capped and its window-bound close signals",
+      "files_hint": [
+        "apps/server/src/modules/collector/infra/http.ts",
+        "apps/server/src/modules/collector/infra/repo/sources.ts",
+        "apps/server/src/modules/collector/infra/sources/jobicy.ts",
+        "apps/server/test/fixtures/sources/jobicy/"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t11-infra-http-and-jobicy.md"
+    },
+    {
+      "id": "T12",
+      "title": "Verify spec §8 Q1/Q3, then build the Remotive, Himalayas and We Work Remotely adapters",
+      "layer": "infra",
+      "deps": [
+        "T11"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-21",
+        "AC-22"
+      ],
+      "dod": "adapter tests on recorded fixtures yield normalized listings with the ADR-0004 completeness and close signals for Remotive and Himalayas, the We Work Remotely adapter is never called while its rate is 0, and spec §8 Q1/Q3 are answered or explicitly re-deferred",
+      "files_hint": [
+        "apps/server/src/modules/collector/infra/sources/remotive.ts",
+        "apps/server/src/modules/collector/infra/sources/himalayas.ts",
+        "apps/server/src/modules/collector/infra/sources/weworkremotely.ts",
+        "apps/server/src/modules/collector/domain/sources.ts",
+        "apps/server/test/fixtures/sources/",
+        "docs/features/remote-boards-collector/spec.md"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t12-infra-remaining-adapters.md"
+    },
+    {
+      "id": "T13",
+      "title": "Run the one-minute scheduler, start-up recovery and run opening",
+      "layer": "app",
+      "deps": [
+        "T1",
+        "T3",
+        "T4",
+        "T10"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-16",
+        "AC-18",
+        "AC-20",
+        "AC-26",
+        "AC-27"
+      ],
+      "dod": "tests with a fake clock and temp DB mark a left-running run incomplete at start, open a catch-up run within one minute for sources past their interval, open at most one run, skip sources not yet due or disabled, and record app sessions and disabled periods",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/scheduler.ts",
+        "apps/server/src/modules/collector/app/open-run.ts",
+        "apps/server/src/modules/collector/app/startup.ts",
+        "apps/server/src/modules/collector/infra/repo/runs.ts",
+        "apps/server/src/modules/collector/infra/repo/sources.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t13-app-scheduler-and-run-start.md"
+    },
+    {
+      "id": "T14",
+      "title": "Ingest each due source and merge its listings in one transaction",
+      "layer": "app",
+      "deps": [
+        "T6",
+        "T11",
+        "T13"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-11",
+        "AC-21",
+        "AC-22",
+        "AC-23"
+      ],
+      "dod": "integration tests with recorded fixtures store new postings with title, company, publication time, source and link, merge cross-source listings into one posting, record a failing source's outcome without touching the others, and keep committed listings when the run is interrupted",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/ingest.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/src/modules/collector/infra/repo/runs.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t14-app-ingest-and-merge.md"
+    },
+    {
+      "id": "T15",
+      "title": "Finalize a run: apply closures, hold-back, flags and per-source counts",
+      "layer": "app",
+      "deps": [
+        "T7",
+        "T8",
+        "T14"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-24",
+        "AC-25"
+      ],
+      "dod": "integration tests close postings only per T7, hold back above 30%, store flags with reasons and clear them after a good read, write added/updated/closed/held counts per source and mark the run finished",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/finalize.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/src/modules/collector/infra/repo/runs.ts",
+        "apps/server/src/modules/collector/infra/repo/sources.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t15-app-finalize.md"
+    },
+    {
+      "id": "T16",
+      "title": "Fill the last 30 days for a never-read source within its leftover budget",
+      "layer": "app",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "integration tests with a fake clock fill newest first after the regular read, stop at 30 days (7 for Jobicy) or when the window runs out, record continuing with the next part's due time, never close anything from fill pages and mark fill listings out of the freshness sample",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/first-fill.ts",
+        "apps/server/src/modules/collector/infra/repo/sources.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t16-app-first-fill.md"
+    },
+    {
+      "id": "T17",
+      "title": "Run the daily clean-up through the MarkedPostings port",
+      "layer": "app",
+      "deps": [
+        "T9",
+        "T15"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-26"
+      ],
+      "dod": "integration tests with a marks fake remove only unmarked postings past retention with their listings, keep marked ones, remove nothing when the port fails, prune ledger and runs, and run at most once per calendar day",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/cleanup.ts",
+        "apps/server/src/modules/collector/app/marked-postings.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t17-app-daily-cleanup.md"
+    },
+    {
+      "id": "T18",
+      "title": "Serve getCollectorProblems and getSourceHealth",
+      "layer": "ports",
+      "deps": [
+        "T2",
+        "T8",
+        "T13"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-13",
+        "AC-27"
+      ],
+      "dod": "route tests return contract-valid bodies for both operations: problems lists every marker-raising flag (overdue computed, unreadable settings included), source health carries per-source rows, settings status, current and last run",
+      "files_hint": [
+        "apps/server/src/modules/collector/ports/routes.ts",
+        "apps/server/src/modules/collector/app/source-health.ts",
+        "apps/server/src/modules/collector/infra/repo/health.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t18-ports-health-routes.md"
+    },
+    {
+      "id": "T19",
+      "title": "Serve collectNow and wire the collector plugin, scheduler and built SPA",
+      "layer": "wiring",
+      "deps": [
+        "T2",
+        "T13",
+        "T18"
+      ],
+      "acs": [
+        "AC-15",
+        "AC-16"
+      ],
+      "dod": "route tests return 202 with the run, 200 started false with next due, and 409 COLLECTOR_RUN_IN_PROGRESS; the plugin starts and stops the scheduler with the server; the start-up smoke test answers within 5 s while a catch-up runs",
+      "files_hint": [
+        "apps/server/src/modules/collector/ports/routes.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/package.json",
+        "apps/server/test/app.smoke.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t19-ports-collect-now-and-wiring.md"
+    },
+    {
+      "id": "T20",
+      "title": "Set up query + router, the shared primitives and SCR-01 with the problem marker",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "component tests render SCR-01 in default, loading, problem and error states from mocked getCollectorProblems responses, the marker links to /sources, and the five shared primitives are registered in docs/design-system.md",
+      "files_hint": [
+        "apps/web/package.json",
+        "apps/web/src/main.tsx",
+        "apps/web/src/App.tsx",
+        "apps/web/src/api/",
+        "apps/web/src/components/",
+        "apps/web/src/routes/",
+        "apps/web/src/features/source-health/ProblemMarker.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t20-ui-foundation-and-main-screen.md"
+    },
+    {
+      "id": "T21",
+      "title": "Build SourceCard in every per-source state",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-19",
+        "AC-23",
+        "AC-24",
+        "AC-25",
+        "AC-26"
+      ],
+      "dod": "component tests render SourceCard as healthy, flagged, possibly changed, category notice, filling, disabled, not verified and never collected from contract-shaped rows",
+      "files_hint": [
+        "apps/web/src/features/source-health/SourceCard.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t21-ui-source-card.md"
+    },
+    {
+      "id": "T22",
+      "title": "Build the SCR-02 page states and settings / interrupted-run banners",
+      "layer": "ui",
+      "deps": [
+        "T21"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-20",
+        "AC-27"
+      ],
+      "dod": "component tests render SCR-02 loading, error, empty, default, run interrupted, defaults-in-use and unreadable-settings states from mocked getSourceHealth responses",
+      "files_hint": [
+        "apps/web/src/routes/SourceHealth.tsx",
+        "apps/web/src/features/source-health/"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t22-ui-source-health-page.md"
+    },
+    {
+      "id": "T23",
+      "title": "Build CollectNowAction and RunProgress with 2 s polling",
+      "layer": "ui",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-15",
+        "AC-16"
+      ],
+      "dod": "component tests show idle, pending, started, nothing-due, already-running and error answers in place, and the page polls every 2 s only while current_run is not null",
+      "files_hint": [
+        "apps/web/src/features/source-health/CollectNowAction.tsx",
+        "apps/web/src/features/source-health/RunProgress.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t23-ui-collect-now-and-progress.md"
+    },
+    {
+      "id": "T24",
+      "title": "Prove limits, interruption and start-up end to end against a fake source server",
+      "layer": "tests",
+      "deps": [
+        "T12",
+        "T16",
+        "T17",
+        "T19"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-18",
+        "AC-20"
+      ],
+      "dod": "end-to-end tests against a local fake source server never exceed any source's limit over 7 simulated days with restarts and collect-now every minute, record an interrupted run as incomplete with no closures, and catch up within one minute of start",
+      "files_hint": [
+        "apps/server/test/collector-e2e.integration.test.ts",
+        "apps/server/test/helpers/fake-sources.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t24-tests-collection-integration.md"
+    }
+  ]
+}
