@@ -273,7 +273,7 @@ describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
     runId: "run-2",
   };
 
-  it("a capped fetch is no proof: a different stated location makes a second posting", () => {
+  it("a conflicting stated location makes a second posting, whatever the fetch proves (AC-05)", () => {
     expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], capped)).toEqual({
       kind: "create",
     });
@@ -309,6 +309,18 @@ describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
     expect(
       decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ status: "closed" })], capped),
     ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
+  });
+
+  it("a closed old item the fetch still returns is not gone: its re-post sibling attaches (round-4 review N1)", () => {
+    const stillOffered = { ...complete(["h-0", "r-1"]), runId: "run-2" };
+    expect(
+      decideMerge(
+        listing({ locationRestriction: "Germany" }),
+        null,
+        [own({ status: "closed" })],
+        stillOffered,
+      ),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
   });
 
   it("a closed old item is still kept when the re-post states a conflicting location (S1 over M1)", () => {

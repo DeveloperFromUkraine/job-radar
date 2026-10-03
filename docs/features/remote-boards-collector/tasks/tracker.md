@@ -42,6 +42,6 @@
 | T35 | [Close the round-2 review findings in code and tests](./t35-fix-rereview-code.md) | app | Volodymyr Kozlov | M | T34 | done |
 | T36 | [Add the limited fill state to the runtime and UX flows](./t36-fix-rereview-docs.md) | docs | Volodymyr Kozlov | M | T35 | done |
 | T37 | [Close the round-3 review findings in code and tests](./t37-fix-r3-review-code.md) | app | Volodymyr Kozlov | M | T36 | done |
-| T38 | [Close the round-4 review findings in merge](./t38-fix-r4-review-code.md) | domain | Volodymyr Kozlov | S | T37 | todo |
+| T38 | [Close the round-4 review findings in merge](./t38-fix-r4-review-code.md) | domain | Volodymyr Kozlov | S | T37 | done |
 
 **Total:** 38 tasks (T25–T34 review follow-ups, T35–T36 re-review follow-ups, 2026-10-02; T37 round-3 and T38 round-4 follow-ups, 2026-10-03).

@@ -111,8 +111,9 @@ const PROVES_ALL: Presence = {
 };
 
 function provenGone(l: Candidate["listings"][number], presence: Presence): boolean {
+  if (presence.fetchedItemIds.has(l.sourceItemId)) return false; // offered again: never a re-post
   if (l.status === "closed") return true; // already confirmed gone by an earlier run (review M1)
-  if (!presence.complete || presence.fetchedItemIds.has(l.sourceItemId)) return false;
+  if (!presence.complete) return false;
   if (l.lastSeenRunId !== undefined && l.lastSeenRunId === presence.runId) return false; // seen in this run
   if (presence.coversPublishedAfter === null) return true;
   return l.publishedAt != null && l.publishedAt > presence.coversPublishedAfter;
