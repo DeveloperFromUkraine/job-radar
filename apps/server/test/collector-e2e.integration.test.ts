@@ -143,7 +143,7 @@ describe("collection end to end against a fake source server", () => {
     expect(fake.requests).toHaveLength(ledgered);
     expect(reads.jobicy?.length).toBe(7 * 24);
     expect(reads.weworkremotely).toBeUndefined();
-  }, 120_000);
+  }, 300_000); // ~100 s alone; parallel suite load pushes it past 120 s
 
   it("records an interrupted run as incomplete, closes nothing, and keeps what it collected (AC-20)", async () => {
     startUp(deps);
