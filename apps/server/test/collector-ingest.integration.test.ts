@@ -334,4 +334,60 @@ describe("ingest one due source (Flows 5 and 6)", () => {
     );
     expect(rows("select count(*) as n from collector_postings")).toEqual([{ n: 2 }]);
   });
+
+  it("a re-post with a conflicting stated location never takes over the gone item's posting (AC-05, review S1)", async () => {
+    const remotiveJob = (id: number, place: string) => ({
+      id,
+      url: `https://jobs.example.test/remotive/${id}`,
+      title: "Senior Backend Engineer",
+      company_name: "Example Co",
+      category: "Software Development",
+      publication_date: "2026-10-02T09:00:00",
+      candidate_required_location: place,
+      description: "",
+    });
+    fake.route("/api/remote-jobs", json(remotivePage([remotiveJob(1, "United States")])));
+    await runSource("remotive");
+    fake.route("/api/remote-jobs", json(remotivePage([remotiveJob(2, "Germany")])));
+    now = T0 + 24 * HOUR;
+
+    await runSource("remotive"); // complete fetch: item 1 is proven gone, but the locations conflict
+
+    expect(
+      rows("select source_item_id, location_restriction from collector_listings order by source_item_id").map(
+        (r) => [r.source_item_id, r.location_restriction],
+      ),
+    ).toEqual([
+      ["1", "United States"],
+      ["2", "Germany"],
+    ]);
+    expect(rows("select count(*) as n from collector_postings")).toEqual([{ n: 2 }]);
+  });
+
+  it("on a capped read, a re-post replaces an old item that is already closed (AC-04, AC-11, review M1)", async () => {
+    const job = (n: number) => ({
+      guid: `https://jobs.example.test/himalayas/${n}`,
+      title: "Senior Backend Engineer",
+      companyName: "Example Co",
+      parentCategories: ["Developer"],
+      locationRestrictions: ["Germany"],
+      timezoneRestrictions: [],
+      pubDate: Math.floor((T0 - n * HOUR) / 1000),
+      expiryDate: Math.floor((T0 + 30 * 24 * HOUR) / 1000),
+    });
+    fake.route("/jobs/api", json(JSON.stringify({ jobs: [job(2)], nextCursor: null })));
+    await runSource("himalayas");
+    db.db.run(sql`update collector_listings set status = 'closed', closed_at = ${T0 + HOUR}`);
+    db.db.run(sql`update collector_postings set status = 'closed', closed_at = ${T0 + HOUR}`);
+    const postingId = rows("select id from collector_postings")[0]?.id;
+    fake.route("/jobs/api", json(JSON.stringify({ jobs: [job(1)], nextCursor: null })));
+    now = T0 + 6 * HOUR;
+
+    await runSource("himalayas");
+
+    expect(rows("select posting_id, source_item_id, status from collector_listings")).toEqual([
+      { posting_id: postingId, source_item_id: "https://jobs.example.test/himalayas/1", status: "open" },
+    ]);
+    expect(rows("select id, status from collector_postings")).toEqual([{ id: postingId, status: "open" }]);
+  });
 });

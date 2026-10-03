@@ -240,15 +240,26 @@ describe("start-up after a pause or an interrupted run (Flow 3)", () => {
   });
   it("a failing heartbeat is reported, never thrown out of the scheduler (round-2 review R4)", async () => {
     const errors: unknown[] = [];
+    const runs: string[] = [];
     const scheduler = createScheduler(deps, {
-      executeRun: async () => {},
-      intervalMs: 20,
+      executeRun: async (run) => {
+        runs.push(run.trigger);
+      },
+      intervalMs: 60_000,
       onError: (e) => errors.push(e),
     });
-    db.db.run(sql`drop table collector_app_sessions`); // touchSession now throws
+    // Only the heartbeat fails: startUp inserts the session, every heartbeat updates it.
+    db.db.run(
+      sql.raw(
+        "create trigger heartbeat_down before update on collector_app_sessions begin select raise(abort, 'heartbeat down'); end",
+      ),
+    );
 
-    await expect(scheduler.start()).rejects.toThrow(); // startUp itself opens a session
+    await expect(scheduler.start()).resolves.toBeUndefined();
     await scheduler.stop();
+
+    expect(errors.map((e) => String(e))).toEqual([expect.stringContaining("heartbeat down")]);
+    expect(runs).toEqual(["catch_up"]); // the catch-up check still ran
   });
 
   it("a heartbeat error during a tick goes to onError and ticks keep coming", async () => {

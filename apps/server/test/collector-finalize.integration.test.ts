@@ -227,4 +227,36 @@ describe("finalize a run (Flow 7)", () => {
       { kind: "category_unmatched", reason: 'Category "Blockchain" matched nothing at the source.' },
     ]);
   });
+
+  it("after a capped run at or under 30%, clears held_back only where capped still re-checks closures (AC-14, review L1)", async () => {
+    for (const sourceId of ["himalayas", "jobicy", "remotive"]) {
+      db.db.run(
+        sql`insert into collector_source_flags (source_id, kind, reason, raised_at) values (${sourceId}, 'held_back', 'held', ${T0 - HOUR})`,
+      );
+    }
+    fake.route(
+      "/api/v2/remote-jobs",
+      json(JSON.stringify({ ...JSON.parse(jobicyPage([1])), hasMore: true })),
+    );
+    fake.route(
+      "/api/remote-jobs",
+      json(JSON.stringify({ ...JSON.parse(remotivePage([1])), "total-job-count": 50 })),
+    );
+
+    const run = await fullRun(T0);
+
+    expect(
+      rows(
+        `select source_id, outcome from collector_run_sources where run_id = '${run.runId}' order by source_id`,
+      ),
+    ).toEqual([
+      { source_id: "himalayas", outcome: "capped" },
+      { source_id: "jobicy", outcome: "capped" },
+      { source_id: "remotive", outcome: "capped" },
+    ]);
+    // Himalayas closes by expiry, so its capped read re-checks every closure; the others' cannot.
+    expect(
+      rows("select source_id from collector_source_flags where kind = 'held_back' order by source_id"),
+    ).toEqual([{ source_id: "jobicy" }, { source_id: "remotive" }]);
+  });
 });

@@ -89,6 +89,7 @@ export interface Candidate {
     locationRestriction: string | null;
     lastSeenRunId?: string;
     publishedAt?: number | null;
+    status?: "open" | "closed";
   }[];
 }
 
@@ -110,6 +111,7 @@ const PROVES_ALL: Presence = {
 };
 
 function provenGone(l: Candidate["listings"][number], presence: Presence): boolean {
+  if (l.status === "closed") return true; // already confirmed gone by an earlier run (review M1)
   if (!presence.complete || presence.fetchedItemIds.has(l.sourceItemId)) return false;
   if (l.lastSeenRunId !== undefined && l.lastSeenRunId === presence.runId) return false; // seen in this run
   if (presence.coversPublishedAfter === null) return true;
@@ -160,9 +162,16 @@ export function decideMerge(
     .filter((c) => withinWindow(listing.publishedAt, c.latestPublishedAt))
     .sort(byPreference);
 
+  const conflicts = (c: Candidate) =>
+    listing.locationRestriction !== null &&
+    c.listings.some(
+      (l) => l.locationRestriction !== null && l.locationRestriction !== listing.locationRestriction,
+    );
+
   for (const c of inWindow) {
-    // A re-post replaces the source's old item only once the fetch proves that item gone (AC-04);
-    // otherwise the two items are two roles, decided by the location rule below (AC-05).
+    // A re-post replaces the source's old item only once that item is proven gone (AC-04) and the
+    // stated locations agree; otherwise the two items are two roles, decided below (AC-05).
+    if (conflicts(c)) continue;
     const own = c.listings.find((l) => l.sourceId === listing.sourceId && provenGone(l, presence));
     if (own) {
       return {
@@ -174,11 +183,6 @@ export function decideMerge(
     }
   }
 
-  const conflicts = (c: Candidate) =>
-    listing.locationRestriction !== null &&
-    c.listings.some(
-      (l) => l.locationRestriction !== null && l.locationRestriction !== listing.locationRestriction,
-    );
   const target = inWindow.find((c) => !conflicts(c));
   return target
     ? { kind: "attach", postingId: target.postingId, reopen: target.status === "closed" }

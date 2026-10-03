@@ -21,6 +21,14 @@ import type { StartedRun } from "./scheduler.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
+// A complete read re-checks every closure; a capped one only where the source closes by expiry (R2).
+function rechecksClosures(sourceId: FetchVerdict["sourceId"], verdicts: readonly FetchVerdict[]): boolean {
+  const completeness = verdicts.find((v) => v.sourceId === sourceId)?.completeness;
+  return (
+    completeness === "complete" || (completeness === "capped" && sourceById(sourceId).closesByExpiry === true)
+  );
+}
+
 export function finalizeRun(
   deps: CollectorDeps,
   run: Pick<StartedRun, "runId" | "settings">,
@@ -64,10 +72,7 @@ export function finalizeRun(
         // The published list where the source has one (static, AC-24); otherwise the 7-day rule.
         publishedCategories: sourceById(sourceId).publishedCategories ?? null,
         categoriesMatchedLast7Days: categoriesSeenSince(tx, sourceId, now - 7 * DAY),
-        closuresRechecked:
-          verdicts.find((v) => v.sourceId === sourceId)?.completeness === "complete" ||
-          (verdicts.find((v) => v.sourceId === sourceId)?.completeness === "capped" &&
-            sourceById(sourceId).closesByExpiry === true),
+        closuresRechecked: rechecksClosures(sourceId, verdicts),
       });
       applyFlags(tx, sourceId, flags.raised, flags.cleared, now);
     }

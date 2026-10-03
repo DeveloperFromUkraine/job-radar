@@ -172,6 +172,7 @@ function candidatesFor(db: DbOrTx, key: string): Candidate[] {
         locationRestriction: l.locationRestriction,
         lastSeenRunId: l.lastSeenRunId,
         publishedAt: l.publishedAt,
+        status: l.status,
       })),
   }));
 }

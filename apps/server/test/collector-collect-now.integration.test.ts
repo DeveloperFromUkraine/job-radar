@@ -3,9 +3,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import Fastify from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { openDb, runMigrations } from "../src/core/db.js";
+import { collectorModule } from "../src/modules/collector/index.js";
 import { contractExample, expectContract } from "./helpers/contract.js";
 import { type FakeSources, json, startFakeSources } from "./helpers/fake-sources.js";
 
@@ -175,4 +177,22 @@ describe("collect now (Flow 2) and module wiring", () => {
       handle.close();
     }
   }, 20_000);
+
+  it("logs a run cut short by shutdown at info, never as a failed run (round-2 review R7)", async () => {
+    const lines: { level: number; msg: string }[] = [];
+    const stream = { write: (line: string) => void lines.push(JSON.parse(line)) };
+    for (const path of ["/api/v2/remote-jobs", "/api/remote-jobs", "/jobs/api"]) {
+      fake.route(path, delayed("{}", 5_000)); // every read is still in flight at shutdown
+    }
+    const bare = Fastify({ logger: { level: "info", stream } });
+    await bare.register(collectorModule({ databaseFile, sourcesBaseUrl: fake.baseUrl, scheduler: false }));
+    await bare.ready();
+    const res = await bare.inject({ method: "POST", url: "/api/v1/collector/runs", payload: {} });
+    expect(res.statusCode).toBe(202);
+
+    await bare.close();
+
+    const about = lines.filter((l) => /run (failed|interrupted)/.test(l.msg));
+    expect(about).toEqual([expect.objectContaining({ level: 30, msg: "run interrupted by shutdown" })]);
+  });
 });

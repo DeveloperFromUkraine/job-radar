@@ -140,12 +140,37 @@ describe("merge decision", () => {
         { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
       ],
     });
-    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: "Canada" }), null, [c])).toEqual({
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: "USA" }), null, [c])).toEqual({
       kind: "replace-same-source",
       postingId: "0192-a",
       replacesListingId: "l-r0",
       reopen: false,
     });
+  });
+
+  it("a same-source item with a conflicting stated location is another role, not a re-post (AC-05)", () => {
+    const c = candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
+      ],
+    });
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: "Canada" }), null, [c])).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("a re-post replaces the old item when only one side states a location (AC-05)", () => {
+    const c = candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
+      ],
+    });
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: null }), null, [c])).toMatchObject(
+      {
+        kind: "replace-same-source",
+        replacesListingId: "l-r0",
+      },
+    );
   });
 
   it("prefers the same-source re-post over a cross-source merge", () => {
@@ -205,14 +230,24 @@ describe("same-source items that are both still live (AC-05)", () => {
     expect(decision).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
   });
 
-  it("replaces the old item when it is gone from the fetch — a real re-post", () => {
+  it("replaces the old item when it is gone from the fetch and the locations agree — a real re-post", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "United States" }),
+      null,
+      [live("United States")],
+      complete(["r-1"]),
+    );
+    expect(decision).toMatchObject({ kind: "replace-same-source", replacesListingId: "l-r0" });
+  });
+
+  it("never lets a gone item's conflicting successor take over its posting (round-3 review S1)", () => {
     const decision = decideMerge(
       listing({ locationRestriction: "Germany" }),
       null,
       [live("United States")],
       complete(["r-1"]),
     );
-    expect(decision).toMatchObject({ kind: "replace-same-source", replacesListingId: "l-r0" });
+    expect(decision).toEqual({ kind: "create" });
   });
 });
 
@@ -254,15 +289,31 @@ describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
 
   it("an old item already seen in this run is live, even if this page does not return it", () => {
     const sameRun = { ...complete(["r-1"]), runId: "run-1" };
-    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], sameRun)).toEqual({
-      kind: "create",
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [own()], sameRun)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
     });
   });
 
   it("a complete fetch is no proof for an item older than the window it covers", () => {
     const window = { ...complete(["r-1"]), coversPublishedAfter: T };
-    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], window)).toEqual({
-      kind: "create",
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [own()], window)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
     });
+  });
+
+  it("an old item already closed is proven gone, even on a capped fetch (round-3 review M1)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ status: "closed" })], capped),
+    ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
+  });
+
+  it("a closed old item is still kept when the re-post states a conflicting location (S1 over M1)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "USA" }), null, [own({ status: "closed" })], capped),
+    ).toEqual({ kind: "create" });
   });
 });
