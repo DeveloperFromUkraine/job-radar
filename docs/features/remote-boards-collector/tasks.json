@@ -793,6 +793,28 @@
         "apps/server/src/modules/collector/domain/merge.test.ts"
       ],
       "file": "docs/features/remote-boards-collector/tasks/t38-fix-r4-review-code.md"
+    },
+    {
+      "id": "T39",
+      "title": "Close the round-5 review findings in merge",
+      "layer": "domain",
+      "deps": [
+        "T38"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-11"
+      ],
+      "dod": "tests: a closed listing already seen in this run is not proven gone, so its sibling attaches (P1); the N1 test uses a closed posting and expects reopen:true, plus an integration test that the old row keeps its id and first_collected_at (P2); an expired listing absent from the fetch counts as proven gone, so its re-post replaces it (P3)",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/domain/merge.test.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/src/modules/collector/app/ingest.ts",
+        "apps/server/src/modules/collector/app/first-fill.ts",
+        "apps/server/test/collector-ingest.integration.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t39-fix-r5-review-code.md"
     }
   ]
 }
