@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss">
+  <channel>
+    <title>We Work Remotely: Remote jobs in design, programming, marketing and more</title>
+    <link>https://weworkremotely.com/remote-jobs.rss</link>
+    <description>We Work Remotely: Remote jobs in design, programming, marketing and more</description>
+    <language>en-US</language>
+    <ttl>60</ttl>
+    <item>
+      <title>Example Co: Senior Java Developer</title>
+      <region>Anywhere in the World</region>
+      <country>🇦🇩 Andorra, 🇦🇱 Albania, 🇦🇹 Austria, 🇧🇦 Bosnia and Herzegovina, 🇧🇬 Bulgaria, 🇨🇭 Switzerland, 🇨🇿 Czechia, 🇩🇪 Germany, 🇩🇰 Denmark, 🇪🇪 Estonia, 🇪🇸 Spain, 🇫🇮 Finland, 🇫🇷 France, 🇬🇧 United Kingdom of Great Britain and Northern Ireland, 🇬🇷 Greece, 🇭🇷 Croatia, 🇭🇺 Hungary, 🇮🇹 Italy, 🇱🇹 Lithuania, 🇲🇩 Moldova (Republic of), 🇲🇪 Montenegro, 🇲🇰 North Macedonia, 🇳🇱 Netherlands, 🇳🇴 Norway, 🇵🇱 Poland, 🇵🇹 Portugal, 🇷🇴 Romania, 🇸🇪 Sweden, 🇸🇮 Slovenia, 🇸🇰 Slovakia, and 🇺🇦 Ukraine</country>
+      <state>Région Flamande</state>
+      <skills>Java, PostgreSQL, and Spring</skills>
+      <category>Back-End Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Role description with &lt;b&gt;markup&lt;/b&gt; &amp;amp; entities.&lt;/p&gt;</description>
+      <pubDate>Thu, 17 Sep 2026 10:51:23 +0000</pubDate>
+      <expires_at>Sat, 17 Oct 2026 10:51:23 +0000</expires_at>
+      <guid>https://jobs.example.test/wwr/1</guid>
+      <link>https://jobs.example.test/wwr/1</link>
+    </item>
+    <item>
+      <title>Example Co: Web Designer, eCRM</title>
+      <region>Anywhere in the World</region>
+      <country></country>
+      <state>District of Columbia</state>
+      <skills>A/B Testing, AWS, Compliance, Google Analytics, HTML/CSS, JavaScript, MySQL, Node.js, PHP, SASS, UI/UX, UX design, Jira, CI/CD Pipelines, Microsoft Project/Trello/Jira, Legal Compliance, GitHub, and Claude.ai</skills>
+      <category>Front-End Programming</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Role description with &lt;b&gt;markup&lt;/b&gt; &amp;amp; entities.&lt;/p&gt;</description>
+      <pubDate>Fri, 02 Oct 2026 17:39:45 +0000</pubDate>
+      <expires_at>Sun, 01 Nov 2026 17:39:45 +0000</expires_at>
+      <guid>https://jobs.example.test/wwr/2</guid>
+      <link>https://jobs.example.test/wwr/2</link>
+    </item>
+    <item>
+      <title>Example Co: FT/PT Remote AI Prompt Engineering &amp; Evaluation - Will Train</title>
+      <region>USA Only</region>
+      <country></country>
+      <state></state>
+      <skills></skills>
+      <category>All Other Remote</category>
+      <type>Contract</type>
+      <description>&lt;p&gt;Role description with &lt;b&gt;markup&lt;/b&gt; &amp;amp; entities.&lt;/p&gt;</description>
+      <pubDate>Wed, 21 Jun 2023 14:22:59 +0000</pubDate>
+      <expires_at>Mon, 02 Nov 2026 14:22:59 +0000</expires_at>
+      <guid>https://jobs.example.test/wwr/3</guid>
+      <link>https://jobs.example.test/wwr/3</link>
+    </item>
+    <item>
+      <title>Example &amp; Sons: Commercial Partnerships &amp; Operations Director</title>
+      <region>Anywhere in the World</region>
+      <country></country>
+      <state></state>
+      <skills></skills>
+      <category>All Other Remote</category>
+      <type>Full-Time</type>
+      <description>&lt;p&gt;Role description with &lt;b&gt;markup&lt;/b&gt; &amp;amp; entities.&lt;/p&gt;</description>
+      <pubDate>Sat, 03 Oct 2026 07:31:20 +0000</pubDate>
+      <expires_at>Mon, 02 Nov 2026 07:31:20 +0000</expires_at>
+      <guid>https://jobs.example.test/wwr/4</guid>
+      <link>https://jobs.example.test/wwr/4</link>
+    </item>
+  </channel>
+</rss>

@@ -19,9 +19,12 @@ describe("source registry", () => {
     expect(sourceById("jobicy").limits).toEqual({ perHour: 1 });
     expect(sourceById("remotive").limits).toEqual({ perDay: 4, perMinute: 2 });
     expect(sourceById("himalayas").limits).toEqual({ perDay: 4 });
-    expect(sourceById("weworkremotely").limits).toEqual({ perDay: 0 });
+    expect(sourceById("weworkremotely").limits).toEqual({ perHour: 1 });
   });
 });
+
+// No source has a zero rate since 2026-10-03 (spec §8 Q1); the rule stays for the next unverified one.
+const unverified: SourceDefinition = { ...sourceById("weworkremotely"), limits: { perDay: 0 } };
 
 describe("due-ness (AC-02)", () => {
   const jobicy = sourceById("jobicy");
@@ -39,9 +42,8 @@ describe("due-ness (AC-02)", () => {
   });
 
   it("a source whose allowed rate is 0 is never due", () => {
-    const wwr = sourceById("weworkremotely");
-    expect(isDue(wwr, null, T0)).toBe(false);
-    expect(nextDueAt(wwr, null, T0)).toBeNull();
+    expect(isDue(unverified, null, T0)).toBe(false);
+    expect(nextDueAt(unverified, null, T0)).toBeNull();
   });
 
   it("next due is the last read plus the interval, or now when never read", () => {
@@ -66,7 +68,7 @@ describe("rolling windows", () => {
   });
 
   it("never allows a read for a source whose allowed rate is 0", () => {
-    expect(windowAllows(sourceById("weworkremotely"), [], T0)).toBe(false);
+    expect(windowAllows(unverified, [], T0)).toBe(false);
   });
 });
 

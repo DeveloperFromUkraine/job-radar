@@ -17,6 +17,8 @@ export type HttpResult =
 
 export interface SourceHttp {
   getJson(url: string): Promise<HttpResult>;
+  /** The body as text, for feeds that are not JSON (We Work Remotely's RSS). */
+  getText(url: string): Promise<HttpResult>;
 }
 
 export interface SourceHttpOptions {
@@ -42,55 +44,62 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     failure: { code, detail },
   });
 
+  async function get(url: string, accept: string): Promise<HttpResult> {
+    // Shutdown has begun: nothing is sent, so nothing is charged to the source's rate (review R6).
+    if (options.signal?.aborted) throw new CollectorStopping();
+    const now = options.now();
+    if (!windowAllows(source, readTimesSince(db, source.id, now - DAY), now)) return { kind: "limited" };
+    recordRead(db, source.id, now);
+
+    const abort = new AbortController();
+    let tooLarge = false;
+    const timer = setTimeout(() => abort.abort(), timeoutMs);
+    try {
+      const signal = options.signal ? AbortSignal.any([abort.signal, options.signal]) : abort.signal;
+      const res = await fetch(url, {
+        headers: { "user-agent": USER_AGENT, accept },
+        signal,
+      });
+      if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 451) {
+        return fail("refused", `HTTP ${res.status}`);
+      }
+      if (!res.ok) return fail("unreachable", `HTTP ${res.status}`);
+
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      if (res.body) {
+        for await (const chunk of res.body as AsyncIterable<Uint8Array>) {
+          size += chunk.byteLength;
+          if (size > maxBytes) {
+            tooLarge = true;
+            abort.abort();
+            break;
+          }
+          chunks.push(chunk);
+        }
+      }
+      if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
+      return { kind: "ok", body: Buffer.concat(chunks).toString("utf8") };
+    } catch (err) {
+      if (options.signal?.aborted) throw new CollectorStopping();
+      if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
+      if (abort.signal.aborted) return fail("timed_out", `no answer within ${timeoutMs} ms`);
+      return fail("unreachable", (err as Error).message);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   return {
     async getJson(url) {
-      // Shutdown has begun: nothing is sent, so nothing is charged to the source's rate (review R6).
-      if (options.signal?.aborted) throw new CollectorStopping();
-      const now = options.now();
-      if (!windowAllows(source, readTimesSince(db, source.id, now - DAY), now)) return { kind: "limited" };
-      recordRead(db, source.id, now);
-
-      const abort = new AbortController();
-      let tooLarge = false;
-      const timer = setTimeout(() => abort.abort(), timeoutMs);
+      const res = await get(url, "application/json");
+      if (res.kind !== "ok") return res;
       try {
-        const signal = options.signal ? AbortSignal.any([abort.signal, options.signal]) : abort.signal;
-        const res = await fetch(url, {
-          headers: { "user-agent": USER_AGENT, accept: "application/json" },
-          signal,
-        });
-        if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 451) {
-          return fail("refused", `HTTP ${res.status}`);
-        }
-        if (!res.ok) return fail("unreachable", `HTTP ${res.status}`);
-
-        const chunks: Uint8Array[] = [];
-        let size = 0;
-        if (res.body) {
-          for await (const chunk of res.body as AsyncIterable<Uint8Array>) {
-            size += chunk.byteLength;
-            if (size > maxBytes) {
-              tooLarge = true;
-              abort.abort();
-              break;
-            }
-            chunks.push(chunk);
-          }
-        }
-        if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
-        try {
-          return { kind: "ok", body: JSON.parse(Buffer.concat(chunks).toString("utf8")) };
-        } catch {
-          return fail("unreadable", "not JSON");
-        }
-      } catch (err) {
-        if (options.signal?.aborted) throw new CollectorStopping();
-        if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
-        if (abort.signal.aborted) return fail("timed_out", `no answer within ${timeoutMs} ms`);
-        return fail("unreachable", (err as Error).message);
-      } finally {
-        clearTimeout(timer);
+        return { kind: "ok", body: JSON.parse(res.body as string) };
+      } catch {
+        return fail("unreadable", "not JSON");
       }
     },
+    getText: (url) => get(url, "application/rss+xml, application/xml, text/xml"),
   };
 }

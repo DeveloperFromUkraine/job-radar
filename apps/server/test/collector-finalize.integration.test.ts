@@ -10,7 +10,7 @@ import { openRun } from "../src/modules/collector/app/open-run.js";
 import { startUp } from "../src/modules/collector/app/startup.js";
 import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
-import { type FakeSources, json, startFakeSources } from "./helpers/fake-sources.js";
+import { type FakeSources, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -64,6 +64,7 @@ describe("finalize a run (Flow 7)", () => {
     };
     startUp(deps);
     fake.route("/jobs/api", json(JSON.stringify({ jobs: [] }))); // Himalayas: nothing new
+    fake.route("/remote-jobs.rss", xml('<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>'));
   });
 
   afterEach(async () => {
@@ -229,7 +230,7 @@ describe("finalize a run (Flow 7)", () => {
   });
 
   it("after a capped run at or under 30%, clears held_back only where capped still re-checks closures (AC-14, review L1)", async () => {
-    for (const sourceId of ["himalayas", "jobicy", "remotive"]) {
+    for (const sourceId of ["himalayas", "jobicy", "remotive", "weworkremotely"]) {
       db.db.run(
         sql`insert into collector_source_flags (source_id, kind, reason, raised_at) values (${sourceId}, 'held_back', 'held', ${T0 - HOUR})`,
       );
@@ -253,8 +254,9 @@ describe("finalize a run (Flow 7)", () => {
       { source_id: "himalayas", outcome: "capped" },
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
+      { source_id: "weworkremotely", outcome: "capped" },
     ]);
-    // Himalayas closes by expiry, so its capped read re-checks every closure; the others' cannot.
+    // Himalayas and WWR close by expiry, so a capped read re-checks every closure; the others' cannot.
     expect(
       rows("select source_id from collector_source_flags where kind = 'held_back' order by source_id"),
     ).toEqual([{ source_id: "jobicy" }, { source_id: "remotive" }]);

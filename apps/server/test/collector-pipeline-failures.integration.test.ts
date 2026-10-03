@@ -89,6 +89,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         outcome: "failed",
         failure_reason: "The source's response could not be processed.",
       },
+      { source_id: "weworkremotely", outcome: "complete", failure_reason: null },
     ]);
     expect(rows(`select status from collector_runs where id = '${run.runId}'`)).toEqual([
       { status: "finished" },

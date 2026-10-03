@@ -38,7 +38,7 @@ Each source differs in shape, paging, freshness and what it can say about a list
 | Remotive | `complete` when the single unfiltered request succeeded — one read per run, inside ≤ 4 a day | listing absent from that complete fetch | failed or partial fetch |
 | Himalayas | `capped` (≤ 20 per request, ≤ 4 requests a day) | `expiryDate` in the past | absence |
 | Jobicy | `complete` within the window when the response has fewer items than requested, else `capped` | absent from a complete response and published after (now − 7 days + 12 h) | a listing older than the window; a capped response |
-| We Work Remotely | — (disabled) | none — ages out only (AC-10) | anything |
+| We Work Remotely | — (capped: the all-jobs feed holds only the newest items per category) | `expires_at` passed (amended by fix 2026-10-03, spec §8 Q1) | anything |
 
 ## Consequences
 

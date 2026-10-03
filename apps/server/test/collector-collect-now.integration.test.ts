@@ -9,7 +9,7 @@ import { buildApp } from "../src/app.js";
 import { openDb, runMigrations } from "../src/core/db.js";
 import { collectorModule } from "../src/modules/collector/index.js";
 import { contractExample, expectContract } from "./helpers/contract.js";
-import { type FakeSources, json, startFakeSources } from "./helpers/fake-sources.js";
+import { type FakeSources, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 
 const host = { host: "127.0.0.1:3000" };
 const post = (app: FastifyInstance, payload: unknown = {}) =>
@@ -38,6 +38,7 @@ describe("collect now (Flow 2) and module wiring", () => {
     fake.route("/api/v2/remote-jobs", json(JSON.stringify({ hasMore: false, jobs: [] })));
     fake.route("/api/remote-jobs", json(JSON.stringify({ "job-count": 0, "total-job-count": 0, jobs: [] })));
     fake.route("/jobs/api", json(JSON.stringify({ jobs: [], nextCursor: null })));
+    fake.route("/remote-jobs.rss", xml('<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>'));
   });
 
   afterEach(async () => {
@@ -84,6 +85,7 @@ describe("collect now (Flow 2) and module wiring", () => {
       "jobicy",
       "himalayas",
       "remotive",
+      "weworkremotely",
     ]);
     await until(() => runs().every((r) => r.status === "finished"));
   });
@@ -116,8 +118,8 @@ describe("collect now (Flow 2) and module wiring", () => {
     expect(res.json()).toMatchObject({ started: false, run: null });
     expect(res.json().next_due).toContainEqual({
       source_id: "weworkremotely",
-      state: "disabled",
-      next_due_at: null,
+      state: "enabled",
+      next_due_at: expect.any(String),
     });
   });
 
@@ -181,7 +183,7 @@ describe("collect now (Flow 2) and module wiring", () => {
   it("logs a run cut short by shutdown at info, never as a failed run (round-2 review R7)", async () => {
     const lines: { level: number; msg: string }[] = [];
     const stream = { write: (line: string) => void lines.push(JSON.parse(line)) };
-    for (const path of ["/api/v2/remote-jobs", "/api/remote-jobs", "/jobs/api"]) {
+    for (const path of ["/api/v2/remote-jobs", "/api/remote-jobs", "/jobs/api", "/remote-jobs.rss"]) {
       fake.route(path, delayed("{}", 5_000)); // every read is still in flight at shutdown
     }
     const bare = Fastify({ logger: { level: "info", stream } });

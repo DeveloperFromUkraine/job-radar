@@ -54,7 +54,7 @@ describe("run start (Flows 3 and 4)", () => {
 
     expect(result.kind).toBe("started");
     if (result.kind !== "started") return;
-    expect(result.due).toEqual(["jobicy", "himalayas", "remotive"]);
+    expect(result.due).toEqual(["jobicy", "himalayas", "remotive", "weworkremotely"]);
     expect(rows("select trigger, status, started_at from collector_runs")).toEqual([
       { trigger: "schedule", status: "running", started_at: T0 },
     ]);
@@ -62,6 +62,7 @@ describe("run start (Flows 3 and 4)", () => {
       { source_id: "himalayas", outcome: "pending" },
       { source_id: "jobicy", outcome: "pending" },
       { source_id: "remotive", outcome: "pending" },
+      { source_id: "weworkremotely", outcome: "pending" },
     ]);
   });
 
@@ -73,7 +74,8 @@ describe("run start (Flows 3 and 4)", () => {
 
   it("opens no run when nothing is due and reports when each source is next due (AC-02, AC-15)", () => {
     openRun(deps, "schedule");
-    for (const id of ["jobicy", "himalayas", "remotive"] as const) recordRead(db.db, id, T0);
+    for (const id of ["jobicy", "himalayas", "remotive", "weworkremotely"] as const)
+      recordRead(db.db, id, T0);
     finishRuns();
     now = T0 + 30 * MIN;
 
@@ -83,19 +85,20 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "jobicy", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "himalayas", state: "enabled", nextDueAt: T0 + 6 * HOUR },
         { sourceId: "remotive", state: "enabled", nextDueAt: T0 + 6 * HOUR },
-        { sourceId: "weworkremotely", state: "disabled", nextDueAt: null },
+        { sourceId: "weworkremotely", state: "enabled", nextDueAt: T0 + HOUR },
       ],
     });
   });
 
   it("reads only the sources whose interval has passed", () => {
     openRun(deps, "schedule");
-    for (const id of ["jobicy", "himalayas", "remotive"] as const) recordRead(db.db, id, T0);
+    for (const id of ["jobicy", "himalayas", "remotive", "weworkremotely"] as const)
+      recordRead(db.db, id, T0);
     finishRuns();
     now = T0 + HOUR;
 
     const result = openRun(deps, "schedule");
-    expect(result.kind === "started" && result.due).toEqual(["jobicy"]);
+    expect(result.kind === "started" && result.due).toEqual(["jobicy", "weworkremotely"]);
   });
 
   it("does not read a disabled source and records when it was disabled (AC-26)", () => {
@@ -103,7 +106,7 @@ describe("run start (Flows 3 and 4)", () => {
 
     const result = openRun(deps, "schedule");
 
-    expect(result.kind === "started" && result.due).toEqual(["himalayas", "remotive"]);
+    expect(result.kind === "started" && result.due).toEqual(["himalayas", "remotive", "weworkremotely"]);
     expect(
       rows("select source_id, disabled_from, disabled_until from collector_source_disabled_periods"),
     ).toContainEqual({
@@ -127,17 +130,6 @@ describe("run start (Flows 3 and 4)", () => {
         "select disabled_from, disabled_until from collector_source_disabled_periods where source_id = 'jobicy'",
       ),
     ).toEqual([{ disabled_from: T0, disabled_until: T0 + 2 * HOUR }]);
-  });
-
-  it("never reads a source the owner enabled while its allowed rate is 0 (AC-27)", () => {
-    writeSettings({ weworkremotely: { enabled: true, categories: [] } });
-    const result = openRun(deps, "schedule");
-    expect(result.kind === "started" && result.due).not.toContain("weworkremotely");
-    expect(result.kind === "started" && result.nextDue).toContainEqual({
-      sourceId: "weworkremotely",
-      state: "not_verified",
-      nextDueAt: null,
-    });
   });
 
   it("runs on the last valid settings when the file becomes unreadable (AC-27)", () => {

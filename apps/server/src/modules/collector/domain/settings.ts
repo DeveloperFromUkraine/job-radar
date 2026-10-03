@@ -42,7 +42,15 @@ export const DEFAULT_SETTINGS: Settings = {
         "Artificial Intelligence",
       ],
     },
-    weworkremotely: { enabled: false, categories: [] },
+    weworkremotely: {
+      enabled: true,
+      categories: [
+        "Back-End Programming",
+        "Front-End Programming",
+        "Full-Stack Programming",
+        "DevOps and Sysadmin",
+      ],
+    },
   },
 };
 

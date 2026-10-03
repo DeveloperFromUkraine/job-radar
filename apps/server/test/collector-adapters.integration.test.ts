@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { isDue } from "../src/modules/collector/domain/schedule.js";
 import { type SourceId, sourceById } from "../src/modules/collector/domain/sources.js";
 import { createSourceHttp } from "../src/modules/collector/infra/http.js";
 import { ensureSources } from "../src/modules/collector/infra/repo/sources.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
-import { type FakeSources, fixture, json, startFakeSources } from "./helpers/fake-sources.js";
+import { type FakeSources, fixture, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 const NOW = Date.UTC(2026, 9, 2, 12);
@@ -106,14 +105,44 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
   });
 
   describe("We Work Remotely", () => {
-    it("is never due while its allowed rate is 0, so it is never fetched (spec §8 Q1)", () => {
-      expect(isDue(sourceById("weworkremotely"), null, NOW)).toBe(false);
+    it("reads the public feed in one request, capped, with company and title split", async () => {
+      fake.route("/remote-jobs.rss", xml(fixture("weworkremotely/latest.rss")));
+
+      const result = await fetchLatest("weworkremotely");
+
+      expect(fake.requests).toEqual(["/remote-jobs.rss"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 4, coversPublishedAfter: null });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "https://jobs.example.test/wwr/1",
+        url: "https://jobs.example.test/wwr/1",
+        company: "Example Co",
+        title: "Senior Java Developer",
+        description: "<p>Role description with <b>markup</b> &amp; entities.</p>",
+        categories: ["Back-End Programming"],
+        publishedAt: Date.UTC(2026, 8, 17, 10, 51, 23),
+        expiresAt: Date.UTC(2026, 9, 17, 10, 51, 23),
+      });
+      expect(result.listings[3]).toMatchObject({
+        company: "Example & Sons",
+        title: "Commercial Partnerships & Operations Director",
+      });
     });
 
-    it("sends nothing even if asked, because its window never allows a read", async () => {
-      const result = await fetchLatest("weworkremotely");
-      expect(result).toMatchObject({ completeness: "partial", listings: [] });
-      expect(fake.requests).toEqual([]);
+    it("takes the location from <country>, else a specific <region>, else states nothing (AC-21, AC-22)", async () => {
+      fake.route("/remote-jobs.rss", xml(fixture("weworkremotely/latest.rss")));
+      const [countries, anywhere, region] = (await fetchLatest("weworkremotely")).listings;
+      expect(countries?.locationRestriction).toMatch(/^🇦🇩 Andorra, .*🇵🇱 Poland, .*and 🇺🇦 Ukraine$/);
+      // "Anywhere in the World" sits beside country lists too (feed read 2026-10-03): nothing stated.
+      expect(anywhere?.locationRestriction).toBeNull();
+      expect(region?.locationRestriction).toBe("USA Only");
+    });
+
+    it("fails a response that is not an RSS feed", async () => {
+      fake.route("/remote-jobs.rss", xml("<html>Just a moment...</html>"));
+      expect(await fetchLatest("weworkremotely")).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
     });
   });
 });

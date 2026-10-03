@@ -3,17 +3,18 @@ import { DEFAULT_SETTINGS, parseSettings, sourceState } from "./settings.js";
 import { sourceById } from "./sources.js";
 
 describe("built-in default settings (AC-27)", () => {
-  it("enables every source except We Work Remotely", () => {
+  it("enables every source", () => {
     expect(DEFAULT_SETTINGS.sources.jobicy.enabled).toBe(true);
     expect(DEFAULT_SETTINGS.sources.himalayas.enabled).toBe(true);
     expect(DEFAULT_SETTINGS.sources.remotive.enabled).toBe(true);
-    expect(DEFAULT_SETTINGS.sources.weworkremotely.enabled).toBe(false);
+    expect(DEFAULT_SETTINGS.sources.weworkremotely.enabled).toBe(true);
   });
 
   it("has a tech category list for every enabled source", () => {
     expect(DEFAULT_SETTINGS.sources.jobicy.categories).toContain("Software Engineering");
     expect(DEFAULT_SETTINGS.sources.remotive.categories).toContain("Software Development");
     expect(DEFAULT_SETTINGS.sources.himalayas.categories).toContain("Developer");
+    expect(DEFAULT_SETTINGS.sources.weworkremotely.categories).toContain("Back-End Programming");
   });
 });
 
@@ -82,9 +83,7 @@ describe("a source's state (AC-26, AC-27)", () => {
   });
 
   it("is not_verified when the owner enables a source whose allowed rate is 0", () => {
-    const settings = {
-      sources: { ...DEFAULT_SETTINGS.sources, weworkremotely: { enabled: true, categories: [] } },
-    };
-    expect(sourceState(settings, sourceById("weworkremotely"))).toBe("not_verified");
+    const unverified = { ...sourceById("weworkremotely"), limits: { perDay: 0 } };
+    expect(sourceState(DEFAULT_SETTINGS, unverified)).toBe("not_verified");
   });
 });

@@ -56,7 +56,7 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) �
 
 **Regulatory / external.**
 - Source terms: every listing keeps its source's name and link back (Himalayas, Remotive, Jobicy, We Work Remotely all require attribution); republishing, exporting or resubmitting postings is forbidden.
-- Published request limits (spec §6): Jobicy ≤ 1 per hour; Remotive ≤ 4 per day and ≤ 2 per minute; Himalayas ≤ 4 per day until spec §8 Q3 sets its verified rate; We Work Remotely 0 (disabled) until spec §8 Q1 sets its verified limit. One read = one request, pages and failures included; rolling 60-minute / 24-hour windows.
+- Published request limits (spec §6): Jobicy ≤ 1 per hour; Remotive ≤ 4 per day and ≤ 2 per minute; Himalayas ≤ 4 per day until spec §8 Q3 sets its verified rate; We Work Remotely ≤ 1 per hour (spec §8 Q1, answered 2026-10-03: no published limit; its feed refreshes hourly). One read = one request, pages and failures included; rolling 60-minute / 24-hour windows.
 - Source behaviour re-verified 2026-10-02 from each source's API documentation:
   - **Jobicy** — returns only listings published in the last 7 days, with a 3-hour publication delay; ≤ 200 listings per request; no closed signal.
   - **Himalayas** — ≤ 20 records per request, cursor pagination; data refreshed daily ("polling more than once per day provides no benefit"); every job carries `expiryDate` and `guid`.
@@ -78,7 +78,7 @@ The owner runs job-radar on their own laptop to find global remote tech roles. T
 | Jobicy | System (external) | Read at most once an hour over HTTPS (JSON); last 7 days only; freshness source |
 | Himalayas | System (external) | Read at most 4 times a day over HTTPS (JSON, 20 records per request); completeness + location data; `expiryDate` per job |
 | Remotive | System (external) | Read at most 4 times a day over HTTPS (JSON); all active listings per category, 24 h delayed |
-| We Work Remotely | System (external) | Disabled — 0 reads until spec §8 Q1 verifies its terms and limits |
+| We Work Remotely | System (external) | Public RSS feed, read hourly; attribution required (spec §8 Q1, answered 2026-10-03) |
 | Local settings file | Data input (owner's file system) | Enabled sources + tech categories per source; read by job-radar at the start of every run, never written except to create it with defaults (AC-27) |
 
 Trust boundary: the job-radar process on the owner's machine. Source responses cross it as untrusted content (size-capped, schema-checked, stored as plain text — §8); the browser crosses it only over the loopback interface.
@@ -97,7 +97,7 @@ C4Context
     System_Ext(jobicy, "Jobicy", "Remote job feed - hourly, last 7 days")
     System_Ext(himalayas, "Himalayas", "Remote job feed - daily data, 20 per request")
     System_Ext(remotive, "Remotive", "Remote job feed - all active listings, 24 h delayed")
-    System_Ext(wwr, "We Work Remotely", "Remote job feed - disabled until terms are verified")
+    System_Ext(wwr, "We Work Remotely", "Public remote job RSS feed - read hourly")
 
     Rel(owner, jobradar, "Views source health, starts collect-now, edits the settings file", "browser on loopback")
     Rel(visitor, jobradar, "Cannot connect", "blocked")
@@ -171,7 +171,7 @@ C4Container
         ContainerDb(settings, "Settings file", "JSON on disk", "Enabled sources, tech categories per source")
     }
 
-    System_Ext(sources, "Job sources", "Jobicy, Himalayas, Remotive - We Work Remotely disabled")
+    System_Ext(sources, "Job sources", "Jobicy, Himalayas, Remotive, We Work Remotely")
 
     Rel(owner, web, "Opens source health, presses collect-now", "browser on loopback")
     Rel(owner, settings, "Edits outside the app", "text editor")
@@ -760,7 +760,7 @@ Each §1 goal expanded into a full scenario; numbers are quoted from spec §6 NF
 | A source changes its response shape, categories or window | Medium | Schema validation turns a shape change into a flagged failure (AC-03); category drift is reported (AC-24); the 30% hold-back stops mass false closures (AC-14) | Tech Lead |
 | Collection shares the event loop with the API (ADR-0001) | Low | Chunked normalization that yields; short per-source transactions; the ≤ 5 s start-up smoke test | Tech Lead |
 | Owner-mark protection is proven only with a test fake until roadmap step 6 (ADR-0006) | Low | Re-verify AC-06/07/10/11 against real marks when step 6 ships (spec §5 note) | Volodymyr Kozlov |
-| Spec §8 Q1 (We Work Remotely limits and location data) is still open — its pages answered 403 again on 2026-10-02 — and is re-deferred to before WWR is enabled; Q3 (Himalayas' rate) was answered by implement T12: no numeric limit published, the default ≤ 4 reads a day stays | Low | WWR stays disabled at rate 0; the adapter contract and settings file absorb the answer without design change | Volodymyr Kozlov — before WWR is enabled |
+| Spec §8 Q1 (We Work Remotely limits and location data) was answered on 2026-10-03 by fix `_fixes/2026-10-03-enable-we-work-remotely.md` — WWR is read hourly from its public feed; Q3 (Himalayas' rate) was answered by implement T12: no numeric limit published, the default ≤ 4 reads a day stays | Low | Resolved: the adapter contract and settings file absorbed the answer without design change | Volodymyr Kozlov — resolved 2026-10-03 |
 | `docs/architecture-map.md` is behind the code and this design (says TypeScript 5, repo has `^7.0.2`; "State / data-fetching: not decided" is now ADR-0002) | Low | Re-run `/sdd:survey` after this feature lands | Volodymyr Kozlov |
 | Development restarts (`tsx watch`) and crashes consume reads, because a read is counted when recorded, before it is sent | Low | Deliberately conservative (ADR-0003, AC-20); a dev setting can disable the scheduler while working on unrelated code | Tech Lead |
 

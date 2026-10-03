@@ -1,6 +1,6 @@
 ## Summary
 
-job-radar now collects remote tech postings from Jobicy (every hour), Himalayas and Remotive (every 6 hours) while the app runs. The same role from several boards becomes one posting. Postings close only on a reliable signal, and each source's health is visible in a new Source health screen, with a problem marker on the main screen. We Work Remotely ships disabled until its terms are verified. Spec: [`docs/features/remote-boards-collector/spec.md`](docs/features/remote-boards-collector/spec.md). Changelog: [`changelog.md`](docs/features/remote-boards-collector/changelog.md).
+job-radar now collects remote tech postings from Jobicy and We Work Remotely (every hour), Himalayas and Remotive (every 6 hours) while the app runs. The same role from several boards becomes one posting. Postings close only on a reliable signal, and each source's health is visible in a new Source health screen, with a problem marker on the main screen. We Work Remotely is read from its public RSS feed (spec §8 Q1, answered 2026-10-03). Spec: [`docs/features/remote-boards-collector/spec.md`](docs/features/remote-boards-collector/spec.md). Changelog: [`changelog.md`](docs/features/remote-boards-collector/changelog.md).
 
 ## Acceptance criteria
 
@@ -73,6 +73,7 @@ Accepted residuals, due 2026-10-31: spec §8 L4, L5 and L6/Q1.
 - `e3816bb` T36 — docs(remote-boards-collector): the limited fill state in the flows
 - `60ae928`, `b78b85f`, `d9c695c`: fixes from review rounds 3–5 (re-post rules, expiry as proof of gone)
 - `9df8fbf`: test timeout headroom for the 7-day rate-limit simulation
+- `29a331f`: enable We Work Remotely — RSS adapter, hourly rate, `expires_at` close signal (`_fixes/2026-10-03-enable-we-work-remotely.md`)
 
 ## Verification
 
@@ -87,6 +88,11 @@ Accepted residuals, due 2026-10-31: spec §8 L4, L5 and L6/Q1.
   - AC-02 / AC-15: collect-now right after the run returned `200 {started:false}` with each source's next due time (Jobicy +1 h, Himalayas and Remotive +6 h, WWR disabled).
   - AC-17 / ADR-0007: the server listens only on `127.0.0.1`, and the LAN IP refuses the connection. A foreign `Host` gets 403, `Sec-Fetch-Site: cross-site` gets 403, a non-JSON body gets 415, and a CORS preflight is not approved.
   - The web UI is served at `/`.
+  - After the WWR fix, on a fresh database:
+    - WWR was enabled by default and its read was `capped`. It added 27 postings, and the next read was due in 1 h.
+    - One role that Collibra posted twice on WWR, 8 s apart, was shown as one posting (AC-04).
+    - 21 of the 27 have an unknown location (AC-22).
+    - The bullets above were recorded before this fix, so they still show WWR as disabled.
 - Deferred: closure, re-post, 30% hold-back and failure flags over time (AC-03, AC-07–AC-14, AC-20, AC-25) can't be produced on demand against live boards. They are covered by the end-to-end test against a fake source server (`collector-e2e.integration.test.ts`) and the integration tests.
 
 ## Operational notes

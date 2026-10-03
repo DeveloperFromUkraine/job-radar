@@ -69,6 +69,16 @@ const himalayasPage = (n: number, at: number) =>
     })),
   });
 
+const wwrPage = (n: number, at: number) =>
+  `<?xml version="1.0"?><rss version="2.0"><channel>${Array.from(
+    { length: n },
+    (_, i) => `<item><title>Sample ${i} Ltd: Platform Engineer ${i}</title><region>Europe</region>
+      <country></country><category>Back-End Programming</category><description>Role</description>
+      <pubDate>${new Date(at - i * HOUR).toUTCString()}</pubDate>
+      <expires_at>${new Date(at + 30 * DAY).toUTCString()}</expires_at>
+      <guid>https://jobs.example.test/wwr/${i}</guid><link>https://jobs.example.test/wwr/${i}</link></item>`,
+  ).join("")}</channel></rss>`;
+
 describe("collection end to end against a fake source server", () => {
   let db: TempDb;
   let dir: string;
@@ -89,6 +99,9 @@ describe("collection end to end against a fake source server", () => {
     });
     fake.route("/jobs/api", (_q, res) => {
       res.writeHead(200, { "content-type": "application/json" }).end(himalayasPage(20, now));
+    });
+    fake.route("/remote-jobs.rss", (_q, res) => {
+      res.writeHead(200, { "content-type": "application/rss+xml" }).end(wwrPage(10, now));
     });
     deps = {
       db: db.db,
@@ -142,7 +155,7 @@ describe("collection end to end against a fake source server", () => {
     // Every request the sources saw was ledgered first — nothing went out uncounted.
     expect(fake.requests).toHaveLength(ledgered);
     expect(reads.jobicy?.length).toBe(7 * 24);
-    expect(reads.weworkremotely).toBeUndefined();
+    expect(reads.weworkremotely?.length).toBe(7 * 24);
   }, 300_000); // ~100 s alone; parallel suite load pushes it past 120 s
 
   it("records an interrupted run as incomplete, closes nothing, and keeps what it collected (AC-20)", async () => {

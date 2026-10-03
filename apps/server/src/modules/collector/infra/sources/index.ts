@@ -12,6 +12,6 @@ export function createAdapters(options: { baseUrl?: string } = {}): Record<Sourc
     jobicy: jobicyAdapter(baseUrl),
     himalayas: himalayasAdapter(baseUrl),
     remotive: remotiveAdapter(baseUrl),
-    weworkremotely: weWorkRemotelyAdapter(),
+    weworkremotely: weWorkRemotelyAdapter(baseUrl),
   };
 }

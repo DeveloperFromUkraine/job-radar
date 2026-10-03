@@ -112,9 +112,24 @@ export const SOURCES: readonly SourceDefinition[] = [
     id: "weworkremotely",
     name: "We Work Remotely",
     siteUrl: "https://weworkremotely.com",
-    intervalMs: 6 * HOUR,
-    // 0 — not read until spec §8 Q1 sets its verified limit.
-    limits: { perDay: 0 },
+    // No published limit (spec §8 Q1); the feed's own <ttl> is 60 minutes, so hourly is the most
+    // that brings new data.
+    intervalMs: HOUR,
+    limits: { perHour: 1 },
+    closesByExpiry: true,
+    // The <category> values of https://weworkremotely.com/remote-jobs.rss, read 2026-10-03.
+    publishedCategories: [
+      "All Other Remote",
+      "Back-End Programming",
+      "Customer Support",
+      "Design",
+      "DevOps and Sysadmin",
+      "Front-End Programming",
+      "Full-Stack Programming",
+      "Management and Finance",
+      "Product",
+      "Sales and Marketing",
+    ],
   },
 ];
 

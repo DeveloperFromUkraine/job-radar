@@ -47,3 +47,9 @@ export const json =
   (_req, res) => {
     res.writeHead(status, { "content-type": "application/json" }).end(body);
   };
+
+export const xml =
+  (body: string, status = 200): Handler =>
+  (_req, res) => {
+    res.writeHead(status, { "content-type": "application/rss+xml; charset=utf-8" }).end(body);
+  };
