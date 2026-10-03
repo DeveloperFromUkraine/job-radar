@@ -89,6 +89,7 @@ export interface Candidate {
     locationRestriction: string | null;
     lastSeenRunId?: string;
     publishedAt?: number | null;
+    expiresAt?: number | null;
     status?: "open" | "closed";
   }[];
 }
@@ -101,6 +102,8 @@ export interface Presence {
   coversPublishedAfter: number | null;
   fetchedItemIds: ReadonlySet<string>;
   runId: string;
+  /** An item whose stated expiry is at or before this time is gone (AC-04); null on a partial read. */
+  expiredBy: number | null;
 }
 
 const PROVES_ALL: Presence = {
@@ -108,13 +111,15 @@ const PROVES_ALL: Presence = {
   coversPublishedAfter: null,
   fetchedItemIds: new Set(),
   runId: "",
+  expiredBy: null,
 };
 
 function provenGone(l: Candidate["listings"][number], presence: Presence): boolean {
   if (presence.fetchedItemIds.has(l.sourceItemId)) return false; // offered again: never a re-post
-  if (l.status === "closed") return true; // already confirmed gone by an earlier run (review M1)
-  if (!presence.complete) return false;
   if (l.lastSeenRunId !== undefined && l.lastSeenRunId === presence.runId) return false; // seen in this run
+  if (l.status === "closed") return true; // already confirmed gone by an earlier run (review M1)
+  if (presence.expiredBy !== null && l.expiresAt != null && l.expiresAt <= presence.expiredBy) return true;
+  if (!presence.complete) return false;
   if (presence.coversPublishedAfter === null) return true;
   return l.publishedAt != null && l.publishedAt > presence.coversPublishedAfter;
 }

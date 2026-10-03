@@ -111,6 +111,8 @@ export async function ingestSource(
         coversPublishedAfter: fetched.coversPublishedAfter,
         fetchedItemIds,
         runId: run.runId,
+        // As in finalize, a partial read is no evidence, not even of a stated expiry (closures.ts).
+        expiredBy: fetched.completeness === "partial" ? null : now,
       },
     });
     updateRunSource(tx, run.runId, sourceId, {

@@ -79,13 +79,20 @@ export async function continueFill(
     );
     cursor = page.nextCursor ?? null;
     const next = cursor;
+    const storedAt = deps.now();
     db.transaction((tx) => {
       const counts = storeListings(tx, kept, {
         runId: run.runId,
-        now: deps.now(),
+        now: storedAt,
         isFirstFill: true,
-        // A fill page proves nothing about other items (review R1).
-        presence: { complete: false, coversPublishedAfter: null, fetchedItemIds, runId: run.runId },
+        // A fill page proves nothing about other items except their stated expiry (reviews R1, P3).
+        presence: {
+          complete: false,
+          coversPublishedAfter: null,
+          fetchedItemIds,
+          runId: run.runId,
+          expiredBy: storedAt,
+        },
       });
       const before = readRunSource(tx, run.runId, id);
       if (before) {

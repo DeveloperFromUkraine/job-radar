@@ -390,4 +390,62 @@ describe("ingest one due source (Flows 5 and 6)", () => {
     ]);
     expect(rows("select id, status from collector_postings")).toEqual([{ id: postingId, status: "open" }]);
   });
+
+  const himalayasJob = (n: number, expiresAt: number) => ({
+    guid: `https://jobs.example.test/himalayas/${n}`,
+    title: "Senior Backend Engineer",
+    companyName: "Example Co",
+    parentCategories: ["Developer"],
+    locationRestrictions: ["Germany"],
+    timezoneRestrictions: [],
+    pubDate: Math.floor((T0 - n * HOUR) / 1000),
+    expiryDate: Math.floor(expiresAt / 1000),
+  });
+
+  it("a closed item returned after its re-post is reopened in place, never replaced (AC-04, AC-11, review N1)", async () => {
+    const later = T0 + 30 * 24 * HOUR;
+    fake.route("/jobs/api", json(JSON.stringify({ jobs: [himalayasJob(2, later)], nextCursor: null })));
+    await runSource("himalayas");
+    db.db.run(sql`update collector_listings set status = 'closed', closed_at = ${T0 + HOUR}`);
+    db.db.run(sql`update collector_postings set status = 'closed', closed_at = ${T0 + HOUR}`);
+    const [old] = rows("select id, posting_id, first_collected_at from collector_listings");
+    fake.route(
+      "/jobs/api",
+      json(JSON.stringify({ jobs: [himalayasJob(1, later), himalayasJob(2, later)], nextCursor: null })),
+    );
+    now = T0 + 6 * HOUR;
+
+    await runSource("himalayas"); // the sibling comes first, while item 2 is still closed
+
+    expect(
+      rows("select id, first_collected_at, status from collector_listings where source_item_id like '%/2'"),
+    ).toEqual([{ id: old?.id, first_collected_at: old?.first_collected_at, status: "open" }]);
+    expect(rows("select posting_id, status from collector_listings")).toEqual([
+      { posting_id: old?.posting_id, status: "open" },
+      { posting_id: old?.posting_id, status: "open" },
+    ]);
+    expect(rows("select id, status from collector_postings")).toEqual([
+      { id: old?.posting_id, status: "open" },
+    ]);
+  });
+
+  it("on a capped read, a re-post replaces an old item whose stated expiry has passed (AC-04, review P3)", async () => {
+    fake.route(
+      "/jobs/api",
+      json(JSON.stringify({ jobs: [himalayasJob(2, T0 + 2 * HOUR)], nextCursor: null })),
+    );
+    await runSource("himalayas");
+    const postingId = rows("select id from collector_postings")[0]?.id;
+    fake.route(
+      "/jobs/api",
+      json(JSON.stringify({ jobs: [himalayasJob(1, T0 + 30 * 24 * HOUR)], nextCursor: null })),
+    );
+    now = T0 + 6 * HOUR; // item 2 expired four hours ago and is still open: finalize has not run yet
+
+    await runSource("himalayas");
+
+    expect(rows("select posting_id, source_item_id, status from collector_listings")).toEqual([
+      { posting_id: postingId, source_item_id: "https://jobs.example.test/himalayas/1", status: "open" },
+    ]);
+  });
 });

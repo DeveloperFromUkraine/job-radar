@@ -24,6 +24,7 @@ const complete = (ids: string[]) => ({
   coversPublishedAfter: null,
   fetchedItemIds: new Set(ids),
   runId: "run-2",
+  expiredBy: T,
 });
 
 const candidate = (over: Partial<Candidate> = {}): Candidate => ({
@@ -271,7 +272,13 @@ describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
     coversPublishedAfter: null,
     fetchedItemIds: new Set(["r-1"]),
     runId: "run-2",
+    expiredBy: T,
   };
+  /** A posting finalize closed: its only listing is closed too. */
+  const closed = (over: Partial<Candidate["listings"][number]> = {}) => ({
+    ...own({ status: "closed", ...over }),
+    status: "closed" as const,
+  });
 
   it("a conflicting stated location makes a second posting, whatever the fetch proves (AC-05)", () => {
     expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], capped)).toEqual({
@@ -311,15 +318,52 @@ describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
     ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
   });
 
-  it("a closed old item the fetch still returns is not gone: its re-post sibling attaches (round-4 review N1)", () => {
-    const stillOffered = { ...complete(["h-0", "r-1"]), runId: "run-2" };
+  it("a closed old item the fetch still returns is not gone: its re-post sibling attaches and reopens (round-4 review N1)", () => {
+    const stillOffered = complete(["h-0", "r-1"]);
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [closed()], stillOffered)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: true,
+    });
+  });
+
+  it("a closed old item already seen in this run is not gone, even if this page does not return it (round-5 review P1)", () => {
     expect(
       decideMerge(
         listing({ locationRestriction: "Germany" }),
         null,
-        [own({ status: "closed" })],
-        stillOffered,
+        [closed({ lastSeenRunId: "run-2" })],
+        capped,
       ),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: true });
+  });
+
+  it("an expired old item is proven gone, even on a capped fetch (round-5 review P3)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T - DAY })], capped),
+    ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
+  });
+
+  it("an expired old item the fetch still returns is not gone", () => {
+    expect(
+      decideMerge(
+        listing({ locationRestriction: "Germany" }),
+        null,
+        [own({ expiresAt: T - DAY })],
+        complete(["h-0", "r-1"]),
+      ),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+  });
+
+  it("an item expiring later is not gone, and a partial read proves no expiry", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T + DAY })], capped),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T - DAY })], {
+        ...capped,
+        expiredBy: null,
+      }),
     ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
   });
 
