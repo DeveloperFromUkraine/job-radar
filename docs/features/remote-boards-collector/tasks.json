@@ -775,6 +775,24 @@
         "apps/server/src/modules/collector/index.ts"
       ],
       "file": "docs/features/remote-boards-collector/tasks/t37-fix-r3-review-code.md"
+    },
+    {
+      "id": "T38",
+      "title": "Close the round-4 review findings in merge",
+      "layer": "domain",
+      "deps": [
+        "T37"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-11"
+      ],
+      "dod": "tests: a closed old listing still returned by this fetch is never proven gone, so its sibling re-post attaches instead of replacing it; the capped-no-proof test that now passes through the location conflict is renamed to an AC-05 conflict test",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/domain/merge.test.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t38-fix-r4-review-code.md"
     }
   ]
 }
