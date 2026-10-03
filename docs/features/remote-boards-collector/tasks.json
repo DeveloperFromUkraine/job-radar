@@ -748,6 +748,33 @@
         "docs/features/remote-boards-collector/migrations/01_create_sources.up.sql"
       ],
       "file": "docs/features/remote-boards-collector/tasks/t36-fix-rereview-docs.md"
+    },
+    {
+      "id": "T37",
+      "title": "Close the round-3 review findings in code and tests",
+      "layer": "app",
+      "deps": [
+        "T36"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-04",
+        "AC-11",
+        "AC-14",
+        "AC-18"
+      ],
+      "dod": "tests: a same-source item with a conflicting stated location never replaces the old item (both merge unit tests flipped to create; integration: complete Remotive fetch, US item gone, Germany item posted -> two postings); a closed old listing on a capped source is proven gone, so a same-location re-post replaces it instead of attaching a second listing; finalize clears held_back for Himalayas after a capped run <=30% and keeps it for Jobicy/Remotive; the R4 start-up test asserts the heartbeat error reaches onError while start() resolves; a shutdown during a run is logged at info, not as run failed",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/domain/merge.test.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/src/modules/collector/app/finalize.ts",
+        "apps/server/test/collector-ingest.integration.test.ts",
+        "apps/server/test/collector-finalize.integration.test.ts",
+        "apps/server/test/collector-run-start.integration.test.ts",
+        "apps/server/src/modules/collector/index.ts"
+      ],
+      "file": "docs/features/remote-boards-collector/tasks/t37-fix-r3-review-code.md"
     }
   ]
 }
