@@ -20,7 +20,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | # | Step | Source | Size | Status |
 |---|---|---|:---:|---|
 | 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | shipped |
-| 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive; We Work Remotely once its terms are verified), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | spec'd |
+| 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive; We Work Remotely once its terms are verified), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | shipped |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem | S | idea |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
 | 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
@@ -100,3 +100,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | Step | Shipped | Link |
 |---|---|---|
 | 1 · Project skeleton | 2026-09-29 | commit `5a7f2b4` (no PR) |
+| 2 · Remote-boards collector | 2026-10-03 | branch `feature/remote-boards-collector` (no remote yet), [changelog](features/remote-boards-collector/changelog.md) |
