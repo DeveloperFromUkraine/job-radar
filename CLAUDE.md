@@ -44,5 +44,5 @@ Node 22+ (`.nvmrc`), pnpm via corepack (`corepack enable`).
 
 ## Source terms
 
-Himalayas, Remotive, Jobicy and Remote OK require linking back and naming the source; never republish their
+Himalayas, Remotive, Jobicy, We Work Remotely and Remote OK require linking back and naming the source; never republish their
 postings elsewhere.

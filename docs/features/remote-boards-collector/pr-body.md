@@ -73,7 +73,7 @@ Accepted residuals, due 2026-10-31: spec §8 L4, L5 and L6/Q1.
 - `e3816bb` T36 — docs(remote-boards-collector): the limited fill state in the flows
 - `60ae928`, `b78b85f`, `d9c695c`: fixes from review rounds 3–5 (re-post rules, expiry as proof of gone)
 - `9df8fbf`: test timeout headroom for the 7-day rate-limit simulation
-- `29a331f`: enable We Work Remotely — RSS adapter, hourly rate, `expires_at` close signal (`_fixes/2026-10-03-enable-we-work-remotely.md`)
+- `e9c2fb4`: enable We Work Remotely — RSS adapter, hourly rate, `expires_at` close signal (`_fixes/2026-10-03-enable-we-work-remotely.md`)
 
 ## Verification
 
