@@ -1,6 +1,6 @@
 ---
 status: living
-updated_at: "2026-10-02"
+updated_at: "2026-10-04"
 ---
 
 # Roadmap — job-radar
@@ -21,7 +21,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 |---|---|---|:---:|---|
 | 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | shipped |
 | 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive, We Work Remotely), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | shipped |
-| 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem | S | idea |
+| 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | spec'd |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
 | 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
 | 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope | XS | idea |
