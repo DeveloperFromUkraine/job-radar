@@ -26,7 +26,7 @@ AC-02 defines a precise rule: a skill matches where its exact text — symbols i
 
 ## Considered options
 
-1. **Scan in the app** — the collector export streams open postings with their open listings' text; one pure matcher in `search/domain` (escaped skills, one case-insensitive Unicode pattern with boundary look-arounds) decides matches and in-title flags.
+1. **Scan in the app** — the collector export streams open postings with their open listings' text (plus closed listings' source and status, never matched); one pure matcher in `search/domain` (escaped skills, one case-insensitive Unicode pattern with boundary look-arounds) decides matches and in-title flags.
 2. **SQLite FTS5 trigram index as a pre-filter, then the same matcher** — an index of every three-character fragment narrows candidates before the exact check.
 
 ## Decision outcome

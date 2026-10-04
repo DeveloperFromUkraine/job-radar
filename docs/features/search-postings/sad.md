@@ -34,6 +34,8 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) �
 
 <!-- Decision overrides (¶4) — populated by the critic resolution loop, empty otherwise. -->
 
+- Decision override: size stays S although the feature adds a new module, new routes and a migration — rationale: the `search/` module and its routes are the roadmap's planned step-3 shape (project ADR-0002), and the migration is one single-row `search_state` table; effort remains about one week. Re-run `/sdd:classify-size search-postings` if implementation grows past that.
+
 ## 2. Constraints
 
 **Technical.**
@@ -92,13 +94,13 @@ C4Context
 
 ## 4. Solution strategy
 
-**Target surfaces:** `[backend-service, web-frontend]` — [ADR-0001](adr/0001-ship-search-as-new-server-module-plus-main-screen-list.md). A new `search` feature module in the existing Fastify server owns the skills rules, matching, ordering, visits and paging; it reads open postings through a new read-only export in `collector/app/`. The web app's main screen (SCR-01) gains the skills field and the list; no new screen.
+**Target surfaces:** `[backend-service, web-frontend]` — [ADR-0001](adr/0001-ship-search-as-new-server-module-plus-main-screen-list.md). A new `search` feature module in the existing Fastify server owns the skills rules, matching, ordering, visits and paging; it reads open postings through a new read-only export in `collector/app/` that streams each open posting with its open listings' text plus its closed listings' source and status. The web app's main screen (SCR-01) gains the skills field and the list; no new screen.
 
 **UI architecture (web-frontend):** unchanged from the project — single-page app (project ADR-0001), server data through TanStack Query, React Router for the existing two screens (collector ADR-0002). The list uses TanStack Query's infinite query (pages appended client-side, never refetched while shown — so a posting closed while on screen stays, AC-16); the waiting-postings count is polled every 60 s and on window focus, the cadence the problem marker already uses. Screens reuse `docs/design-system.md` (Badge for matched skills, InlineBanner, SkeletonRow, Button); screen-level states belong to `screens.md`. Inline only — no new UI-architecture choice crosses the gate.
 
 **Top strategic choices (the seeds for ADRs):**
 
-1. **A new `search` module that reads postings through the collector's `app` layer** — matching, ordering, visits and paging are search's rules, kept in `search/domain` and unit-testable without a database; the SQL over postings and listings stays in the collector, behind one read-only export that streams open postings with their open listings' text. Follows project ADR-0002 and keeps step 11's collector work in a separate folder — [ADR-0001](adr/0001-ship-search-as-new-server-module-plus-main-screen-list.md).
+1. **A new `search` module that reads postings through the collector's `app` layer** — matching, ordering, visits and paging are search's rules, kept in `search/domain` and unit-testable without a database; the SQL over postings and listings stays in the collector, behind one read-only export that streams open postings with their open listings' text plus their closed listings' source and status. Follows project ADR-0002 and keeps step 11's collector work in a separate folder — [ADR-0001](adr/0001-ship-search-as-new-server-module-plus-main-screen-list.md).
 2. **Match skills by scanning open-posting text in the app** — AC-02's rule (exact text with symbols, any letter case, no letter or digit next to it) is one pure matcher in `search/domain`: skills are escaped and compiled into one case-insensitive Unicode pattern with boundary look-arounds, so owner input is never interpreted as a pattern (spec §6.1). SQLite's word index would split `C#` and `.NET` and cannot serve skills shorter than three characters, so every search scans the open postings' titles and descriptions once (QG-1, QG-2) — [ADR-0002](adr/0002-match-skills-by-scanning-open-posting-text-in-the-app.md).
 3. **Page from an in-memory snapshot of the ordered result** — a search computes the whole ordered id list once and keeps it in the server's memory under a snapshot id with the moment it was loaded; "show more" slices the next 50. A posting's publication time can move earlier when a merge adds a listing, so a cursor over live data could repeat or skip it; the snapshot cannot (QG-3), and each next page costs no rescan (QG-2) — [ADR-0003](adr/0003-page-results-from-an-in-memory-snapshot-of-ordered-ids.md).
 
@@ -114,7 +116,7 @@ The search module follows the repo's feature-module layering (project ADR-0002).
 apps/server/src/
 ├── app.ts                 opens the one SQLite handle and passes it to both modules (was opened by the collector)
 ├── modules/collector/app/
-│   └── open-postings.ts   NEW read-only export: streams open postings + their listings (open and closed),
+│   └── open-postings.ts   NEW read-only export: streams open postings with their open listings' text plus closed listings' source + status,
 │                          optionally only those first collected after a moment; reads postings by id
 └── modules/search/
     ├── domain/            skills.ts (parse, dedupe, AC-05 check) · match.ts (AC-02 matcher, in-title flags)
@@ -132,7 +134,7 @@ apps/web/src/
 └── routes/Home.tsx        SCR-01: problem marker (unchanged) + skills field + list
 ```
 
-**State kept by search.** One `search_state` row: the last skills that passed the check (none = empty field next time, AC-13), the current visit's start and last-seen time, and the previous visit's start (AC-14). Kept on the server, not in browser storage, so the dev (`:5173`) and built (`:3000`) origins share it and "new" is decided against the same clock that stamped "first collected". Exact columns belong to `data-model`.
+**State kept by search.** One `search_state` row: the last skills that passed the check, saved before the collection is read so a failed read still remembers them (none = empty field next time, AC-13, ux-flows US-05), the current visit's start and last-seen time, and the previous visit's start (AC-14). Kept on the server, not in browser storage, so the dev (`:5173`) and built (`:3000`) origins share it and "new" is decided against the same clock that stamped "first collected". Exact columns belong to `data-model`.
 
 **Snapshots.** Held in the search module's memory only: snapshot id (UUIDv7), skills, loaded-at moment, the previous-visit start used for new marks, the ordered posting ids, and the new count. A next page reads the current details of the next 50 ids (a posting closed since loading is left out); an unknown or expired snapshot answers with a dedicated error code and the web reloads from the newest (§11).
 
@@ -181,13 +183,13 @@ sequenceDiagram
     Search-->>Web: remembered skills and visit
     Web->>Search: searches with the remembered skills, or none
     Search->>Search: checks the skills
+    Search->>DB: saves the skills as the last skills
     Search->>Collector: streams open postings with their listings
     Collector->>DB: reads open postings and listings
     DB-->>Collector: rows
     Collector-->>Search: postings with listing text
     Search->>Search: matches, orders newest first, marks new since the previous visit
     Search->>Search: keeps the ordered ids as a snapshot
-    Search->>DB: saves the skills as the last skills
     Search-->>Web: first 50, total, new count, snapshot id
     Web-->>Owner: list with matched skills, sources and new marks
 ```
@@ -242,7 +244,7 @@ Reuses the existing deployment unchanged: one Node.js process on `127.0.0.1:3000
 | Concept | Convention | Where defined |
 |---|---|---|
 | Logging | Fastify's pino logger, child field `module=search`; no skills text, no listing text in logs | `apps/server/src/main.ts` + §7 |
-| Access control | Unchanged: loopback bind, Host check, state-changing requests only same-origin with a JSON body, no CORS (AC-17). Search, next page and visit are requests that change state (snapshot, last skills, visit), so they are sent as JSON POSTs | collector [ADR-0007](../remote-boards-collector/adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md), `core/access.ts` |
+| Access control | Unchanged: loopback bind, Host check, state-changing requests only same-origin with a JSON body, no CORS (AC-17). Search, next page, waiting count and visit all change state (snapshot, last skills, visit heartbeat), so all four are sent as JSON POSTs | collector [ADR-0007](../remote-boards-collector/adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md), `core/access.ts` |
 | Error handling | Envelope `{ "error": { "code", "message" } }` via `AppError`; a failed skills check names the skill (or count) and the rule (AC-05); an unreadable collection is a plain-language error the web shows with a retry, keeping the skills and the last list (AC-12); an unknown snapshot has its own code so the web reloads from the newest | `core/errors.ts` + here; codes fixed by `api` |
 | ID strategy | UUIDv7 from `core/id.ts` for snapshot ids; ties in order break on posting id (descending), stable on every load (AC-03) | `core/id.ts` |
 | Owner input | Skills split on commas, trimmed, empties dropped, deduped ignoring letter case (first spelling kept); refused when a skill has no letter or digit, is over 50 characters, or there are over 20 skills (AC-05). Each skill is escaped before it joins the match pattern — never a pattern, SQL or command (spec §6.1) | `search/domain/skills.ts` |
@@ -301,6 +303,7 @@ ADR files live under `docs/features/search-postings/adr/NNNN-<title>.md`.
 | Scan time grows with the open collection; the collector expects 20–40k listings within its 60-day retention, so open postings may outgrow the NFR's 10,000 (ADR-0002) | Medium | QG-2 test at 10,000 guards every build; `durationMs` logged per search; if p95 passes 1 s, cache open-posting text in memory keyed by the last finished run, then add a substring pre-filter | Volodymyr Kozlov |
 | The scan runs synchronously on the event loop the collection runner shares | Low | Bounded by QG-2 (≤ 1 s); the collector's responsiveness test keeps running; move the scan to a worker thread only if both start to fail | Tech Lead |
 | Spec AC-02's rule text ("no letter or digit before or after") contradicts its own example ("C" does not match "C#"); this design blocks a match on `#` or `+` directly after a skill (§8) | Medium | Patch AC-02's wording in `spec.md` to the §8 rule before `/sdd:tasks`; the example list in QG-1 encodes it either way | Volodymyr Kozlov — before `tasks` |
+| Spec AC-15 / AC-16 say no posting after the last one shown is skipped; this design leaves out a posting closed after the list loaded (closed postings are never shown, spec §3) — ADR-0003, §10 QG-3 | Low | Patch AC-16's wording in `spec.md` ("…none that belonged after the last one shown is skipped, except postings the collector closed since the list was loaded") before `/sdd:tasks` | Volodymyr Kozlov — before `tasks` |
 | Snapshots live only in memory: a server restart, a 2 h idle or the 20-snapshot cap drops one, and "show more" then reloads the list from the newest (ADR-0003) | Low | A dedicated error code; the web reloads and says so; acceptable for one owner on loopback | Volodymyr Kozlov |
 | A visit is judged by heartbeats from a visible tab; leaving the tab hidden over 30 minutes starts a new visit on return, which resets what counts as new | Low | Matches AC-14's "without it open"; revisit if the late-arrivals KPI (spec §7) spot check shows misses | Volodymyr Kozlov |
 | Short skills match unrelated words ("Go" in "go-to-market", "R" in "R&D") | Low | Accepted by spec AC-02 note; matched skills are shown so the owner can switch to a longer spelling | Volodymyr Kozlov |

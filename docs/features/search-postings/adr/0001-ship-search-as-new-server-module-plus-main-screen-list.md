@@ -26,11 +26,11 @@ The owner needs to see the postings the collector holds, searched by skills, on 
 ## Considered options
 
 1. **New `search` module + SCR-01 list** — `modules/search/{domain,app,infra,ports}`; postings read through a new read-only export in `collector/app/`; the web main screen gains the skills field and the list.
-2. **Search inside the collector module** — rules and routes added to `modules/collector/`, querying its own tables directly.
+2. **New `search` module with its own copy of posting text** — `search/infra` keeps a search table (title, description, times, open state) refreshed from the collector after every collection run, so search queries only its own data.
 
 ## Decision outcome
 
-**Chosen:** Option 1. It follows project ADR-0002, keeps step 3 and step 11 in disjoint folders, and keeps the collector's tables behind its own `app` layer, so later steps (score, filter, marks) extend `search` rather than the collector.
+**Chosen:** Option 1. Both follow project ADR-0002 (search lives in `search/`, step 11 stays in `collector/`), but option 2 duplicates every posting's text, needs a migration plus a refresh hook in the collector's run pipeline, and lags the collector between refreshes — at odds with the currency target (100% of postings from finished runs searchable, spec §6). Option 1 reads the source of truth directly through the collector's `app` layer.
 
 ## Consequences
 
