@@ -6,6 +6,7 @@ const TONES = {
   notice: "border-border text-text",
   disabled: "border-border text-text-muted opacity-70",
   not_verified: "border-border text-text-muted opacity-70",
+  new: "border-accent bg-accent text-accent-contrast",
 } as const;
 
 export function Badge({ tone, children }: { tone: keyof typeof TONES; children: ReactNode }) {

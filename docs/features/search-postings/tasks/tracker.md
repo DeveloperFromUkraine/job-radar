@@ -16,7 +16,7 @@
 | T9 | Expose the four search routes and wire the module on one shared DB handle | ports | Volodymyr Kozlov | M | T8 | done |
 | T10 | Prove the NFRs end to end: 10k-posting latency, currency, paging under a live run, late arrivals | tests | Volodymyr Kozlov | M | T9 | done |
 | T11 | Add the typed search API client, the TanStack queries and the SkillsField component | ui | Volodymyr Kozlov | M | — | done |
-| T12 | Build PostingCard (matched skills, time, per-source links) and the Badge `new` tone | ui | Volodymyr Kozlov | M | — | todo |
+| T12 | Build PostingCard (matched skills, time, per-source links) and the Badge `new` tone | ui | Volodymyr Kozlov | M | — | done |
 | T13 | Compose SCR-01: visit, skills search, summary line and the list's loading/empty/error states | ui | Volodymyr Kozlov | M | T11, T12 | todo |
 | T14 | Add show more, the waiting notice with Refresh, the expired-list reload; register new components | ui | Volodymyr Kozlov | M | T13 | todo |
 
