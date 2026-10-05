@@ -56,13 +56,16 @@ until then.
 | App shell | `apps/web/src/App.tsx` (`Shell`) | default | Page container: AppNav above `main` with phone padding `px-4`, content capped at `max-w-3xl`. |
 | AppNav | `apps/web/src/components/AppNav.tsx:7` | default, current page | Brand + Home / Source health links; 44px targets (remote-boards-collector). |
 | Button | `apps/web/src/components/Button.tsx:8` | default, disabled, pending (disabled + inline spinner) | Full width on phones, auto from `md:`. |
-| InlineBanner | `apps/web/src/components/InlineBanner.tsx:18` | error (alert, Retry), warning, info (status) | Request failures and notices next to what they are about; API text rendered as text. |
+| InlineBanner | `apps/web/src/components/InlineBanner.tsx:20` | error (alert, Retry), warning, info (status), with action (`action: { label, onClick }`, e.g. "Refresh") | Request failures and notices next to what they are about; API text rendered as text. `action` added by search-postings. |
 | SkeletonRow | `apps/web/src/components/SkeletonRow.tsx:2` | loading | Card-shaped placeholder for list loading. |
-| Badge | `apps/web/src/components/Badge.tsx:11` | enabled, problem, notice, disabled, not_verified | Short status label on cards. |
+| Badge | `apps/web/src/components/Badge.tsx:12` | enabled, problem, notice, disabled, not_verified, new | Short status label on cards. Tone `new` (`bg-accent text-accent-contrast`) marks postings new since the previous visit (search-postings). |
 | SourceCard | `apps/web/src/features/source-health/SourceCard.tsx:6` | healthy, flagged, possibly changed, category notice, filling, disabled, not verified, never collected | One source's health on SCR-02 (remote-boards-collector); composes Badge. |
 | ProblemMarker | `apps/web/src/features/source-health/ProblemMarker.tsx:4` | default (shown while a flag can cost postings) | Danger-toned link block to /sources on the main screen (remote-boards-collector). |
 | RunProgress | `apps/web/src/features/source-health/RunProgress.tsx:19` | running, finished | Per-source outcome of the run in progress or the last finished run. |
 | CollectNowAction | `apps/web/src/features/source-health/CollectNowAction.tsx:16` | idle, pending, nothing due, already running, error | Button + the collect-now answers under it; stays enabled during a run. |
+| SkillsField | `apps/web/src/features/search/SkillsField.tsx:17` | idle, pending (button busy, input editable), error (message under the input, `aria-describedby`, `aria-invalid`), disabled | Labelled text input + Search Button; Enter submits; stacked full width on phones (search-postings). |
+| PostingCard | `apps/web/src/features/search/PostingCard.tsx:62` | default, new, publication time unknown, feed (no chips), closed source, unlinked source | One posting on SCR-01: title, company, time, matched-skill Badges, one row per source (link only for an open listing with a URL, new tab, `noopener noreferrer`); composes Badge (search-postings). |
+| SearchList | `apps/web/src/features/search/SearchList.tsx:27` | default, feed, first visit, nothing matches, collection empty, waiting, show more (pending, error, done) | SCR-01 summary line, waiting notice, PostingCard list and show-more; composes InlineBanner, Button, PostingCard (search-postings). |
 
 ## Interaction & writing conventions
 

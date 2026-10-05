@@ -3,7 +3,7 @@ import { ApiError } from "../api/collector";
 import type { SearchResult } from "../api/search";
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
-import { type SearchRequest, useSearchList, useVisit } from "../features/search/queries";
+import { type SearchRequest, useSearchList, useVisit, useWaitingCount } from "../features/search/queries";
 import { SearchList } from "../features/search/SearchList";
 import { SkillsField } from "../features/search/SkillsField";
 import { ProblemMarker } from "../features/source-health/ProblemMarker";
@@ -25,7 +25,11 @@ export function Home() {
     setRequest({ skills: remembered, run: 0 });
   }, [visit.data, request]);
 
-  const search = (text: string) => setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
+  const [expired, setExpired] = useState(false);
+  const search = (text: string) => {
+    setExpired(false);
+    setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
+  };
 
   // A failed or refused search leaves the last list on screen (AC-05, AC-12).
   const shown = useRef(list.data);
@@ -33,9 +37,21 @@ export function Home() {
   const pages = shown.current?.pages;
   const result = pages?.[0] as SearchResult | undefined;
 
-  const invalid = list.error instanceof ApiError && list.error.code === "SEARCH_INVALID_SKILLS";
-  const failed = visit.error ?? (invalid ? null : list.error);
+  const waiting = useWaitingCount(result?.snapshot_id); // errors stay silent (contract)
+
+  const code = list.error instanceof ApiError ? list.error.code : undefined;
+  const moreFailed = list.isFetchNextPageError;
+  const invalid = !moreFailed && code === "SEARCH_INVALID_SKILLS";
+  const failed = visit.error ?? (invalid || moreFailed ? null : list.error);
   const loading = !result && !failed && !invalid;
+
+  // A snapshot dropped by restart, idle time or the cap: reload from the newest (ADR-0003).
+  const snapshotExpired = moreFailed && code === "SEARCH_SNAPSHOT_EXPIRED";
+  useEffect(() => {
+    if (!snapshotExpired || !request) return;
+    setRequest({ skills: request.skills, run: request.run + 1 });
+    setExpired(true);
+  }, [snapshotExpired, request]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -73,6 +89,9 @@ export function Home() {
           <SkeletonRow />
         </div>
       )}
+      {expired && (
+        <InlineBanner tone="info" title="This list had expired and was reloaded from the newest." />
+      )}
       {result && (
         <SearchList
           result={result}
@@ -82,6 +101,12 @@ export function Home() {
             setSkills("");
             search("");
           }}
+          waiting={waiting.data?.waiting_count}
+          onRefresh={() => search(skills)}
+          hasNext={pages?.at(-1)?.has_next ?? false}
+          loadingMore={list.isFetchingNextPage}
+          moreError={moreFailed && !snapshotExpired ? list.error?.message : undefined}
+          onShowMore={() => void list.fetchNextPage()}
         />
       )}
     </div>

@@ -11,12 +11,31 @@ interface SearchListProps {
   /** null on the very first visit: nothing is new, so no new count (AC-14). */
   previousVisitStartedAt: string | null;
   onClearSkills: () => void;
+  /** Matching postings collected after the list loaded (AC-16); 0 or unknown shows nothing. */
+  waiting?: number;
+  onRefresh: () => void;
+  /** Show more (AC-15): the next page, its pending state, and its failure (AC-12). */
+  hasNext: boolean;
+  loadingMore: boolean;
+  moreError?: string;
+  onShowMore: () => void;
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
 
 /** SCR-01 list: summary line, cards and the two empty states (screens.md). */
-export function SearchList({ result, postings, previousVisitStartedAt, onClearSkills }: SearchListProps) {
+export function SearchList({
+  result,
+  postings,
+  previousVisitStartedAt,
+  onClearSkills,
+  waiting = 0,
+  onRefresh,
+  hasNext,
+  loadingMore,
+  moreError,
+  onShowMore,
+}: SearchListProps) {
   const feed = result.skills.length === 0;
   const clear = (
     <Button className="md:self-start" onClick={onClearSkills}>
@@ -51,6 +70,13 @@ export function SearchList({ result, postings, previousVisitStartedAt, onClearSk
       <p className="text-text-muted">
         {previousVisitStartedAt === null ? summary : `${summary} · ${result.new_count} new`}
       </p>
+      {waiting > 0 && (
+        <InlineBanner
+          tone="info"
+          title={waiting === 1 ? "1 new posting is waiting." : `${waiting} new postings are waiting.`}
+          action={{ label: "Refresh", onClick: onRefresh }}
+        />
+      )}
       <ul className="flex flex-col gap-3">
         {postings.map((p) => (
           <li key={p.id}>
@@ -58,6 +84,17 @@ export function SearchList({ result, postings, previousVisitStartedAt, onClearSk
           </li>
         ))}
       </ul>
+      {moreError !== undefined ? (
+        <InlineBanner tone="error" title="Couldn't load more postings." onRetry={onShowMore}>
+          {moreError}
+        </InlineBanner>
+      ) : (
+        hasNext && (
+          <Button pending={loadingMore} onClick={onShowMore}>
+            Show 50 more
+          </Button>
+        )
+      )}
     </section>
   );
 }

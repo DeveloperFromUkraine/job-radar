@@ -44,6 +44,15 @@ describe("shared primitives", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
+  it("InlineBanner: an optional action next to Retry", () => {
+    const onClick = vi.fn();
+    render(
+      <InlineBanner tone="info" title="4 new postings are waiting." action={{ label: "Refresh", onClick }} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(onClick).toHaveBeenCalledOnce();
+    expect(screen.queryByRole("button", { name: "Retry" })).toBeNull();
+  });
   it("InlineBanner: info and warning tones are status, not alert", () => {
     render(<InlineBanner tone="info" title="Nothing collected yet." />);
     expect(screen.getByRole("status").textContent).toContain("Nothing collected yet.");

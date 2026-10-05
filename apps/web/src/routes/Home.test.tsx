@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import type { Posting, SearchResult, Visit } from "../api/search";
+import type { Posting, PostingPage, SearchResult, Visit } from "../api/search";
 import { contractExample } from "../test/contract";
 import { mockApi, renderWithProviders } from "../test/render";
 
@@ -246,5 +246,168 @@ describe("SCR-01 main screen", () => {
     await vi.advanceTimersByTimeAsync(60_000);
 
     expect(await screen.findByRole("link", { name: /source has a problem/i })).toBeTruthy();
+  });
+});
+
+describe("SCR-01 paging, waiting notice and expired list", () => {
+  const SNAPSHOT = "01926a3b-1c2d-7e4f-8a00-0000000000a1";
+  const PAGES = `POST /api/v1/search/snapshots/${SNAPSHOT}/pages`;
+  const WAITING = `POST /api/v1/search/snapshots/${SNAPSHOT}/waiting`;
+  const id = (n: number) => `01926a00-0000-7000-8000-${String(n).padStart(12, "0")}`;
+  const items = (from: number, to: number) =>
+    Array.from({ length: to - from }, (_, i) => card({ id: id(from + i), title: `Posting ${from + i}` }));
+  const first = (): SearchResult => ({ ...found(), items: items(0, 50) });
+  const page = (from: number, to: number, next: string | null): PostingPage => ({
+    items: items(from, to),
+    has_next: next !== null,
+    next_cursor: next,
+  });
+  const none = { body: { waiting_count: 0 } };
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  const cursors = (fetchMock: ReturnType<typeof mockApi>["fetchMock"]) =>
+    fetchMock.mock.calls
+      .filter(([path]) => String(path).endsWith("/pages"))
+      .map(([, init]) => JSON.parse(String(init?.body)).cursor);
+  const titles = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
+
+  it("shows the newest 50, then 100, then all 130 in one-long-list order; shown pages are never refetched (AC-15)", async () => {
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: none,
+      [PAGES]: [{ body: page(50, 100, "100") }, { body: page(100, 130, null) }],
+    });
+    renderWithProviders(<App />);
+    expect(await screen.findByText("130 postings · 3 new")).toBeTruthy();
+    expect(titles()).toHaveLength(50);
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+    await waitFor(() => expect(titles()).toHaveLength(100));
+    fireEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+    await waitFor(() => expect(titles()).toHaveLength(130));
+
+    expect(titles()).toEqual(Array.from({ length: 130 }, (_, i) => `Posting ${i}`));
+    expect(screen.queryByRole("button", { name: "Show 50 more" })).toBeNull();
+    expect(cursors(fetchMock)).toEqual(["50", "100"]);
+    expect(searchBodies(fetchMock)).toHaveLength(1);
+  });
+
+  it("show more pending: the button is busy while the page loads", async () => {
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: none,
+    });
+    const reply = fetchMock.getMockImplementation() as (
+      i: RequestInfo | URL,
+      init?: RequestInit,
+    ) => Promise<Response>;
+    fetchMock.mockImplementation((input, init) =>
+      String(input).endsWith("/pages") ? new Promise(() => {}) : reply(input, init),
+    );
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Show 50 more" }).getAttribute("aria-busy")).toBe("true"),
+    );
+  });
+
+  it("show more error: a banner under the list, postings kept, Retry sends the same cursor (AC-12)", async () => {
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: none,
+      [PAGES]: [unavailable, { body: page(50, 100, "100") }],
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+
+    expect(await screen.findByText("Couldn't load more postings.")).toBeTruthy();
+    expect(screen.queryByText("Couldn't load postings.")).toBeNull();
+    expect(titles()).toHaveLength(50);
+    expect(screen.queryByRole("button", { name: "Show 50 more" })).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(titles()).toHaveLength(100));
+    expect(screen.queryByText("Couldn't load more postings.")).toBeNull();
+    expect(cursors(fetchMock)).toEqual(["50", "50"]);
+  });
+
+  it("list expired: reloads from the newest with the same skills and says so (ADR-0003)", async () => {
+    const expired = contractExample("getNextPage", 410);
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: [{ body: first() }, { body: { ...first(), total: 131 } }],
+      [WAITING]: none,
+      [PAGES]: { status: 410, body: expired },
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+
+    fireEvent.click(screen.getByRole("button", { name: "Show 50 more" }));
+
+    expect(await screen.findByText("This list had expired and was reloaded from the newest.")).toBeTruthy();
+    expect(await screen.findByText("131 postings · 3 new")).toBeTruthy();
+    expect(searchBodies(fetchMock)).toEqual([{ skills: "React, Go" }, { skills: "React, Go" }]);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("waiting: names how many postings wait; Refresh runs the search again without a new visit (AC-16)", async () => {
+    const refreshed = { ...first(), snapshot_id: "01926a3b-1c2d-7e4f-8a00-0000000000b9", total: 134 };
+    const { fetchMock, calls } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: [{ body: first() }, { body: refreshed }],
+      [WAITING]: { body: contractExample("getWaitingCount", 200) },
+      [`POST /api/v1/search/snapshots/${refreshed.snapshot_id}/waiting`]: none,
+    });
+    renderWithProviders(<App />);
+
+    expect(await screen.findByText("4 new postings are waiting.")).toBeTruthy();
+    expect(titles()).toHaveLength(50); // nothing inserted into the list
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+    expect(await screen.findByText("134 postings · 3 new")).toBeTruthy();
+    await waitFor(() => expect(screen.queryByText(/waiting/)).toBeNull());
+    expect(searchBodies(fetchMock)).toEqual([{ skills: "React, Go" }, { skills: "React, Go" }]);
+    expect(calls.filter((c) => c.path === "/api/v1/search/visits")).toHaveLength(1);
+  });
+
+  it("waiting: one posting reads in the singular; zero shows nothing", async () => {
+    mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: { body: { waiting_count: 1 } },
+    });
+    renderWithProviders(<App />);
+    expect(await screen.findByText("1 new posting is waiting.")).toBeTruthy();
+  });
+
+  it("a failed waiting poll shows nothing and leaves the list as it is", async () => {
+    const { calls } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: unavailable,
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+    await waitFor(() => expect(calls.some((c) => c.path.endsWith("/waiting"))).toBe(true));
+
+    expect(screen.queryByText(/waiting/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(titles()).toHaveLength(50);
   });
 });

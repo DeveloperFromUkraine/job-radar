@@ -6,11 +6,10 @@ import searchApi from "../../../../docs/features/search-postings/contracts/opena
 // validated against, so the screens are tested on shapes the API really returns. Operation ids are
 // unique across the feature contracts, so an example is looked up by id alone.
 type Content = { example?: unknown; examples?: Record<string, { value: unknown }> };
+type Response = { $ref?: string; content?: Record<string, Content> };
 type Doc = {
-  paths: Record<
-    string,
-    Record<string, { operationId: string; responses: Record<string, { content?: Record<string, Content> }> }>
-  >;
+  paths: Record<string, Record<string, { operationId: string; responses: Record<string, Response> }>>;
+  components?: { responses?: Record<string, Response> };
 };
 const docs = [collectorApi, searchApi].map((raw) => parse(raw) as Doc);
 
@@ -19,7 +18,10 @@ export function contractExample<T = unknown>(operationId: string, status: number
     for (const methods of Object.values(doc.paths)) {
       for (const op of Object.values(methods)) {
         if (op.operationId !== operationId) continue;
-        const content = op.responses[String(status)]?.content?.["application/json"];
+        let response = op.responses[String(status)];
+        // A shared response (`$ref: "#/components/responses/X"`) carries its example there.
+        if (response?.$ref) response = doc.components?.responses?.[response.$ref.split("/").at(-1) as string];
+        const content = response?.content?.["application/json"];
         const value = name ? content?.examples?.[name]?.value : content?.example;
         if (value === undefined) throw new Error(`no example ${operationId} ${status} ${name ?? ""}`);
         return structuredClone(value) as T;

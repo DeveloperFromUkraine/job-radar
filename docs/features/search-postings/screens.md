@@ -171,8 +171,8 @@ Unchanged from remote-boards-collector (collector screens.md SCR-02, all states)
 
 | Component | Why no existing primitive fits | Registered in design-system |
 |---|---|---|
-| SkillsField | The inventory has no text input or form primitive. It composes Button and adds a label, hint and field-level error | pending |
-| PostingCard | SourceCard is specific to source health. A posting needs title, company, time, skill chips and per-source links with closed and unsafe variants. It composes Badge | pending |
+| SkillsField | The inventory has no text input or form primitive. It composes Button and adds a label, hint and field-level error | registered |
+| PostingCard | SourceCard is specific to source health. A posting needs title, company, time, skill chips and per-source links with closed and unsafe variants. It composes Badge | registered |
 
 **Extended primitives.** These are additive props that don't change existing call sites. `implement` updates the inventory rows.
 
