@@ -9,7 +9,7 @@
 | T2 | Parse and check the owner's skills (split, trim, dedupe, AC-05 rules) | domain | Volodymyr Kozlov | S | — | done |
 | T3 | Match skills against posting text with exact-text boundaries and in-title flags | domain | Volodymyr Kozlov | M | — | done |
 | T4 | Implement effective-time ordering, the visit/new-mark rule and the safe-link check | domain | Volodymyr Kozlov | M | — | done |
-| T5 | Add the collector's read-only open-postings export (stream, after-moment, by id) | infra | Volodymyr Kozlov | M | — | todo |
+| T5 | Add the collector's read-only open-postings export (stream, after-moment, by id) | infra | Volodymyr Kozlov | M | — | done |
 | T6 | Keep search state and record visits (repo + openVisit / heartbeat use cases) | app | Volodymyr Kozlov | S | T1, T4 | todo |
 | T7 | Run a search: save skills, scan open postings, order, mark new, keep an in-memory snapshot | app | Volodymyr Kozlov | M | T2, T3, T4, T5, T6 | todo |
 | T8 | Serve next pages from a snapshot and count waiting postings | app | Volodymyr Kozlov | S | T7 | todo |
