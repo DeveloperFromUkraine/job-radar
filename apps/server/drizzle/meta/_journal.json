@@ -22,6 +22,13 @@
       "when": 1790957575925,
       "tag": "0002_stale_prodigy",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791232087417,
+      "tag": "0003_milky_loa",
+      "breakpoints": true
     }
   ]
 }
