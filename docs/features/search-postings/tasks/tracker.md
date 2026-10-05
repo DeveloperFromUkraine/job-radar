@@ -6,7 +6,7 @@
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
 | T1 | Promote the search_state schema: Drizzle schema.ts + generated migration 0003 | migration | Volodymyr Kozlov | S | — | done |
-| T2 | Parse and check the owner's skills (split, trim, dedupe, AC-05 rules) | domain | Volodymyr Kozlov | S | — | todo |
+| T2 | Parse and check the owner's skills (split, trim, dedupe, AC-05 rules) | domain | Volodymyr Kozlov | S | — | done |
 | T3 | Match skills against posting text with exact-text boundaries and in-title flags | domain | Volodymyr Kozlov | M | — | todo |
 | T4 | Implement effective-time ordering, the visit/new-mark rule and the safe-link check | domain | Volodymyr Kozlov | M | — | todo |
 | T5 | Add the collector's read-only open-postings export (stream, after-moment, by id) | infra | Volodymyr Kozlov | M | — | todo |
