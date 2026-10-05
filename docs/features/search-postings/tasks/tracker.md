@@ -14,7 +14,7 @@
 | T7 | Run a search: save skills, scan open postings, order, mark new, keep an in-memory snapshot | app | Volodymyr Kozlov | M | T2, T3, T4, T5, T6 | done |
 | T8 | Serve next pages from a snapshot and count waiting postings | app | Volodymyr Kozlov | S | T7 | done |
 | T9 | Expose the four search routes and wire the module on one shared DB handle | ports | Volodymyr Kozlov | M | T8 | done |
-| T10 | Prove the NFRs end to end: 10k-posting latency, currency, paging under a live run, late arrivals | tests | Volodymyr Kozlov | M | T9 | todo |
+| T10 | Prove the NFRs end to end: 10k-posting latency, currency, paging under a live run, late arrivals | tests | Volodymyr Kozlov | M | T9 | done |
 | T11 | Add the typed search API client, the TanStack queries and the SkillsField component | ui | Volodymyr Kozlov | M | — | todo |
 | T12 | Build PostingCard (matched skills, time, per-source links) and the Badge `new` tone | ui | Volodymyr Kozlov | M | — | todo |
 | T13 | Compose SCR-01: visit, skills search, summary line and the list's loading/empty/error states | ui | Volodymyr Kozlov | M | T11, T12 | todo |
