@@ -1,7 +1,7 @@
 // The collector module (ADR-0001): routes + the in-process scheduler, started with the server and
 // stopped on close. Owner marks come from the MarkedPostings port (ADR-0006).
 import type { FastifyPluginAsync } from "fastify";
-import { type DbHandle, openDb } from "../../core/db.js";
+import type { DbHandle } from "../../core/db.js";
 import type { CollectorDeps } from "./app/deps.js";
 import { type MarkedPostings, noMarks } from "./app/marked-postings.js";
 import { executeRun } from "./app/run-pipeline.js";
@@ -14,6 +14,8 @@ import { collectorRoutes } from "./ports/routes.js";
 
 export interface CollectorModuleOptions {
   databaseFile: string;
+  /** The app's one SQLite handle (opened and closed by app.ts, shared with search). */
+  handle: DbHandle;
   /** Points every source at a fake server (tests). */
   sourcesBaseUrl?: string;
   /** false: no scheduled or catch-up runs (tests drive runs through collect-now). */
@@ -24,7 +26,7 @@ export interface CollectorModuleOptions {
 
 export function collectorModule(options: CollectorModuleOptions): FastifyPluginAsync {
   return async (app) => {
-    const handle: DbHandle = openDb(options.databaseFile);
+    const { handle } = options;
     const stopping = new AbortController();
     const deps: CollectorDeps = {
       db: handle.db,
@@ -60,7 +62,6 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
       stopping.abort(); // in-flight reads end now; the run is left incomplete (AC-20)
       await scheduler.stop();
       await Promise.allSettled([...running]);
-      handle.close();
     });
   };
 }
