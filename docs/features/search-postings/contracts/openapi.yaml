@@ -1,0 +1,546 @@
+openapi: 3.1.0
+
+info:
+  title: job-radar Search API
+  version: 0.1.0
+  description: |
+    The collector already gathers, merges and keeps current the postings of several remote job
+    boards, but the owner cannot see them and still opens each board by hand (spec §1). This API
+    lets the web app's main screen (SCR-01) list every open posting that mentions one of the owner's
+    skills, newest first. Each posting shows which skills matched and names and links every source.
+    With no skills, the list is the whole open collection. The last skills are remembered, postings
+    collected since the previous visit are marked new, and results come 50 at a time from an
+    in-memory snapshot, so pages never repeat or skip while collection runs (ADR-0003).
+
+    Access (collector ADR-0007): there are no accounts. The server listens on 127.0.0.1 only, accepts
+    only loopback `Host` headers, rejects a state-changing request when `Sec-Fetch-Site` is
+    `cross-site`, and requires a JSON body. No CORS headers are sent. Every operation here changes
+    state (last skills, visit heartbeat, snapshot), so all four are JSON POSTs (sad.md §8).
+    Errors use the repo's single envelope `{ "error": { "code", "message" } }` (core/errors.ts).
+    Times are ISO 8601 UTC strings, converted from the stored epoch milliseconds.
+    Source text (titles, companies, location restrictions) is untrusted. It is plain text and the
+    web app renders it only as text (AC-09). Descriptions are used for matching and never sent.
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+
+# No authentication scheme: access is limited by the network boundary (collector ADR-0007), not by credentials.
+security: []
+
+tags:
+  - name: search
+    description: Skills search, feed, visits, paging and the waiting-postings count
+
+paths:
+  /api/v1/search/visits:
+    post:
+      tags: [search]
+      summary: Record that the owner opened the main screen; return the remembered skills
+      description: |
+        Called when SCR-01 opens (sad.md §6 flow 1). The visit rule (AC-14) works like this: if the
+        main screen was last seen more than 30 minutes ago, or never, a new visit starts and the
+        current one becomes the previous visit. Otherwise the call only refreshes "last seen".
+        The response carries the last skills that passed the check, which the web puts in the
+        skills field before it runs the search (AC-13). The array is empty when the owner has never
+        searched or last searched with an empty field.
+      operationId: openVisit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+            example: {}
+      responses:
+        "200":
+          description: Visit recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Visit" }
+              examples:
+                returning:
+                  summary: Returning owner who last searched "React, Go"
+                  value:
+                    last_skills: [React, Go]
+                    previous_visit_started_at: "2026-10-04T09:00:00Z"
+                first:
+                  summary: Very first visit — nothing will be marked new
+                  value:
+                    last_skills: []
+                    previous_visit_started_at: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/search/snapshots:
+    post:
+      tags: [search]
+      summary: Run a skills search (or the feed) and return its first 50 postings
+      description: |
+        Parses the skills text (AC-05 note). The text is split on commas, each skill is trimmed,
+        empty entries are dropped, and duplicates that differ only in letter case are dropped
+        (the first spelling is kept). The skills are then checked against three rules: each needs
+        at least one letter or digit, each is at most 50 characters, and there are at most 20.
+        The skills that pass are saved as the last skills before the collection is read (AC-13,
+        flow 3). Every open posting is then matched (AC-02, AC-06), ordered newest first by
+        effective publication time with ties broken by id (AC-03), and marked new since the
+        previous visit (AC-14). The ordered ids are kept as an in-memory snapshot, and the
+        first 50 postings are returned (AC-15).
+
+        An empty `skills` text is the feed: every open posting is listed, with no matched skills
+        (AC-10). "Nothing matches" and "the collection is still empty" are not errors. Both return
+        200 with `total: 0`, and `collection_empty` tells them apart (AC-11). Refreshing after the
+        waiting notice is this same call, and it never starts a new visit (flow 5).
+      operationId: runSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            examples:
+              skills:
+                summary: Two skills
+                value: { skills: "React, TypeScript" }
+              feed:
+                summary: Empty field — the feed
+                value: { skills: "" }
+      responses:
+        "200":
+          description: The snapshot's first page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResult" }
+              examples:
+                found:
+                  summary: 130 found, 3 new, more to page
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a1
+                    skills: [React, TypeScript]
+                    total: 130
+                    new_count: 3
+                    collection_empty: false
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000b1
+                        title: Senior React Engineer
+                        company: Example Co
+                        published_at: "2026-10-03T08:00:00Z"
+                        first_seen_at: "2026-10-05T07:10:00Z"
+                        is_new: true
+                        matched_skills:
+                          - { skill: React, in_title: true }
+                          - { skill: TypeScript, in_title: false }
+                        listings:
+                          - source_id: jobicy
+                            status: open
+                            url: https://jobs.example.test/jobicy/123
+                            location_restriction: Europe
+                          - source_id: himalayas
+                            status: closed
+                            url: null
+                            location_restriction: null
+                    has_next: true
+                    next_cursor: "50"
+                nothing_matches:
+                  summary: No open posting mentions the skills (AC-11)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a2
+                    skills: [Haskell]
+                    total: 0
+                    new_count: 0
+                    collection_empty: false
+                    items: []
+                    has_next: false
+                    next_cursor: null
+                collection_empty:
+                  summary: The first collection has not brought postings yet (AC-11)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a3
+                    skills: []
+                    total: 0
+                    new_count: 0
+                    collection_empty: true
+                    items: []
+                    has_next: false
+                    next_cursor: null
+        "400":
+          description: |
+            The skills fail the check (AC-05), and the search did not run. The message names the
+            skill (or the count) and the rule it breaks. The web shows it under the skills field and
+            leaves the list as it was. A body that does not match the schema gets `VALIDATION_ERROR`.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              examples:
+                no_letter:
+                  summary: A skill with no letter or digit
+                  value:
+                    error: { code: SEARCH_INVALID_SKILLS, message: "\"--\" needs at least one letter or digit." }
+                too_long:
+                  summary: A skill over 50 characters
+                  value:
+                    error: { code: SEARCH_INVALID_SKILLS, message: "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\" is longer than 50 characters." }
+                too_many:
+                  summary: More than 20 skills
+                  value:
+                    error: { code: SEARCH_INVALID_SKILLS, message: "24 skills entered; search takes at most 20." }
+                shape:
+                  summary: Body without the skills field
+                  value:
+                    error: { code: VALIDATION_ERROR, message: "body must have required property 'skills'" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 postings of a snapshot
+      description: |
+        Show more (AC-15, AC-16, flows 2 and 5). The next 50 ids are sliced from the snapshot in
+        snapshot order, and their current details are read. A posting the collector closed after
+        the snapshot was loaded is left out (sad.md §11). Postings collected after loading are never
+        inserted; they are counted by `getWaitingCount`. Retrying the same cursor after a 503
+        returns the same page.
+      operationId: getNextPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "50" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostingPage" }
+              example:
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000b2
+                    title: Full-stack Developer (Node.js)
+                    company: Example Co
+                    published_at: null
+                    first_seen_at: "2026-10-01T12:00:00Z"
+                    is_new: false
+                    matched_skills:
+                      - { skill: TypeScript, in_title: false }
+                    listings:
+                      - source_id: remotive
+                        status: open
+                        url: null
+                        location_restriction: Worldwide
+                has_next: true
+                next_cursor: "100"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/waiting:
+    post:
+      tags: [search]
+      summary: How many matching postings were collected after the snapshot loaded
+      description: |
+        Polled every 60 s and on window focus while SCR-01 is visible (flow 2). Counts the open
+        postings that match the snapshot's skills and were first collected after the snapshot
+        loaded (AC-16). Each call also refreshes the visit's "last seen" (AC-14 visit rule), so a
+        visible tab keeps one visit going.
+
+        A failed poll (410, 503) is silent. The web shows no waiting notice and never reloads the
+        list, because the list must not change by itself (AC-16). The next show-more or refresh
+        deals with the expired snapshot or the unreadable collection.
+      operationId: getWaitingCount
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+            example: {}
+      responses:
+        "200":
+          description: Waiting count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingCount" }
+              example: { waiting_count: 4 }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+components:
+  parameters:
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: The id `runSearch` returned (UUIDv7, in memory only)
+
+  responses:
+    ValidationError:
+      description: The body does not match the schema
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: VALIDATION_ERROR, message: "body must be object" }
+    Forbidden:
+      description: The Host header is not loopback, or the request is cross-site (collector ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            host:
+              value:
+                error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+            cross_site:
+              value:
+                error: { code: CROSS_SITE_REQUEST, message: "Cross-site requests are not accepted." }
+    UnsupportedMediaType:
+      description: The request has no JSON body (collector ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
+    SnapshotExpired:
+      description: |
+        Unknown or expired snapshot. A restart, 2 h idle, or the 20-snapshot cap drops one
+        (ADR-0003). The web reloads the list from the newest with `runSearch` and says so.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_SNAPSHOT_EXPIRED, message: "This list has expired; it was reloaded from the newest." }
+    CollectionUnavailable:
+      description: |
+        The collection cannot be read (AC-12). The web shows a plain-language message with a retry
+        action next to the list, keeps the skills in the field and keeps the last list visible. For
+        `runSearch`, the last skills were already saved.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_COLLECTION_UNAVAILABLE, message: "Job-radar could not read its postings just now. Try again." }
+    Internal:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: INTERNAL, message: "Internal server error" }
+
+  schemas:
+    # Repo envelope (apps/server/src/core/errors.ts) — deviation from the flat {code, message, details?} default.
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Z][A-Z0-9_]*$"
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (SEARCH_...)
+            message:
+              type: string
+
+    EmptyRequest:
+      type: object
+      additionalProperties: false
+      description: No fields. The JSON body is required by the access guard (collector ADR-0007)
+
+    Timestamp:
+      type: string
+      format: date-time
+      description: ISO 8601 UTC, converted from a stored epoch-milliseconds column
+
+    Skill:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: One skill as the owner spelled it, trimmed (AC-05)
+
+    Visit:
+      type: object
+      required: [last_skills, previous_visit_started_at]
+      additionalProperties: false
+      properties:
+        last_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+          description: search_state.last_skills; empty = none. The web joins them with ", " into the field (AC-13)
+        previous_visit_started_at:
+          type: [string, "null"]
+          format: date-time
+          description: search_state.previous_visit_started_at; null on the very first visit (nothing is new)
+
+    SearchRequest:
+      type: object
+      required: [skills]
+      additionalProperties: false
+      properties:
+        skills:
+          type: string
+          description: |
+            The skills field exactly as typed, comma-separated. The server parses and checks it
+            (AC-05), never interprets it as a pattern, SQL or command (spec §6.1). Empty = the feed.
+
+    PageRequest:
+      type: object
+      required: [cursor]
+      additionalProperties: false
+      properties:
+        cursor: { $ref: "#/components/schemas/Cursor" }
+
+    Cursor:
+      type: string
+      pattern: "^[0-9]{1,6}$"
+      description: Opaque to the web; the `next_cursor` of the previous page of the same snapshot
+
+    MatchedSkill:
+      type: object
+      required: [skill, in_title]
+      additionalProperties: false
+      properties:
+        skill: { $ref: "#/components/schemas/Skill" }
+        in_title:
+          type: boolean
+          description: True when any open listing's title has it (AC-06)
+
+    Listing:
+      type: object
+      required: [source_id, status, url, location_restriction]
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          pattern: "^[a-z0-9_]+$"
+          description: |
+            collector_listings.source_id. The web maps it to the board's display name. It is not an
+            enum, because roadmap step 11 adds sources in parallel.
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_listings.status; closed → "closed at <source>", no link (AC-08)
+        url:
+          type: [string, "null"]
+          format: uri
+          description: |
+            collector_listings.url, sent only when the listing is open and the URL is http: or https:
+            (AC-08, AC-09). When it is null on an open listing, the source is named but not linked.
+        location_restriction:
+          type: [string, "null"]
+          description: collector_listings.location_restriction exactly as the source stated it; null = "unknown" (AC-07)
+
+    Posting:
+      type: object
+      required: [id, title, company, published_at, first_seen_at, is_new, matched_skills, listings]
+      additionalProperties: false
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: collector_postings.id (UUIDv7); breaks ties in the order (AC-03)
+        title:
+          type: string
+          description: collector_postings.title; plain text (AC-09)
+        company:
+          type: string
+          description: collector_postings.company; plain text (AC-09)
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: |
+            Effective publication time (AC-03): collector_postings.published_at, capped at
+            first_found_at. Null = "publication time unknown", and the web shows `first_seen_at`.
+        first_seen_at:
+          $ref: "#/components/schemas/Timestamp"
+          description: collector_postings.first_found_at
+        is_new:
+          type: boolean
+          description: first_found_at is later than search_state.previous_visit_started_at (AC-14); false on the first visit
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+          description: In the owner's spelling and search order; empty for the feed (AC-06, AC-10)
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+          description: Every listing of the posting, open and closed (AC-07, AC-08)
+
+    PostingPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Posting" }
+          description: In snapshot order; postings closed since loading are left out
+        has_next:
+          type: boolean
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+          description: Null when the whole snapshot has been served
+
+    SearchResult:
+      type: object
+      required: [snapshot_id, skills, total, new_count, collection_empty, items, has_next, next_cursor]
+      additionalProperties: false
+      description: The snapshot's first page plus its totals; the paging fields match PostingPage
+      properties:
+        snapshot_id:
+          type: string
+          format: uuid
+          description: In-memory snapshot (ADR-0003); used by getNextPage and getWaitingCount
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+          description: The parsed skills used, as just saved to search_state.last_skills (AC-11 shows them)
+        total:
+          type: integer
+          minimum: 0
+          description: Postings in the snapshot — "130 postings" (AC-01, AC-10, AC-15)
+        new_count:
+          type: integer
+          minimum: 0
+          description: Postings in the snapshot that are new since the previous visit (AC-14)
+        collection_empty:
+          type: boolean
+          description: The collection holds no open posting at all, so the first collection has not brought postings yet (AC-11)
+        items: { $ref: "#/components/schemas/PostingPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/PostingPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/PostingPage/properties/next_cursor" }
+
+    WaitingCount:
+      type: object
+      required: [waiting_count]
+      additionalProperties: false
+      properties:
+        waiting_count:
+          type: integer
+          minimum: 0
+          description: Matching open postings first collected after the snapshot loaded (AC-16)

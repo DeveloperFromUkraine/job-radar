@@ -227,6 +227,151 @@ sequenceDiagram
 
 The `sequences` stage completes coverage — error branches for the skills check (AC-05), an unreadable collection (AC-12) and an empty collection (AC-11).
 
+### Critical flow 3: the owner submits a skills search (US-01, US-02, US-04)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as <user>
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+
+    Note over U,UI: Precondition: SCR-01 is open, a visit is recorded (flow 1)
+    U->>UI: enters skills separated by commas and submits
+    UI->>S: searches with the skills
+    S->>S: parses the skills, drops empty and duplicate entries, checks the rules
+    alt a skill has no letter or digit, is over 50 characters, or over 20 skills
+        S-->>UI: rejected, naming the skill or count and the rule it breaks
+        UI-->>U: message under the skills field, the list on screen unchanged
+    else skills pass the check
+        S->>D: saves the skills as the last skills, none when the field is empty
+        Note over S,D: persists search state (last skills) before the collection is read
+        S->>D: reads open postings with their open listings' text, via the collector export
+        alt the collection cannot be read
+            D-->>S: read failure
+            S-->>UI: collection unavailable
+            UI-->>U: plain-language message with retry, skills kept, last list still shown
+        else the collection holds no postings yet
+            D-->>S: no rows
+            S-->>UI: empty collection
+            UI-->>U: first collection has not brought postings yet, skills used, clear action, link to source health
+        else no open posting matches
+            D-->>S: open postings
+            S->>S: matches each skill against titles and descriptions
+            S-->>UI: nothing matches
+            UI-->>U: nothing matches, the skills used, one action to clear them
+        else postings found, or the skills field was empty
+            D-->>S: open postings
+            S->>S: matches, orders newest first by effective time, marks new since the previous visit
+            S->>S: keeps the ordered ids as a snapshot in memory, not persisted
+            S-->>UI: first 50 with matched skills and in-title flags, total, new count, snapshot id
+            UI-->>U: matching postings newest first with the number found, or every open posting with the total and no matched skills
+        end
+    end
+    Note over U,S: Postcondition: last skills saved whenever the check passed, closed postings never listed
+```
+
+### Critical flow 4: the owner reads a posting's sources and opens one to apply (US-03)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as <user>
+    participant UI as <ui>
+    participant S as <service>
+    participant X as <external-system>
+
+    Note over U,UI: Precondition: a page of postings arrived (flows 1, 2, 3 or 5)
+    S-->>UI: each posting with title, company, publication time or first-seen time, and every listing's source, status, location restriction, and its link only when the service's safe-link check passes
+    UI->>UI: renders all source text as plain text, including matched-skill marks
+    UI-->>U: title, company, publication time or publication time unknown with first seen, each source's location restriction as stated or unknown
+    loop for each listing of the posting
+        alt open listing with an ordinary web address
+            UI-->>U: source named, with its link
+        else listing closed at that source
+            UI-->>U: source named, marked closed at that source, no link
+        else link is not an ordinary web address
+            UI-->>U: source named, link not clickable
+        end
+    end
+    U->>UI: taps a linked source
+    UI->>X: opens the source's own page for the posting in a new tab
+    Note over U,UI: Postcondition: SCR-01 and its scroll position stay, every shown text is credited to a named source
+```
+
+### Critical flow 5: show more cannot read the collection, and refresh after the waiting notice (US-07)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as <user>
+    participant UI as <ui>
+    participant S as <service>
+    participant D as <data-store>
+
+    Note over U,UI: Precondition: postings are on screen with a snapshot id, more remain
+    U->>UI: asks for more
+    UI->>S: next page of the snapshot
+    S->>D: reads the next 50 postings by id, via the collector export
+    alt the collection cannot be read
+        D-->>S: read failure
+        S-->>UI: collection unavailable
+        UI-->>U: message with retry next to the list, postings already shown stay
+        U->>UI: retries
+        UI->>S: same next page of the snapshot
+    end
+    D-->>S: current details, postings closed since loading left out
+    S-->>UI: next 50 in snapshot order
+    UI-->>U: appended below, show-more hidden when the whole list is shown
+    Note over UI,S: later the waiting count turns above zero (flow 2 poll)
+    UI-->>U: how many new postings are waiting, with a refresh action
+    U->>UI: refreshes
+    UI->>S: searches again with the skills in the field
+    Note over S: same path as flow 3, a refresh never starts a new visit
+    S->>D: reads open postings via the collector export
+    D-->>S: open postings
+    S->>S: matches, orders, marks new since the same previous visit, keeps a new snapshot in memory
+    S-->>UI: first 50, total, new count, new snapshot id
+    UI-->>U: list reloaded from the newest, postings closed meanwhile gone, waiting notice cleared
+    Note over U,S: Postcondition: no repeats or gaps within a snapshot, new postings enter only on refresh
+```
+
+### Coverage — user stories and acceptance criteria
+
+| Item | Shown by |
+|---|---|
+| US-01 | Flow 3 (also flow 1 for the remembered search) |
+| US-02 | Flow 3 (matched skills + in-title flags in the page) |
+| US-03 | Flow 4 |
+| US-04 | Flow 3 (empty skills branch), flow 1 |
+| US-05 | Flow 1, flow 3 (last skills saved) |
+| US-06 | Flow 1 |
+| US-07 | Flows 2 and 5 |
+| AC-01 | Flow 3 — postings found |
+| AC-02 | Flow 3 — matching step (the rule itself is domain logic, pinned by the fixed example list) |
+| AC-03 | Flow 3 — orders newest first by effective time, flow 1 |
+| AC-04 | Flow 3 — reads open postings only |
+| AC-05 | Flow 3 — skills check fails |
+| AC-06 | Flow 3 — matched skills + in-title flags |
+| AC-07 | Flow 4 |
+| AC-08 | Flow 4 — closed at that source |
+| AC-09 | Flow 4 — plain text, link not clickable |
+| AC-10 | Flow 3 — skills field empty |
+| AC-11 | Flow 3 — collection holds no postings yet / no open posting matches |
+| AC-12 | Flow 3 — collection cannot be read, flow 5 — show-more read failure |
+| AC-13 | Flow 1 (remembered skills), flow 3 (saved, none when empty) |
+| AC-14 | Flow 1 |
+| AC-15 | Flow 1 (first 50), flow 2 (next pages) |
+| AC-16 | Flow 2 (waiting poll, snapshot pages), flow 5 (refresh) |
+| AC-17 | N/A: non-runtime — the server binds to loopback only, another device cannot connect (collector ADR-0007) |
+
+**Flags (for `design` / `data-model`, not decisions):**
+
+- Flows 1–2 predate this stage and name concrete participants (Web app, Search API, Collector, Local database). They were left untouched. Flows 3–5 use generic participants: `<data-store>` stands for the collector's read export plus `search_state`, and `<external-system>` stands for a job source's own posting page.
+- The only persist step in any flow is `search_state` (last skills, visit times) — one row, read and written by key, no index beyond its primary key. Snapshots stay in memory and are never persisted.
+- Postings are read through the collector export. It filters open postings, filters by first collected after a moment (flow 2 waiting count) and reads by id (flows 2, 5). `data-model` should check whether the collector's existing indexes cover the first-collected filter.
+
 ## 7. Deployment view
 
 Reuses the existing deployment unchanged: one Node.js process on `127.0.0.1:3000` serving the API and the built SPA, the Vite dev server proxying `/api` in development (collector SAD §7). The search module is one more Fastify plugin registered in `app.ts`; the only persistent addition is the `search_state` table, created by a forward-only migration with the usual backup.
