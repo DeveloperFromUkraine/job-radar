@@ -8,6 +8,9 @@ import { SearchList } from "../features/search/SearchList";
 import { SkillsField } from "../features/search/SkillsField";
 import { ProblemMarker } from "../features/source-health/ProblemMarker";
 import { useProblems } from "../features/source-health/queries";
+import { MarkActions } from "../features/tracking/MarkActions";
+import { useMarks } from "../features/tracking/mutations";
+import { noticeKey, UndoNotice } from "../features/tracking/UndoNotice";
 
 /** SCR-01 — the skills search over open postings, the feed when no skills are entered. */
 export function Home() {
@@ -25,9 +28,17 @@ export function Home() {
     setRequest({ skills: remembered, run: 0 });
   }, [visit.data, request]);
 
+  const marks = useMarks();
+  // "Show marked postings" (AC-05): off on every visit; T16 renders the marked view from it.
+  const [, setMarkedView] = useState(false);
+  const showMarked = () => {
+    marks.closeNotice();
+    setMarkedView(true);
+  };
   const [expired, setExpired] = useState(false);
   const search = (text: string) => {
     setExpired(false);
+    marks.reset();
     setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
   };
 
@@ -38,6 +49,16 @@ export function Home() {
   const result = pages?.[0] as SearchResult | undefined;
 
   const waiting = useWaitingCount(result?.snapshot_id); // errors stay silent (contract)
+
+  // Cards marked in this window leave the list and its counts; pages are never refetched (AC-12).
+  const allShown = (pages ?? []).flatMap((p) => p.items);
+  const postings = allShown.filter((p) => !marks.hidden.has(p.id));
+  const hiddenNew = allShown.filter((p) => marks.hidden.has(p.id) && p.is_new).length;
+  const counted = result && {
+    ...result,
+    total: result.total - (allShown.length - postings.length),
+    new_count: result.new_count - hiddenNew,
+  };
 
   const code = list.error instanceof ApiError ? list.error.code : undefined;
   const moreFailed = list.isFetchNextPageError;
@@ -92,10 +113,10 @@ export function Home() {
       {expired && (
         <InlineBanner tone="info" title="This list had expired and was reloaded from the newest." />
       )}
-      {result && (
+      {counted && (
         <SearchList
-          result={result}
-          postings={(pages ?? []).flatMap((p) => p.items)}
+          result={counted}
+          postings={postings}
           previousVisitStartedAt={visit.data?.previous_visit_started_at ?? null}
           onClearSkills={() => {
             setSkills("");
@@ -109,6 +130,24 @@ export function Home() {
           loadingMore={list.isFetchingNextPage}
           moreError={moreFailed && !snapshotExpired ? list.error?.message : undefined}
           onShowMore={() => void list.fetchNextPage()}
+          actionsFor={(p) => (
+            <MarkActions
+              title={p.title}
+              mark={null}
+              pending={marks.pending?.postingId === p.id ? marks.pending.choice : undefined}
+              onChoose={(choice) => marks.mark(p.id, choice)}
+            />
+          )}
+        />
+      )}
+      {marks.notice && (
+        <UndoNotice
+          key={noticeKey(marks.notice)}
+          notice={marks.notice}
+          onUndo={marks.undo}
+          onClose={marks.closeNotice}
+          onShowMarked={showMarked}
+          undoPending={marks.undoPending}
         />
       )}
     </div>

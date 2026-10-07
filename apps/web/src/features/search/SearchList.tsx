@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "react-router";
 import type { Posting, SearchResult } from "../../api/search";
 import { Button } from "../../components/Button";
@@ -19,6 +20,8 @@ interface SearchListProps {
   loadingMore: boolean;
   moreError?: string;
   onShowMore: () => void;
+  /** MarkActions for a card (applied-skipped). */
+  actionsFor?: (posting: Posting) => ReactNode;
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
@@ -35,6 +38,7 @@ export function SearchList({
   loadingMore,
   moreError,
   onShowMore,
+  actionsFor,
 }: SearchListProps) {
   const feed = result.skills.length === 0;
   const clear = (
@@ -80,7 +84,7 @@ export function SearchList({
       <ul className="flex flex-col gap-3">
         {postings.map((p) => (
           <li key={p.id}>
-            <PostingCard posting={p} />
+            <PostingCard posting={p} actions={actionsFor?.(p)} />
           </li>
         ))}
       </ul>

@@ -9,7 +9,7 @@ files_hint: ["apps/web/src/features/tracking/mutations.ts", "apps/web/src/featur
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "M"
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task. Every quoted chunk ends with its provenance signature; the source always
