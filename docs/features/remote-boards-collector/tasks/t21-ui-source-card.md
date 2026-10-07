@@ -10,7 +10,7 @@ owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "L"   # justified: seven ACs each define one card state; the card is one component and splitting it would split its states
 # measured inlined lines: 125
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task: inlined slices carry provenance signatures; the source always wins.

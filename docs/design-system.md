@@ -53,7 +53,16 @@ until then.
 
 | Component | Source (`file:line` / node / URL) | States it supports | Notes |
 |---|---|---|---|
-| App shell | `apps/web/src/App.tsx:3` | default | Page container: phone padding `px-4`, content capped at `max-w-3xl`. Placeholder until the first UI feature. |
+| App shell | `apps/web/src/App.tsx` (`Shell`) | default | Page container: AppNav above `main` with phone padding `px-4`, content capped at `max-w-3xl`. |
+| AppNav | `apps/web/src/components/AppNav.tsx:7` | default, current page | Brand + Home / Source health links; 44px targets (remote-boards-collector). |
+| Button | `apps/web/src/components/Button.tsx:8` | default, disabled, pending (disabled + inline spinner) | Full width on phones, auto from `md:`. |
+| InlineBanner | `apps/web/src/components/InlineBanner.tsx:18` | error (alert, Retry), warning, info (status) | Request failures and notices next to what they are about; API text rendered as text. |
+| SkeletonRow | `apps/web/src/components/SkeletonRow.tsx:2` | loading | Card-shaped placeholder for list loading. |
+| Badge | `apps/web/src/components/Badge.tsx:11` | enabled, problem, notice, disabled, not_verified | Short status label on cards. |
+| SourceCard | `apps/web/src/features/source-health/SourceCard.tsx:6` | healthy, flagged, possibly changed, category notice, filling, disabled, not verified, never collected | One source's health on SCR-02 (remote-boards-collector); composes Badge. |
+| ProblemMarker | `apps/web/src/features/source-health/ProblemMarker.tsx:4` | default (shown while a flag can cost postings) | Danger-toned link block to /sources on the main screen (remote-boards-collector). |
+| RunProgress | `apps/web/src/features/source-health/RunProgress.tsx:19` | running, finished | Per-source outcome of the run in progress or the last finished run. |
+| CollectNowAction | `apps/web/src/features/source-health/CollectNowAction.tsx:16` | idle, pending, nothing due, already running, error | Button + the collect-now answers under it; stays enabled during a run. |
 
 ## Interaction & writing conventions
 

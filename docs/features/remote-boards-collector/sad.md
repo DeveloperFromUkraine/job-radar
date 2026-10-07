@@ -56,7 +56,7 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) �
 
 **Regulatory / external.**
 - Source terms: every listing keeps its source's name and link back (Himalayas, Remotive, Jobicy, We Work Remotely all require attribution); republishing, exporting or resubmitting postings is forbidden.
-- Published request limits (spec §6): Jobicy ≤ 1 per hour; Remotive ≤ 4 per day and ≤ 2 per minute; Himalayas ≤ 4 per day until spec §8 Q3 sets its verified rate; We Work Remotely 0 (disabled) until spec §8 Q1 sets its verified limit. One read = one request, pages and failures included; rolling 60-minute / 24-hour windows.
+- Published request limits (spec §6): Jobicy ≤ 1 per hour; Remotive ≤ 4 per day and ≤ 2 per minute; Himalayas ≤ 4 per day until spec §8 Q3 sets its verified rate; We Work Remotely ≤ 1 per hour (spec §8 Q1, answered 2026-10-03: no published limit; its feed refreshes hourly). One read = one request, pages and failures included; rolling 60-minute / 24-hour windows.
 - Source behaviour re-verified 2026-10-02 from each source's API documentation:
   - **Jobicy** — returns only listings published in the last 7 days, with a 3-hour publication delay; ≤ 200 listings per request; no closed signal.
   - **Himalayas** — ≤ 20 records per request, cursor pagination; data refreshed daily ("polling more than once per day provides no benefit"); every job carries `expiryDate` and `guid`.
@@ -78,7 +78,7 @@ The owner runs job-radar on their own laptop to find global remote tech roles. T
 | Jobicy | System (external) | Read at most once an hour over HTTPS (JSON); last 7 days only; freshness source |
 | Himalayas | System (external) | Read at most 4 times a day over HTTPS (JSON, 20 records per request); completeness + location data; `expiryDate` per job |
 | Remotive | System (external) | Read at most 4 times a day over HTTPS (JSON); all active listings per category, 24 h delayed |
-| We Work Remotely | System (external) | Disabled — 0 reads until spec §8 Q1 verifies its terms and limits |
+| We Work Remotely | System (external) | Public RSS feed, read hourly; attribution required (spec §8 Q1, answered 2026-10-03) |
 | Local settings file | Data input (owner's file system) | Enabled sources + tech categories per source; read by job-radar at the start of every run, never written except to create it with defaults (AC-27) |
 
 Trust boundary: the job-radar process on the owner's machine. Source responses cross it as untrusted content (size-capped, schema-checked, stored as plain text — §8); the browser crosses it only over the loopback interface.
@@ -97,7 +97,7 @@ C4Context
     System_Ext(jobicy, "Jobicy", "Remote job feed - hourly, last 7 days")
     System_Ext(himalayas, "Himalayas", "Remote job feed - daily data, 20 per request")
     System_Ext(remotive, "Remotive", "Remote job feed - all active listings, 24 h delayed")
-    System_Ext(wwr, "We Work Remotely", "Remote job feed - disabled until terms are verified")
+    System_Ext(wwr, "We Work Remotely", "Public remote job RSS feed - read hourly")
 
     Rel(owner, jobradar, "Views source health, starts collect-now, edits the settings file", "browser on loopback")
     Rel(visitor, jobradar, "Cannot connect", "blocked")
@@ -171,7 +171,7 @@ C4Container
         ContainerDb(settings, "Settings file", "JSON on disk", "Enabled sources, tech categories per source")
     }
 
-    System_Ext(sources, "Job sources", "Jobicy, Himalayas, Remotive - We Work Remotely disabled")
+    System_Ext(sources, "Job sources", "Jobicy, Himalayas, Remotive, We Work Remotely")
 
     Rel(owner, web, "Opens source health, presses collect-now", "browser on loopback")
     Rel(owner, settings, "Edits outside the app", "text editor")
@@ -483,8 +483,8 @@ sequenceDiagram
 
     Note over S,D: Precondition: source enabled and due, no fill recorded as complete
     S->>S: regular read of the newest listings first (Flow 5)
-    S->>D: read fill progress - how far back the fill has reached
-    D-->>S: none yet, or the oldest publication time reached so far
+    S->>D: read fill progress - how far back the fill has reached and its saved cursor
+    D-->>S: none yet, or the oldest publication time reached so far and where to resume
     loop while the window still allows a read and the fill has not reached 30 days back (Jobicy - 7)
         S->>D: check idempotency - record the read in the request ledger before sending
         Note over S,D: persists ledger entry - fill reads count toward the same limit
@@ -497,9 +497,12 @@ sequenceDiagram
     alt reached 30 days back, or the source offers nothing older
         S->>D: record the fill as complete
         Note over S,D: persists fill state complete, completed at
+    else the regular schedule uses the whole allowed rate - no spare read ever
+        S->>D: record the fill as limited, keep its cursor, no next part
+        Note over S,D: persists fill state limited and fill cursor - shown in source health (review 2026-10-02, B12)
     else window used up first
-        S->>D: record that the fill continues and when its next part is due
-        Note over S,D: persists fill state continuing, next part due at - shown in source health
+        S->>D: record that the fill continues, its cursor and when its next part is due
+        Note over S,D: persists fill state continuing, fill cursor, next part due at - shown in source health
     end
     Note over S,D: Postcondition: first postings visible without waiting for the schedule, regular reads never starved
 ```
@@ -749,15 +752,15 @@ Each §1 goal expanded into a full scenario; numbers are quoted from spec §6 NF
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
 | ~~Open architectural decision: how freshness is measured for Jobicy~~ — **resolved 2026-10-02 by `clarify`**: measured from publication time, target ≤ 5 h p90 for hourly-allowed sources (spec §6, §7); residual risk: Jobicy lengthening its publication delay would breach the target without any change on our side | Low | Freshness per source is visible in source health; revisit the target if Jobicy's delay changes | Volodymyr Kozlov |
-| Himalayas yields at most 80 listings a day (≤ 20 per request × ≤ 4 reads a day), which may miss tech postings and threaten the ≥ 95% completeness KPI | High | Use Himalayas' filtered search (tech categories, newest first) so every read counts; measure the per-source baseline in the first 7 days (spec §7); spec §8 Q3 to verify the real allowed rate | Volodymyr Kozlov |
-| Himalayas' first 30-day fill cannot complete within 24 h at ≤ 80 listings a day; spec §6 "within 24 h for slower sources, whose fill continues over later runs" is now spec'd as "first postings within 24 h, the fill continues inside the allowed rate" (spec AC-19, §6, clarified 2026-10-02) — regular reads come first, so the full 30 days may never be reached | Medium | Newest-first reads, so recent postings come first; spec §8 Q3 may raise Himalayas' rate | Volodymyr Kozlov |
-| Remotive is read with one unfiltered request per run; the full active-listings response (HTML descriptions included) may approach the 10 MB response cap (§8) | Medium | Measure the real response size in the first adapter task; raise the cap for Remotive or fall back to one category request per run if needed | Tech Lead |
+| Himalayas yields at most 80 listings a day (≤ 20 per request × ≤ 4 reads a day), which may miss tech postings and threaten the ≥ 95% completeness KPI. **Review 2026-10-02:** the planned filtered search is not possible — the Himalayas search API filters by keyword, country, company, seniority, employment type and time zone, not by category — so the adapter reads the newest 20 across all categories and filters by `parentCategories` locally; only part of the 80 a day are tech | High | Measure the per-source baseline in the first 7 days (spec §7); if the tech share is low, try keyword searches (e.g. engineer / developer) inside the same 4 reads a day; spec §8 Q3 answered — no higher published rate | Volodymyr Kozlov |
+| Himalayas' first 30-day fill cannot progress: its regular schedule uses all 4 reads a day. **Review 2026-10-02:** the fill is recorded as `limited` (no promised next part) and its cursor is saved, so it resumes if the allowed rate rises | Medium | Newest-first reads keep recent postings; a higher rate (spec §8 Q3, if Himalayas ever publishes one) resumes the fill from its saved cursor | Volodymyr Kozlov |
+| ~~Remotive is read with one unfiltered request per run; the full active-listings response may approach the 10 MB response cap (§8)~~ — **resolved 2026-10-02 by implement T12**: the real response was 197 KB for 17 jobs | Low | The 10 MB cap stays as the guard | Tech Lead |
 | A Jobicy listing older than its 7-day window can no longer confirm a closure, so a posting that holds one closes only by the 60-day age-out (ADR-0004) | Medium | Accepted for v1; revisit if the false-closure / stale-posting spot checks (spec §7) show many stale merged postings | Volodymyr Kozlov |
 | A wrong merge is permanent — there is no un-merge in v1 (ADR-0005) | Medium | Merge only on exact equality of the normalized key within 7 days; unit tests built from AC-04 / AC-05 examples; add un-merge if spot checks find false merges | Tech Lead |
 | A source changes its response shape, categories or window | Medium | Schema validation turns a shape change into a flagged failure (AC-03); category drift is reported (AC-24); the 30% hold-back stops mass false closures (AC-14) | Tech Lead |
 | Collection shares the event loop with the API (ADR-0001) | Low | Chunked normalization that yields; short per-source transactions; the ≤ 5 s start-up smoke test | Tech Lead |
 | Owner-mark protection is proven only with a test fake until roadmap step 6 (ADR-0006) | Low | Re-verify AC-06/07/10/11 against real marks when step 6 ships (spec §5 note) | Volodymyr Kozlov |
-| Spec §8 Q1 (We Work Remotely limits and location data) and Q3 (Himalayas' real rate) were due before `sdd:design`, then before `/sdd:tasks`, and are **deferred** to before the adapters task (T12) in `/sdd:implement` (2026-10-02): Himalayas' docs state only that polling more than once a day brings no benefit (no numeric limit) and the WWR terms page returned 403 on 2026-10-02; defaults are in force — WWR disabled, Himalayas ≤ 4 reads a day | Medium | Verify both and update spec + settings defaults; the adapter contract and settings file absorb either answer without design change | Volodymyr Kozlov — before T12 in `/sdd:implement` |
+| Spec §8 Q1 (We Work Remotely limits and location data) was answered on 2026-10-03 by fix `_fixes/2026-10-03-enable-we-work-remotely.md` — WWR is read hourly from its public feed; Q3 (Himalayas' rate) was answered by implement T12: no numeric limit published, the default ≤ 4 reads a day stays | Low | Resolved: the adapter contract and settings file absorbed the answer without design change | Volodymyr Kozlov — resolved 2026-10-03 |
 | `docs/architecture-map.md` is behind the code and this design (says TypeScript 5, repo has `^7.0.2`; "State / data-fetching: not decided" is now ADR-0002) | Low | Re-run `/sdd:survey` after this feature lands | Volodymyr Kozlov |
 | Development restarts (`tsx watch`) and crashes consume reads, because a read is counted when recorded, before it is sent | Low | Deliberately conservative (ADR-0003, AC-20); a dev setting can disable the scheduler while working on unrelated code | Tech Lead |
 

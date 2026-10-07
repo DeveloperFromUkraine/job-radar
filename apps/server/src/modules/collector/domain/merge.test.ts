@@ -1,0 +1,375 @@
+import { describe, expect, it } from "vitest";
+import type { NormalizedListing } from "./adapter.js";
+import { type Candidate, decideMerge, earliestPublishedAt, matchKey } from "./merge.js";
+
+const DAY = 24 * 60 * 60 * 1000;
+const T = Date.UTC(2026, 9, 1);
+
+const listing = (over: Partial<NormalizedListing> = {}): NormalizedListing => ({
+  sourceId: "remotive",
+  sourceItemId: "r-1",
+  url: "https://jobs.example.test/r-1",
+  title: "Senior Backend Engineer",
+  company: "Example Co",
+  description: "",
+  locationRestriction: null,
+  categories: ["Software Development"],
+  publishedAt: T,
+  expiresAt: null,
+  ...over,
+});
+
+const complete = (ids: string[]) => ({
+  complete: true,
+  coversPublishedAfter: null,
+  fetchedItemIds: new Set(ids),
+  runId: "run-2",
+  expiredBy: T,
+});
+
+const candidate = (over: Partial<Candidate> = {}): Candidate => ({
+  postingId: "0192-a",
+  status: "open",
+  latestPublishedAt: T - DAY,
+  listings: [{ listingId: "l-j1", sourceId: "jobicy", sourceItemId: "j-1", locationRestriction: null }],
+  ...over,
+});
+
+describe("match key (AC-04)", () => {
+  it.each([
+    ["Senior Backend Engineer", "senior backend engineer"],
+    ["Senior Backend Engineer (Remote)", "senior backend engineer"],
+    ["Senior Backend Engineer - Remote", "senior backend engineer"],
+    ["Senior Backend Engineer, Fully Remote", "senior backend engineer"],
+    ["Senior Backend Engineer – 100% Remote", "senior backend engineer"],
+    ["Remote-first Senior Backend Engineer", "senior backend engineer"],
+    ["Senior Backend Engineer (Work From Home)", "senior backend engineer"],
+    ["Senior Backend Engineer - WFH", "senior backend engineer"],
+    ["Senior Backend Engineer, Anywhere", "senior backend engineer"],
+    ["SENIOR back-end engineer!", "senior back end engineer"],
+  ])("title %j normalizes to %j", (title, expected) => {
+    expect(matchKey("Example Co", title).split("|")[1]).toBe(expected);
+  });
+
+  it("keeps region names, so Remote – EU and Remote – US differ", () => {
+    expect(matchKey("Acme", "Backend Engineer - Remote – EU")).not.toBe(
+      matchKey("Acme", "Backend Engineer - Remote – US"),
+    );
+    expect(matchKey("Acme", "Backend Engineer (Worldwide)")).toContain("worldwide");
+  });
+
+  it.each(["Acme Inc.", "ACME, Inc", "Acme Ltd", "Acme LLC", "Acme GmbH", "Acme Sp. z o.o.", "acme"])(
+    "company %j matches plain Acme",
+    (company) => {
+      expect(matchKey(company, "Dev")).toBe(matchKey("Acme", "Dev"));
+    },
+  );
+
+  it("does not treat different teams as the same role (AC-05)", () => {
+    expect(matchKey("Acme", "Backend Engineer, Payments")).not.toBe(
+      matchKey("Acme", "Backend Engineer, Search"),
+    );
+  });
+});
+
+describe("merge decision", () => {
+  it("updates a known item without re-deciding its merge (AC-21)", () => {
+    const decision = decideMerge(
+      listing(),
+      { listingId: "l-r1", postingId: "0192-a", postingStatus: "open" },
+      [],
+    );
+    expect(decision).toEqual({ kind: "update-known", listingId: "l-r1", postingId: "0192-a", reopen: false });
+  });
+
+  it("reopens a closed posting when its own item is offered again (AC-11)", () => {
+    const decision = decideMerge(
+      listing(),
+      { listingId: "l-r1", postingId: "0192-a", postingStatus: "closed" },
+      [],
+    );
+    expect(decision).toMatchObject({ kind: "update-known", reopen: true });
+  });
+
+  it("attaches a listing from another source within 7 days (AC-04)", () => {
+    expect(
+      decideMerge(listing({ publishedAt: T }), null, [candidate({ latestPublishedAt: T - 7 * DAY })]),
+    ).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
+    });
+  });
+
+  it("creates a new posting when publication times are more than 7 days apart", () => {
+    expect(
+      decideMerge(listing({ publishedAt: T }), null, [candidate({ latestPublishedAt: T - 8 * DAY })]),
+    ).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("creates a new posting when a publication time is unknown", () => {
+    expect(decideMerge(listing({ publishedAt: null }), null, [candidate()])).toEqual({ kind: "create" });
+  });
+
+  it("keeps two postings apart when both state different location restrictions (AC-05)", () => {
+    const c = candidate({
+      listings: [{ listingId: "l-j1", sourceId: "jobicy", sourceItemId: "j-1", locationRestriction: "USA" }],
+    });
+    expect(decideMerge(listing({ locationRestriction: "Europe" }), null, [c])).toEqual({ kind: "create" });
+  });
+
+  it("merges when one side's location restriction is unknown (AC-05)", () => {
+    const c = candidate({
+      listings: [{ listingId: "l-j1", sourceId: "jobicy", sourceItemId: "j-1", locationRestriction: "USA" }],
+    });
+    expect(decideMerge(listing({ locationRestriction: null }), null, [c])).toMatchObject({ kind: "attach" });
+  });
+
+  it("reopens a closed, not-removed posting it merges into, keeping its id (AC-11)", () => {
+    expect(decideMerge(listing(), null, [candidate({ status: "closed" })])).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: true,
+    });
+  });
+
+  it("replaces the same source's old item when it re-posts the role (AC-04)", () => {
+    const c = candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
+      ],
+    });
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: "USA" }), null, [c])).toEqual({
+      kind: "replace-same-source",
+      postingId: "0192-a",
+      replacesListingId: "l-r0",
+      reopen: false,
+    });
+  });
+
+  it("a same-source item with a conflicting stated location is another role, not a re-post (AC-05)", () => {
+    const c = candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
+      ],
+    });
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: "Canada" }), null, [c])).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("a re-post replaces the old item when only one side states a location (AC-05)", () => {
+    const c = candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: "USA" },
+      ],
+    });
+    expect(decideMerge(listing({ sourceItemId: "r-1", locationRestriction: null }), null, [c])).toMatchObject(
+      {
+        kind: "replace-same-source",
+        replacesListingId: "l-r0",
+      },
+    );
+  });
+
+  it("prefers the same-source re-post over a cross-source merge", () => {
+    const other = candidate({ postingId: "0192-b", latestPublishedAt: T });
+    const sameSource = candidate({
+      postingId: "0192-c",
+      latestPublishedAt: T - 3 * DAY,
+      listings: [{ listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: null }],
+    });
+    expect(decideMerge(listing(), null, [other, sameSource])).toMatchObject({
+      kind: "replace-same-source",
+      postingId: "0192-c",
+    });
+  });
+
+  it("picks the candidate with the most recent publication, then the oldest id (tie-break, T6)", () => {
+    const a = candidate({ postingId: "0192-b", latestPublishedAt: T - 2 * DAY });
+    const b = candidate({ postingId: "0192-c", latestPublishedAt: T - DAY });
+    const c = candidate({ postingId: "0192-a", latestPublishedAt: T - DAY });
+    expect(decideMerge(listing(), null, [a, b, c])).toMatchObject({ kind: "attach", postingId: "0192-a" });
+  });
+});
+
+describe("posting display fields (AC-04 note)", () => {
+  it("keeps the earliest publication time", () => {
+    expect(earliestPublishedAt(T, T - DAY)).toBe(T - DAY);
+    expect(earliestPublishedAt(null, T)).toBe(T);
+    expect(earliestPublishedAt(T, null)).toBe(T);
+  });
+});
+
+describe("same-source items that are both still live (AC-05)", () => {
+  const live = (location: string | null) =>
+    candidate({
+      listings: [
+        { listingId: "l-r0", sourceId: "remotive", sourceItemId: "r-0", locationRestriction: location },
+      ],
+    });
+
+  it("keeps two live roles with different stated locations as two postings", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "Germany" }),
+      null,
+      [live("United States")],
+      complete(["r-0", "r-1"]),
+    );
+    expect(decision).toEqual({ kind: "create" });
+  });
+
+  it("does not replace a live item; a duplicate without a location conflict attaches instead", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: null }),
+      null,
+      [live("United States")],
+      complete(["r-0", "r-1"]),
+    );
+    expect(decision).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+  });
+
+  it("replaces the old item when it is gone from the fetch and the locations agree — a real re-post", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "United States" }),
+      null,
+      [live("United States")],
+      complete(["r-1"]),
+    );
+    expect(decision).toMatchObject({ kind: "replace-same-source", replacesListingId: "l-r0" });
+  });
+
+  it("never lets a gone item's conflicting successor take over its posting (round-3 review S1)", () => {
+    const decision = decideMerge(
+      listing({ locationRestriction: "Germany" }),
+      null,
+      [live("United States")],
+      complete(["r-1"]),
+    );
+    expect(decision).toEqual({ kind: "create" });
+  });
+});
+
+describe("re-post needs proof the old item is gone (round-2 review R1)", () => {
+  const own = (over: Partial<Candidate["listings"][number]> = {}) =>
+    candidate({
+      listings: [
+        {
+          listingId: "l-h0",
+          sourceId: "remotive",
+          sourceItemId: "h-0",
+          locationRestriction: "Germany",
+          lastSeenRunId: "run-1",
+          publishedAt: T - DAY,
+          ...over,
+        },
+      ],
+    });
+  const capped = {
+    complete: false,
+    coversPublishedAfter: null,
+    fetchedItemIds: new Set(["r-1"]),
+    runId: "run-2",
+    expiredBy: T,
+  };
+  /** A posting finalize closed: its only listing is closed too. */
+  const closed = (over: Partial<Candidate["listings"][number]> = {}) => ({
+    ...own({ status: "closed", ...over }),
+    status: "closed" as const,
+  });
+
+  it("a conflicting stated location makes a second posting, whatever the fetch proves (AC-05)", () => {
+    expect(decideMerge(listing({ locationRestriction: "USA" }), null, [own()], capped)).toEqual({
+      kind: "create",
+    });
+  });
+
+  it("a capped fetch is no proof: without a location conflict the item attaches, nothing is deleted", () => {
+    expect(decideMerge(listing({ locationRestriction: null }), null, [own()], capped)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
+    });
+  });
+
+  it("an old item already seen in this run is live, even if this page does not return it", () => {
+    const sameRun = { ...complete(["r-1"]), runId: "run-1" };
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [own()], sameRun)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
+    });
+  });
+
+  it("a complete fetch is no proof for an item older than the window it covers", () => {
+    const window = { ...complete(["r-1"]), coversPublishedAfter: T };
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [own()], window)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: false,
+    });
+  });
+
+  it("an old item already closed is proven gone, even on a capped fetch (round-3 review M1)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ status: "closed" })], capped),
+    ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
+  });
+
+  it("a closed old item the fetch still returns is not gone: its re-post sibling attaches and reopens (round-4 review N1)", () => {
+    const stillOffered = complete(["h-0", "r-1"]);
+    expect(decideMerge(listing({ locationRestriction: "Germany" }), null, [closed()], stillOffered)).toEqual({
+      kind: "attach",
+      postingId: "0192-a",
+      reopen: true,
+    });
+  });
+
+  it("a closed old item already seen in this run is not gone, even if this page does not return it (round-5 review P1)", () => {
+    expect(
+      decideMerge(
+        listing({ locationRestriction: "Germany" }),
+        null,
+        [closed({ lastSeenRunId: "run-2" })],
+        capped,
+      ),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: true });
+  });
+
+  it("an expired old item is proven gone, even on a capped fetch (round-5 review P3)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T - DAY })], capped),
+    ).toEqual({ kind: "replace-same-source", postingId: "0192-a", replacesListingId: "l-h0", reopen: false });
+  });
+
+  it("an expired old item the fetch still returns is not gone", () => {
+    expect(
+      decideMerge(
+        listing({ locationRestriction: "Germany" }),
+        null,
+        [own({ expiresAt: T - DAY })],
+        complete(["h-0", "r-1"]),
+      ),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+  });
+
+  it("an item expiring later is not gone, and a partial read proves no expiry", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T + DAY })], capped),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+    expect(
+      decideMerge(listing({ locationRestriction: "Germany" }), null, [own({ expiresAt: T - DAY })], {
+        ...capped,
+        expiredBy: null,
+      }),
+    ).toEqual({ kind: "attach", postingId: "0192-a", reopen: false });
+  });
+
+  it("a closed old item is still kept when the re-post states a conflicting location (S1 over M1)", () => {
+    expect(
+      decideMerge(listing({ locationRestriction: "USA" }), null, [own({ status: "closed" })], capped),
+    ).toEqual({ kind: "create" });
+  });
+});

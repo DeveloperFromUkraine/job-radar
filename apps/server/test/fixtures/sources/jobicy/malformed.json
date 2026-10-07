@@ -1,0 +1,10 @@
+{
+  "apiVersion": "2.2.18",
+  "jobs": [
+    {
+      "id": "not-a-number",
+      "jobTitle": 7
+    }
+  ],
+  "success": true
+}

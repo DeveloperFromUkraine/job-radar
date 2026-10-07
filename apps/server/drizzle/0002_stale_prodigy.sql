@@ -1,0 +1,1 @@
+ALTER TABLE `collector_sources` ADD `fill_cursor` text;

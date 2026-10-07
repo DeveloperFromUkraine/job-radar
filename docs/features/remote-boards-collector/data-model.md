@@ -40,6 +40,7 @@ erDiagram
         integer fill_reached_at
         integer fill_next_part_due_at
         integer fill_completed_at
+        text fill_cursor
     }
     collector_source_disabled_periods {
         text id PK
@@ -139,10 +140,11 @@ erDiagram
 | `last_read_at` | integer | | Last read recorded in the ledger; due-ness = interval passed since it (AC-02, ADR-0003). Kept here because ledger rows are pruned after 24 h. |
 | `last_success_at` | integer | | Last fetch that finished — complete, capped or partial (Flow 5 decision); catch-up (AC-18), interrupted runs (AC-20), source health (AC-12). |
 | `first_success_at` | integer | | Start of collected history; AC-25 needs 7 days of it. |
-| `fill_status` | text | NOT NULL | `pending` · `continuing` · `complete` (AC-19, Flow 8). |
+| `fill_status` | text | NOT NULL | `pending` · `continuing` · `limited` · `complete` (AC-19, Flow 8). `limited`: the regular schedule leaves no spare read (review 2026-10-02 B12). |
 | `fill_reached_at` | integer | | Oldest publication time the first fill has reached. |
 | `fill_next_part_due_at` | integer | | Shown in source health while the fill continues. |
 | `fill_completed_at` | integer | | |
+| `fill_cursor` | text | | The source's paging cursor where the next fill part resumes (staged `05_add_fill_cursor`, review B12). |
 
 **Aggregate root:** root. Settings (enabled, categories) live in the settings file and `collector_state`, not here; intervals and limits live in the adapter code.
 **Access patterns:** by `id` only (four rows).

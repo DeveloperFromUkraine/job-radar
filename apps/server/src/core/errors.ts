@@ -21,14 +21,24 @@ export function envelope(code: string, message: string): ErrorEnvelope {
 }
 
 // The single place that shapes error responses: { "error": { "code", "message" } }.
-export function registerErrorHandling(app: FastifyInstance): void {
+export function registerErrorHandling(app: FastifyInstance, options: { spaFallback?: boolean } = {}): void {
   app.setNotFoundHandler((request, reply) => {
+    // The built web app owns every non-API GET path (client-side routes, sad §7).
+    if (options.spaFallback && request.method === "GET" && !request.url.startsWith("/api/")) {
+      return reply.sendFile("index.html");
+    }
     reply.status(404).send(envelope("NOT_FOUND", `Route ${request.method} ${request.url} not found`));
   });
 
   app.setErrorHandler((err: FastifyError | AppError, request, reply) => {
     if (err instanceof AppError) {
       return reply.status(err.statusCode).send(envelope(err.code, err.message));
+    }
+    // Fastify's own content-type rejection keeps the contract code (ADR-0007, api-sync-report F-2).
+    if (err.statusCode === 415) {
+      return reply
+        .status(415)
+        .send(envelope("UNSUPPORTED_MEDIA_TYPE", "Send the request body as application/json."));
     }
     if (err.validation) {
       return reply.status(400).send(envelope("VALIDATION_ERROR", err.message));

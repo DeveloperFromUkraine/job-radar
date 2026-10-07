@@ -76,7 +76,7 @@ Home of the app; a shell until roadmap step 3 adds postings. Its only feature-sp
 
 ### SCR-02 — Source health
 
-Per-source state, settings notices, collect-now and the run in progress. Data: `getSourceHealth` (refetched on focus; polled every 2 s while `current_run` is not null — ADR-0002, Flow 2) and the `collectNow` mutation. One card per source in registry order: phone = stacked cards; `lg:` = a table with the same fields as columns.
+Per-source state, settings notices, collect-now and the run in progress. Data: `getSourceHealth` (refetched on focus; every 2 s while `current_run` is not null, otherwise every 60 s — ADR-0002, Flow 2) and the `collectNow` mutation. One card per source in registry order, stacked at every width — with four sources a wide table adds nothing (review 2026-10-02, C3).
 
 **Page-level states**
 
@@ -90,7 +90,7 @@ Per-source state, settings notices, collect-now and the run in progress. Data: `
 | run finished | `current_run` turns null — `last_run` shows each source's outcome: collected, failed with reason, not due yet, disabled (Flow US-05 → G) | NEW: RunProgress (finished), NEW: SourceCard | wireframe 02-e (finished variant) |
 | run interrupted | `last_run.status: incomplete` — "The last run was interrupted. Nothing was closed because of it." (AC-20, Flow US-06 → H) | NEW: InlineBanner (info) | wireframe 02-f |
 | settings: defaults in use | `settings.notice: defaults_in_use` — no marker (AC-27) | NEW: InlineBanner (info) | wireframe 02-c |
-| settings: unreadable | `settings.problem` not null — the problem in plain words, "Collection keeps running on your last valid settings." (AC-27, Flow US-08 → D) | NEW: InlineBanner (warning) | wireframe 02-f |
+| settings: unreadable | `settings.problem` not null — the problem in plain words, then "Collection keeps running on your last valid settings." or, when `running_on: defaults`, "Collection runs on the built-in defaults until the file can be read." (AC-27, Flow US-08 → D; review A8) | NEW: InlineBanner (warning) | wireframe 02-f |
 | validation | N/A: no input — settings are edited in the local file (spec §3) | — | — |
 
 **Collect-now action states** (`collectNow`, Flow 2, AC-15/16)
@@ -111,8 +111,9 @@ Per-source state, settings notices, collect-now and the run in progress. Data: `
 | healthy | enabled, `flags: []` — last success, last run added / updated / closed / held, next due, reads in the last 24 h, freshness p90 (AC-12, spec §6) | NEW: SourceCard, NEW: Badge (enabled) | wireframe 02-d |
 | flagged | a `failing`, `silent` or `overdue` flag — the reason in plain words (AC-03, AC-13; Flow US-04 → K) | NEW: SourceCard, NEW: Badge (problem), flag reason list | wireframe 02-d |
 | possibly changed | a `held_back` or `unknown_location` flag — the reason names the number; held closures shown as *held* (AC-14, AC-25; Flow US-04 → L) | NEW: SourceCard, NEW: Badge (problem) | wireframe 02-d |
-| category notice | a `category_unmatched` flag and/or `no_category > 0` — shown on the card, never on the marker (AC-23, AC-24; Flow US-08 → G2/G3) | NEW: SourceCard, NEW: Badge (notice) | wireframe 02-d |
+| category notice | a `category_unmatched` flag and/or `no_category > 0` — shown on the card with a Notice badge, never on the marker (AC-23, AC-24; Flow US-08 → G2/G3) | NEW: SourceCard, NEW: Badge (notice) | wireframe 02-d |
 | filling | `fill.status: continuing` — "Filling the last 30 days: reached <date>, next part <time>" (AC-19; Flow US-06 → K) | NEW: SourceCard | wireframe 02-c |
+| fill limited | `fill.status: limited` — "First 30 days: reached <date>. Its allowed rate leaves no room to fill further." No next part (AC-19; review 2026-10-02, B12) | NEW: SourceCard | — |
 | disabled | `state: disabled` — "Disabled in your settings. Its postings are kept." No next due (AC-26; Flow US-08 → G1) | NEW: SourceCard (muted), NEW: Badge (disabled) | wireframe 02-d |
 | not verified | `state: not_verified` — "Enabled, not read until its limits are verified." Never flagged silent (AC-27) | NEW: SourceCard (muted), NEW: Badge (not verified) | wireframe 02-d |
 | never collected | `last_success_at: null` and enabled — "Not collected yet", next due (AC-12 Given, AC-19) | NEW: SourceCard (compact) | wireframe 02-c |
@@ -236,12 +237,12 @@ Per-source state, settings notices, collect-now and the run in progress. Data: `
 
 | Component | Why no existing primitive fits | Registered in design-system |
 |---|---|---|
-| AppNav (shared, `components/`) | The inventory has only the App shell; two routes now need navigation (ADR-0002 router) | pending |
-| Button (shared) | No button primitive exists; the canon needs a disabled-with-spinner state for actions | pending |
-| InlineBanner (shared; variants error / warning / info) | The canon prescribes inline banners for errors and notices; nothing implements one yet | pending |
-| SkeletonRow (shared) | The canon prescribes skeleton rows for loading lists; nothing implements one yet | pending |
-| Badge (shared; tones enabled / problem / notice / disabled / not verified) | Short status labels on cards; no label primitive exists | pending |
-| ProblemMarker (feature: `features/source-health/`) | A danger-toned link block specific to this feature's marker rule; built from InlineBanner styling but owns its link and copy | pending |
-| SourceCard (feature) | One source's health — layout specific to source health; composes Badge and the flag list | pending |
-| RunProgress (feature) | Per-source outcome list of a run, polled; specific to this feature | pending |
-| CollectNowAction (feature) | Button + the answer banners of `collectNow` (02-g); wraps the mutation states | pending |
+| AppNav (shared, `components/`) | The inventory has only the App shell; two routes now need navigation (ADR-0002 router) | done |
+| Button (shared) | No button primitive exists; the canon needs a disabled-with-spinner state for actions | done |
+| InlineBanner (shared; variants error / warning / info) | The canon prescribes inline banners for errors and notices; nothing implements one yet | done |
+| SkeletonRow (shared) | The canon prescribes skeleton rows for loading lists; nothing implements one yet | done |
+| Badge (shared; tones enabled / problem / notice / disabled / not verified) | Short status labels on cards; no label primitive exists | done |
+| ProblemMarker (feature: `features/source-health/`) | A danger-toned link block specific to this feature's marker rule; built from InlineBanner styling but owns its link and copy | done |
+| SourceCard (feature) | One source's health — layout specific to source health; composes Badge and the flag list | done |
+| RunProgress (feature) | Per-source outcome list of a run, polled; specific to this feature | done |
+| CollectNowAction (feature) | Button + the answer banners of `collectNow` (02-g); wraps the mutation states | done |

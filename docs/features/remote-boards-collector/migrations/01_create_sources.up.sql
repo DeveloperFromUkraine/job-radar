@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS `collector_sources` (
   `last_read_at` integer,                      -- last request recorded in the ledger (due-check, AC-02)
   `last_success_at` integer,                   -- last fetch that finished: complete, capped or partial (AC-18, AC-20)
   `first_success_at` integer,                  -- start of collected history (AC-25 needs 7 days)
-  `fill_status` text NOT NULL,                 -- pending | continuing | complete (AC-19)
+  `fill_status` text NOT NULL,                 -- pending | continuing | limited | complete (AC-19; limited since review 2026-10-02)
   `fill_reached_at` integer,                   -- oldest publication time the first fill has reached
   `fill_next_part_due_at` integer,
   `fill_completed_at` integer
