@@ -29,11 +29,12 @@ A posting has at most one mark, and the mark survives merging, closing, reopenin
 
 1. **One row per posting with its previous state; the row is deleted with the posting.** `tracking_marks` holds, per posting, the current mark (applied, skipped, or none once cleared) and when it was set, the previous mark and its date, and a change id (UUIDv7) replaced on every change. Undo sends the change id it was given and is applied only if that id is still current. The row references the posting with on-delete cascade. The collector's port answers which postings are protected: applied ones, plus those that lost applied until the end of the next calendar day.
 2. **The same row, plus a database trigger that refuses deleting a posting with an applied mark.** Keeps ADR-0006's database-level backstop for applied postings.
-3. **An append-only log of mark changes.** The current mark is the latest entry per posting; undo reverts the latest entry if it is still the latest.
+**Excluded by constraint (not weighed):**
+- *An append-only log of mark changes* — spec §7 states the app keeps no history of marks.
 
 ## Decision outcome
 
-**Chosen:** Option 1. It is the smallest shape that meets AC-03, AC-04, AC-07 and AC-09: the previous state on the row makes undo exact, and the change id makes a stale undo fail even when the mark went "back to the same mark". The cascade lets clean-up remove skipped and cleared postings without tracking's help, and a write for a removed posting fails on the reference, which is AC-15. Option 2's trigger would live in tracking's migration but fire on the collector's table — a hidden coupling — and a refused delete would fail the whole clean-up batch. Option 3 keeps a history the spec says the app does not keep, and makes "current mark" a latest-per-posting query.
+**Chosen:** Option 1. It is the smallest shape that meets AC-03, AC-04, AC-07 and AC-09: the previous state on the row makes undo exact, and the change id makes a stale undo fail even when the mark went "back to the same mark". The cascade lets clean-up remove skipped and cleared postings without tracking's help, and a write for a removed posting fails on the reference, which is AC-15. Option 2's trigger would live in tracking's migration but fire on the collector's table — a hidden coupling — and a refused delete would fail the whole clean-up batch.
 
 This **partly supersedes collector ADR-0006**: the port and the "nothing removed when the port fails" rule stay; the delete-restricted reference becomes on-delete cascade, and the port's meaning narrows from "marked" to "protected" (applied, or in its grace day).
 

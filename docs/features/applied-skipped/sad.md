@@ -21,7 +21,7 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) �
 
 1. **A decided posting never comes back on its own.** Nothing the collector does (merge, close, reopen, update, restart, clean-up) and no paging puts a marked posting back in the main list, and a look-alike is flagged, never hidden.
 2. **No mark is lost or silently wrong.** 100% of confirmed marks survive a restart. Undo restores exactly the earlier state, or refuses when the mark changed elsewhere. A failed save shows nothing that was not saved.
-3. **Marking stays instant at collection scale.** ≤ 300 ms p95 per mark. Search and the marked view stay within ≤ 1 s p95 with 10,000 open and 5,000 marked postings.
+3. **Marking stays instant at collection scale.** ≤ 300 ms p95 per mark against 10,000 open postings. Search stays within ≤ 1 s p95 with 10,000 open and 5,000 marked postings. The marked view shows its first 50 within ≤ 1 s p95 with 5,000 marked postings and up to 20 skills.
 
 **Stakeholders.**
 
@@ -200,6 +200,7 @@ C4Container
     Rel(web, search, "Loads the list or the marked view, asks for more", "JSON over HTTP")
     Rel(search, tracking, "Asks which postings are marked, in what order, and their hints", "tracking app export")
     Rel(search, collector, "Reads postings, open or closed, by id", "collector app export")
+    Rel(search, db, "Reads and writes search state", "Drizzle")
     Rel(tracking, collector, "Reads postings, retention outlook and match keys", "collector app export")
     Rel(collector, tracking, "Asks which postings are protected before clean-up", "ProtectedPostings port")
     Rel(tracking, db, "Reads and writes marks", "Drizzle")
@@ -207,7 +208,7 @@ C4Container
     Rel(collector, sources, "Reads listings", "HTTPS")
 ```
 
-The owner's browser talks to two server parts: the Tracking API to change marks, and the Search API to load the main list or the marked view. Search asks tracking which postings are marked, and reads posting details from the collector. Tracking reads posting details, retention dates and match keys from the collector. Before clean-up, the collector asks tracking which postings are protected. All three keep their data in the one local SQLite file.
+The owner's browser talks to two server parts: the Tracking API to change marks, and the Search API to load the main list or the marked view. Search asks tracking which postings are marked, and reads posting details from the collector. Tracking reads posting details, retention dates and match keys from the collector. Before clean-up, the collector asks tracking which postings are protected. Tracking (marks), search (its state) and the collector (postings) all keep their data in the one local SQLite file.
 
 ## 6. Runtime view
 
@@ -289,7 +290,7 @@ The deployment is unchanged: one Node.js process on `127.0.0.1:3000` serving the
 | Access control | Unchanged: loopback bind, Host check, and state-changing requests accepted only same-origin with a JSON body; no CORS. Every tracking route changes state, so all are JSON POSTs behind the global guard (AC-16) | collector [ADR-0007](../remote-boards-collector/adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md), `core/access.ts` |
 | Error handling | Envelope `{ "error": { "code", "message" } }` via `AppError`, with distinct codes and plain-language messages for: the posting is no longer in job-radar (AC-15); the mark changed elsewhere, so undo is refused (AC-04); marks cannot be saved right now, which the web shows with Retry, keeping its earlier state (AC-14). Codes are fixed by `api` | `core/errors.ts` + here |
 | Mark consistency | Each change is one synchronous SQLite statement on the shared connection, so there are no partial writes. Undo is one update guarded by the change id. A mark is confirmed to the owner only after the write returns (spec §6 Durability); the web never removes a card before that | `tracking/infra/repo.ts`, ADR-0003 |
-| Protection from clean-up | The port answers "protected" for applied postings and for postings that lost applied until the end of the next calendar day. Skipped and cleared postings are not protected. If the port fails, clean-up removes nothing that day | `tracking/app/protected-postings.ts`, ADR-0003 |
+| Protection from clean-up | The port answers "protected" for applied postings and for postings that lost applied until the end of the next calendar day. Skipped and cleared postings outside their grace day are not protected. If the port fails, clean-up removes nothing that day | `tracking/app/protected-postings.ts`, ADR-0003 |
 | Look-alike rule | Key = the collector's company and title normalization, then non-region bracketed parts dropped and Sr/Jr read as Senior/Junior. Publication times and location restrictions are not compared. Any marked posting still held can match, closed ones included; cleared ones cannot. An applied match wins over skips; otherwise the most recent skip wins. The look-alike is never hidden and never inherits the mark | `tracking/domain/look-alike.ts`, ADR-0004 |
 | Untrusted source content | Titles and companies in the hint are rendered as React text only, the same as search AC-09 | search SAD §8 |
 | ID strategy | UUIDv7 from `core/id.ts` for change ids. The mark row is keyed by posting id | `core/id.ts` |
@@ -339,11 +340,11 @@ ADR files live under `docs/features/applied-skipped/adr/NNNN-<title>.md`.
   - Web component test of the Undo notice with a controlled clock.
 
 **QG-3. Marking stays instant at collection scale**
-- **When:** the owner presses applied or skipped, searches, asks for more, or opens the marked view, against a collection of 10,000 open postings with 5,000 marked postings and up to 20 skills.
+- **When:** the owner presses applied or skipped; searches or asks for more; or opens the marked view. Each target below carries its own conditions, word for word from its spec §6 row.
 - **Then:**
-  - ≤ 300 ms p95 from the owner pressing applied / skipped to the posting leaving the list.
-  - The search-postings targets (≤ 1 s p95 first page and next page) still hold with 10,000 open postings and 5,000 marked postings.
-  - ≤ 1 s p95 to show the first 50 marked postings, with 5,000 marked postings (about 60 days of skips plus every applied posting) and up to 20 skills.
+  - Mark response: ≤ 300 ms p95 from the owner pressing applied / skipped to the posting leaving the list, against a collection of 10,000 open postings.
+  - Search with marks: the search-postings targets (≤ 1 s p95 first page and next page) still hold with 10,000 open postings and 5,000 marked postings.
+  - Marked view: ≤ 1 s p95 to show the first 50 marked postings, with 5,000 marked postings (about 60 days of skips plus every applied posting) and up to 20 skills.
 - **How verify:**
   - Integration test over 100 marks against a collection of 10,000 open postings.
   - The search NFR test, re-run with 5,000 marked postings seeded.

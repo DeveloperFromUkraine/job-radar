@@ -27,7 +27,12 @@ Search pages the main list from an in-memory snapshot of ordered posting ids (se
 ## Considered options
 
 1. **Snapshot every matching posting, marked included; drop marked ones as each page loads.** The snapshot keeps all matching open postings in order. Each page (the first and every next) reads the set of currently marked ids from tracking, walks the snapshot from the cursor, skips marked ids and stops at 50 unmarked ones; the cursor is the snapshot position after the last id read.
-2. **Snapshot only unmarked postings.** Marked postings leave at load; a next page also drops postings marked since. A posting cleared in another window does not return until a refresh, which contradicts AC-12 and would need a spec change.
+
+**Excluded by constraint (not weighed):**
+- *Snapshot only unmarked postings* — a posting cleared in another window would not return until a refresh, which spec AC-12 rules out ("includes postings whose mark was cleared since").
+- *A live query per page with a cursor over unmarked postings* — search ADR-0003 already rejected live cursors: a merge can move a posting earlier, so pages would repeat or skip.
+
+This decision is recorded as an ADR because it is hard to reverse and spans search and tracking, not because it had a rival.
 
 ## Decision outcome
 
