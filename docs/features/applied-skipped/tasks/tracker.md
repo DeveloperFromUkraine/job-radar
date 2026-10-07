@@ -6,7 +6,7 @@
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
 | T01 | [Create the tracking_marks table and promote its staged migration](./t01-tracking-marks-table.md) | migration | Volodymyr Kozlov | S | — | done |
-| T02 | [Write the mark state machine, undo guard and grace day as pure domain functions](./t02-mark-state-machine-and-grace-day.md) | domain | Volodymyr Kozlov | M | — | todo |
+| T02 | [Write the mark state machine, undo guard and grace day as pure domain functions](./t02-mark-state-machine-and-grace-day.md) | domain | Volodymyr Kozlov | M | — | done |
 | T03 | [Write the look-alike key and winning-mark rule, on the collector's exported merge normalization](./t03-look-alike-key.md) | domain | Volodymyr Kozlov | S | — | todo |
 | T04 | [Rename the collector's marks port to ProtectedPostings.protectedAmong and record ADR-0006 as partly superseded](./t04-rename-port-to-protected-postings.md) | app | Volodymyr Kozlov | S | — | todo |
 | T05 | [Add the collector's read-only exports: postings by id including closed, and the retention outlook](./t05-collector-read-exports.md) | app | Volodymyr Kozlov | M | — | todo |
