@@ -10,7 +10,7 @@
 | T03 | [Write the look-alike key and winning-mark rule, on the collector's exported merge normalization](./t03-look-alike-key.md) | domain | Volodymyr Kozlov | S | — | done |
 | T04 | [Rename the collector's marks port to ProtectedPostings.protectedAmong and record ADR-0006 as partly superseded](./t04-rename-port-to-protected-postings.md) | app | Volodymyr Kozlov | S | — | done |
 | T05 | [Add the collector's read-only exports: postings by id including closed, and the retention outlook](./t05-collector-read-exports.md) | app | Volodymyr Kozlov | M | — | done |
-| T06 | [Write the tracking repo: guarded mark writes, undo, and the mark reads every flow needs](./t06-marks-repo.md) | infra | Volodymyr Kozlov | M | T01, T02 | todo |
+| T06 | [Write the tracking repo: guarded mark writes, undo, and the mark reads every flow needs](./t06-marks-repo.md) | infra | Volodymyr Kozlov | M | T01, T02 | done |
 | T07 | [Implement the mark, change, clear and undo use cases with their error mapping and MarkState](./t07-mark-use-cases.md) | app | Volodymyr Kozlov | M | T05, T06 | todo |
 | T08 | [Implement ProtectedPostings in tracking and wire it into the collector in app.ts](./t08-protected-postings-port.md) | app | Volodymyr Kozlov | S | T04, T06 | todo |
 | T09 | [Implement tracking's read queries for search: marked ids, the marked order, and look-alike hints](./t09-mark-queries-and-hints.md) | app | Volodymyr Kozlov | M | T03, T05, T06 | todo |
