@@ -9,7 +9,7 @@ files_hint: ["docs/features/applied-skipped/migrations/01_create_tracking_marks.
 owner: "Volodymyr Kozlov"
 estimate: "S"
 context_budget: "M"
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task. Every quoted chunk ends with its provenance signature; the source always
