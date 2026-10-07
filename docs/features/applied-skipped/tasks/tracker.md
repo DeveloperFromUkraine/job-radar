@@ -21,7 +21,7 @@
 | T14 | [Wire marking and the 8-second Undo notice into the main list](./t14-web-mark-and-undo.md) | ui | Volodymyr Kozlov | M | T13 | todo |
 | T15 | [Show the save-error, posting-gone and nothing-left-to-review states on the main screen](./t15-web-save-error-gone-nothing-left.md) | ui | Volodymyr Kozlov | S | T14 | todo |
 | T16 | [Build the Show marked postings switch and the marked view with change, clear, at-risk confirm and cleared cards](./t16-web-marked-view.md) | ui | Volodymyr Kozlov | M | T15 | todo |
-| T17 | [Prove marks hold through every collector event and a restart, and that marking stays under 300 ms p95](./t17-marks-hold-through-collector-and-restart.md) | tests | Volodymyr Kozlov | M | T08, T10, T11 | todo |
+| T17 | [Prove marks hold through every collector event and a restart, and that marking stays under 300 ms p95](./t17-marks-hold-through-collector-and-restart.md) | tests | Volodymyr Kozlov | M | T08, T10, T11 | done |
 | T18 | [Add the marked view and grace day to CONTEXT.md and update the roadmap's wave-4 row](./t18-glossary-and-roadmap.md) | docs | Volodymyr Kozlov | S | — | todo |
 
 **Total:** 18 tasks, ~7.25 person-days (S ≈ ¼ day, M ≈ ½ day).
