@@ -88,6 +88,7 @@ describe("nextPage (AC-15)", () => {
       byIds: () => {
         throw new Error("SQLITE_BUSY");
       },
+      byIdsWithClosed: () => [],
     };
     const err = caught(() => nextPage(deps, snapshots, first.snapshot_id, "50"));
     expect([err.statusCode, err.code]).toEqual([503, "SEARCH_COLLECTION_UNAVAILABLE"]);
@@ -171,6 +172,7 @@ describe("waitingCount", () => {
         throw new Error("SQLITE_BUSY");
       },
       byIds: () => [],
+      byIdsWithClosed: () => [],
     };
     expect(caught(() => waitingCount(deps, snapshots, first.snapshot_id)).statusCode).toBe(503);
   });

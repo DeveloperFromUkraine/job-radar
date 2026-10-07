@@ -50,12 +50,13 @@ export function matchPostings(
   skills: string[],
   postings: OpenPosting[],
   keepUnmatched = skills.length === 0,
+  everyListing = false, // the marked view: a closed posting has no open listing (api-sync-report F-1)
 ) {
   const matcher = compileMatcher(skills);
   const result: { posting: OpenPosting; matched: MatchedSkill[] }[] = [];
   for (const posting of postings) {
     const texts = posting.listings
-      .filter((l) => l.status === "open")
+      .filter((l) => everyListing || l.status === "open")
       .map((l) => ({ title: l.title ?? "", description: l.description ?? "" }));
     const matched = matcher.match(texts);
     if (keepUnmatched || matched.length > 0) result.push({ posting, matched });

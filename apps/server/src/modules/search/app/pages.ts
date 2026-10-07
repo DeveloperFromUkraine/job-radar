@@ -8,9 +8,9 @@ import { walkUnmarked } from "./present.js";
 import { matchPostings, presentPage, readCollection, readMarks } from "./search.js";
 import type { Snapshot, SnapshotStore } from "./snapshots.js";
 
-export function knownSnapshot(snapshots: SnapshotStore, snapshotId: string): Snapshot {
+export function knownSnapshot(snapshots: SnapshotStore, snapshotId: string, marked = false): Snapshot {
   const snapshot = snapshots.get(snapshotId);
-  if (!snapshot)
+  if (!snapshot || Boolean(snapshot.marked) !== marked)
     throw new AppError(
       "SEARCH_SNAPSHOT_EXPIRED",
       "This list has expired; it was reloaded from the newest.",

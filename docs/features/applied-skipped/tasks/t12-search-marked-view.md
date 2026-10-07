@@ -9,7 +9,7 @@ files_hint: ["apps/server/src/modules/search/app/marked.ts", "apps/server/src/mo
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "M"
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task. Every quoted chunk ends with its provenance signature; the source always

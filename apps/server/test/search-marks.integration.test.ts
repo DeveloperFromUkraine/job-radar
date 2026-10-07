@@ -170,6 +170,8 @@ describe("marks that cannot be read", () => {
           throw new Error("disk I/O error");
         },
         hintsFor: () => new Map(),
+        markedOrder: () => [],
+        markStatesFor: () => new Map(),
       },
     };
     const err = caught(() => runSearch(failing, snapshots, ""));
