@@ -2,7 +2,7 @@
 // Postings past 60 counted days are removed unless the port says they are protected (applied, or in
 // their grace day — applied-skipped ADR-0003); skipped ones go like unmarked ones. If the port fails,
 // nothing is removed that day — an applied posting must never be lost.
-import { countedAgeMs, isPastRetention, RETENTION_MS } from "../domain/retention.js";
+import { countedAgeMs, isPastRetention, periodsPerSource, RETENTION_MS } from "../domain/retention.js";
 import { pruneHistory } from "../infra/repo/history.js";
 import { removePostings, retentionCandidates } from "../infra/repo/postings.js";
 import { readDisabledPeriods } from "../infra/repo/sources.js";
@@ -20,14 +20,9 @@ export async function dailyCleanup(
   const now = deps.now();
 
   const periods = readDisabledPeriods(db);
-  const past = retentionCandidates(db, now - RETENTION_MS).filter((p) => {
-    const perSource = p.sourceIds.map((sourceId) =>
-      periods
-        .filter((d) => d.sourceId === sourceId)
-        .map((d) => ({ from: d.disabledFrom, until: d.disabledUntil })),
-    );
-    return isPastRetention(countedAgeMs(p, perSource, now));
-  });
+  const past = retentionCandidates(db, now - RETENTION_MS).filter((p) =>
+    isPastRetention(countedAgeMs(p, periodsPerSource(p.sourceIds, periods), now)),
+  );
 
   let removed = 0;
   if (past.length > 0) {

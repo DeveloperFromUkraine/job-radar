@@ -1,5 +1,7 @@
-// Read-only: open postings with their listings, for other modules through app/open-postings.ts.
-// Text (title, description) only for open listings; a closed listing is named by source + status.
+// Read-only: postings with their listings, for other modules through app/open-postings.ts. By default
+// only open postings, with text (title, description) only for open listings; a closed listing is
+// named by source + status. `includeClosed` (applied-skipped marked view) adds closed postings and the
+// text of every listing, since a closed posting has no open listing to match skills against.
 import { and, asc, eq, gt, inArray, type SQL } from "drizzle-orm";
 import type { Db } from "../../../../core/db.js";
 import { listings, postings } from "../schema.js";
@@ -15,6 +17,7 @@ export interface OpenListing {
 
 export interface OpenPosting {
   id: string;
+  status: "open" | "closed";
   title: string;
   company: string;
   publishedAt: number | null;
@@ -24,12 +27,13 @@ export interface OpenPosting {
 
 const CHUNK = 500; // far under SQLite's bound-variable limit
 
-function read(db: Db, where?: SQL): OpenPosting[] {
-  const filter = and(eq(postings.status, "open"), where);
+function read(db: Db, where?: SQL, includeClosed = false): OpenPosting[] {
+  const filter = includeClosed ? where : and(eq(postings.status, "open"), where);
   const byId = new Map<string, OpenPosting>();
   for (const p of db
     .select({
       id: postings.id,
+      status: postings.status,
       title: postings.title,
       company: postings.company,
       publishedAt: postings.publishedAt,
@@ -59,7 +63,9 @@ function read(db: Db, where?: SQL): OpenPosting[] {
   for (const { postingId, title, description, ...listing } of rows)
     byId
       .get(postingId)
-      ?.listings.push(listing.status === "open" ? { ...listing, title, description } : listing);
+      ?.listings.push(
+        includeClosed || listing.status === "open" ? { ...listing, title, description } : listing,
+      );
   return [...byId.values()];
 }
 
@@ -68,10 +74,14 @@ export function readOpenPostings(db: Db, opts: { foundAfter?: number } = {}): Op
   return read(db, opts.foundAfter === undefined ? undefined : gt(postings.firstFoundAt, opts.foundAfter));
 }
 
-/** The current state of the given postings; closed or removed ones are left out. */
-export function readPostingsByIds(db: Db, ids: readonly string[]): OpenPosting[] {
+/** The current state of the given postings; removed ones, and closed ones unless asked for, are left out. */
+export function readPostingsByIds(
+  db: Db,
+  ids: readonly string[],
+  opts: { includeClosed?: boolean } = {},
+): OpenPosting[] {
   const result: OpenPosting[] = [];
   for (let i = 0; i < ids.length; i += CHUNK)
-    result.push(...read(db, inArray(postings.id, ids.slice(i, i + CHUNK))));
+    result.push(...read(db, inArray(postings.id, ids.slice(i, i + CHUNK)), opts.includeClosed));
   return result;
 }

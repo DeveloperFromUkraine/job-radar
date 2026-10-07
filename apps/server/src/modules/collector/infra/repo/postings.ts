@@ -242,22 +242,16 @@ export function categoriesSeenSince(db: DbOrTx, sourceId: SourceId, since: numbe
  * Postings that may be past retention: closed more than 60 days ago, or open and last offered more
  * than 60 days ago. A superset — disabled-only days only make a posting younger (AC-10, AC-26).
  */
-export function retentionCandidates(db: DbOrTx, cutoff: number) {
-  const found = db
-    .select({
-      id: postings.id,
-      status: postings.status,
-      closedAt: postings.closedAt,
-      lastOfferedAt: postings.lastOfferedAt,
-    })
-    .from(postings)
-    .where(
-      or(
-        and(eq(postings.status, "closed"), lt(postings.closedAt, cutoff)),
-        and(eq(postings.status, "open"), lt(postings.lastOfferedAt, cutoff)),
-      ),
-    )
-    .all();
+const retentionColumns = {
+  id: postings.id,
+  status: postings.status,
+  closedAt: postings.closedAt,
+  lastOfferedAt: postings.lastOfferedAt,
+};
+
+type RetentionRow = { id: string; status: "open" | "closed"; closedAt: number | null; lastOfferedAt: number };
+
+function withSourceIds(db: DbOrTx, found: RetentionRow[]) {
   const sourcesOf = new Map<string, string[]>();
   for (const chunk of chunks(found.map((p) => p.id))) {
     for (const row of db
@@ -269,6 +263,28 @@ export function retentionCandidates(db: DbOrTx, cutoff: number) {
     }
   }
   return found.map((p) => ({ ...p, sourceIds: sourcesOf.get(p.id) ?? [] }));
+}
+
+export function retentionCandidates(db: DbOrTx, cutoff: number) {
+  const found = db
+    .select(retentionColumns)
+    .from(postings)
+    .where(
+      or(
+        and(eq(postings.status, "closed"), lt(postings.closedAt, cutoff)),
+        and(eq(postings.status, "open"), lt(postings.lastOfferedAt, cutoff)),
+      ),
+    )
+    .all();
+  return withSourceIds(db, found);
+}
+
+/** The retention inputs of the given postings, open or closed (applied-skipped retention outlook). */
+export function retentionInputsByIds(db: DbOrTx, ids: readonly string[]) {
+  const found: RetentionRow[] = [];
+  for (const chunk of chunks(ids))
+    found.push(...db.select(retentionColumns).from(postings).where(inArray(postings.id, chunk)).all());
+  return withSourceIds(db, found);
 }
 
 /** Removes postings with their listings (cascade). */
