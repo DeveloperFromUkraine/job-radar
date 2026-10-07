@@ -8,7 +8,7 @@
 | T01 | [Create the tracking_marks table and promote its staged migration](./t01-tracking-marks-table.md) | migration | Volodymyr Kozlov | S | — | done |
 | T02 | [Write the mark state machine, undo guard and grace day as pure domain functions](./t02-mark-state-machine-and-grace-day.md) | domain | Volodymyr Kozlov | M | — | done |
 | T03 | [Write the look-alike key and winning-mark rule, on the collector's exported merge normalization](./t03-look-alike-key.md) | domain | Volodymyr Kozlov | S | — | done |
-| T04 | [Rename the collector's marks port to ProtectedPostings.protectedAmong and record ADR-0006 as partly superseded](./t04-rename-port-to-protected-postings.md) | app | Volodymyr Kozlov | S | — | todo |
+| T04 | [Rename the collector's marks port to ProtectedPostings.protectedAmong and record ADR-0006 as partly superseded](./t04-rename-port-to-protected-postings.md) | app | Volodymyr Kozlov | S | — | done |
 | T05 | [Add the collector's read-only exports: postings by id including closed, and the retention outlook](./t05-collector-read-exports.md) | app | Volodymyr Kozlov | M | — | todo |
 | T06 | [Write the tracking repo: guarded mark writes, undo, and the mark reads every flow needs](./t06-marks-repo.md) | infra | Volodymyr Kozlov | M | T01, T02 | todo |
 | T07 | [Implement the mark, change, clear and undo use cases with their error mapping and MarkState](./t07-mark-use-cases.md) | app | Volodymyr Kozlov | M | T05, T06 | todo |

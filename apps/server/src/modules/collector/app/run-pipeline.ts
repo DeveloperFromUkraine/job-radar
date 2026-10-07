@@ -10,7 +10,7 @@ import type { CollectorDeps } from "./deps.js";
 import { finalizeRun } from "./finalize.js";
 import { continueFill } from "./first-fill.js";
 import { type FetchVerdict, ingestSource } from "./ingest.js";
-import type { MarkedPostings } from "./marked-postings.js";
+import type { ProtectedPostings } from "./marked-postings.js";
 import type { StartedRun } from "./scheduler.js";
 
 type Log = { error(obj: object, msg: string): void };
@@ -18,7 +18,7 @@ type Log = { error(obj: object, msg: string): void };
 export async function executeRun(
   deps: CollectorDeps,
   run: StartedRun,
-  marks: MarkedPostings,
+  marks: ProtectedPostings,
   log?: Log,
 ): Promise<void> {
   try {

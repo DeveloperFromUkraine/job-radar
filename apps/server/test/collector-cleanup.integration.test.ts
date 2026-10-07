@@ -5,18 +5,17 @@ import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { dailyCleanup } from "../src/modules/collector/app/cleanup.js";
 import type { CollectorDeps } from "../src/modules/collector/app/deps.js";
-import { type MarkedPostings, noMarks } from "../src/modules/collector/app/marked-postings.js";
+import { noMarks, type ProtectedPostings } from "../src/modules/collector/app/marked-postings.js";
 import { startUp } from "../src/modules/collector/app/startup.js";
 import { readState } from "../src/modules/collector/infra/repo/state.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
+import { fakeProtectedPostings } from "./helpers/protected-postings.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const NOW = Date.UTC(2026, 9, 2, 12);
 type Row = Record<string, unknown>;
-
-const fakeMarks = (marked: string[]): MarkedPostings => ({ markedAmong: async () => new Set(marked) });
 
 describe("daily clean-up (Flow 9)", () => {
   let db: TempDb;
@@ -54,7 +53,7 @@ describe("daily clean-up (Flow 9)", () => {
   }
   const ids = () => rows("select id from collector_postings order by id").map((r) => r.id);
 
-  it("removes unmarked postings past retention with their listings, and keeps marked ones (AC-10)", async () => {
+  it("removes unmarked postings past retention with their listings, and keeps protected ones (AC-10, applied-skipped AC-09)", async () => {
     posting("closed-old", { status: "closed", closedAt: NOW - 61 * DAY, lastOfferedAt: NOW - 61 * DAY });
     posting("closed-old-marked", {
       status: "closed",
@@ -64,7 +63,7 @@ describe("daily clean-up (Flow 9)", () => {
     posting("stale-open", { lastOfferedAt: NOW - 61 * DAY });
     posting("recent", { status: "closed", closedAt: NOW - 59 * DAY, lastOfferedAt: NOW - 59 * DAY });
 
-    const result = await dailyCleanup(deps, "2026-10-02", fakeMarks(["closed-old-marked"]));
+    const result = await dailyCleanup(deps, "2026-10-02", fakeProtectedPostings(["closed-old-marked"]));
 
     expect(result).toEqual({ ran: true, removed: 2 });
     expect(ids()).toEqual(["closed-old-marked", "recent"]);
@@ -84,10 +83,10 @@ describe("daily clean-up (Flow 9)", () => {
     expect(ids()).toEqual(["paused"]); // 70 - 20 = 50 counted days
   });
 
-  it("removes nothing when the marks port fails — a mark must never be lost", async () => {
+  it("removes nothing when the protection port fails — an applied posting must never be lost", async () => {
     posting("closed-old", { status: "closed", closedAt: NOW - 61 * DAY, lastOfferedAt: NOW - 61 * DAY });
-    const failing: MarkedPostings = {
-      markedAmong: async () => {
+    const failing: ProtectedPostings = {
+      protectedAmong: async () => {
         throw new Error("tracking module unavailable");
       },
     };
@@ -100,7 +99,7 @@ describe("daily clean-up (Flow 9)", () => {
 
   it("runs at most once per calendar day", async () => {
     posting("closed-old", { status: "closed", closedAt: NOW - 61 * DAY, lastOfferedAt: NOW - 61 * DAY });
-    await dailyCleanup(deps, "2026-10-02", fakeMarks(["closed-old"]));
+    await dailyCleanup(deps, "2026-10-02", fakeProtectedPostings(["closed-old"]));
 
     const second = await dailyCleanup(deps, "2026-10-02", noMarks);
 

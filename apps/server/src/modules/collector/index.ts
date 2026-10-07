@@ -1,9 +1,9 @@
 // The collector module (ADR-0001): routes + the in-process scheduler, started with the server and
-// stopped on close. Owner marks come from the MarkedPostings port (ADR-0006).
+// stopped on close. Clean-up asks the ProtectedPostings port what to keep (ADR-0006).
 import type { FastifyPluginAsync } from "fastify";
 import type { DbHandle } from "../../core/db.js";
 import type { CollectorDeps } from "./app/deps.js";
-import { type MarkedPostings, noMarks } from "./app/marked-postings.js";
+import { noMarks, type ProtectedPostings } from "./app/marked-postings.js";
 import { executeRun } from "./app/run-pipeline.js";
 import { createScheduler, type StartedRun } from "./app/scheduler.js";
 import { startUp } from "./app/startup.js";
@@ -20,7 +20,8 @@ export interface CollectorModuleOptions {
   sourcesBaseUrl?: string;
   /** false: no scheduled or catch-up runs (tests drive runs through collect-now). */
   scheduler?: boolean;
-  marks?: MarkedPostings;
+  /** Which postings clean-up must keep (tracking's port, wired in app.ts). */
+  protectedPostings?: ProtectedPostings;
   now?: () => number;
 }
 
@@ -36,7 +37,7 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       signal: stopping.signal,
     };
-    const marks = options.marks ?? noMarks;
+    const marks = options.protectedPostings ?? noMarks;
     const log = app.log.child({ module: "collector" });
     const running = new Set<Promise<void>>();
     const execute = (run: StartedRun) => {
