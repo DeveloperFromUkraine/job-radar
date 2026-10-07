@@ -48,7 +48,7 @@ function Source({ listing }: { listing: Listing }) {
         href={listing.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-11 items-center text-accent underline"
+        className="inline-flex min-h-11 min-w-11 items-center text-accent underline"
       >
         {name}
       </a>

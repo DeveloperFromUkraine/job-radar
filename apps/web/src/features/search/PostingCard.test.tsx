@@ -94,4 +94,11 @@ describe("PostingCard (SCR-01)", () => {
     const { container } = card({ ...found(), title: "x".repeat(300) });
     expect((container.firstElementChild as HTMLElement).className).toContain("break-words");
   });
+
+  it("keeps a short source link at least 44 px wide as well as tall", () => {
+    card(found());
+    const link = screen.getByRole("link", { name: "Jobicy" });
+    expect(link.className).toContain("min-h-11");
+    expect(link.className).toContain("min-w-11");
+  });
 });
