@@ -410,4 +410,46 @@ describe("SCR-01 paging, waiting notice and expired list", () => {
     expect(screen.queryByRole("alert")).toBeNull();
     expect(titles()).toHaveLength(50);
   });
+
+  it("a refused or failed search keeps the list but offers no show more, so nothing re-runs (AC-05, AC-12, AC-15)", async () => {
+    const invalid = contractExample<{ error: { message: string } }>("runSearch", 400, "no_letter");
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: [{ body: first() }, { status: 400, body: invalid }, unavailable],
+      [WAITING]: none,
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+    expect(screen.getByRole("button", { name: "Show 50 more" })).toBeTruthy();
+
+    await submit("React, --");
+    expect(await screen.findByText(invalid.error.message)).toBeTruthy();
+    expect(titles()).toHaveLength(50);
+    expect(screen.queryByRole("button", { name: "Show 50 more" })).toBeNull();
+
+    await submit("Go");
+    expect(await screen.findByText(unavailable.body.error.message)).toBeTruthy();
+    expect(titles()).toHaveLength(50);
+    expect(screen.queryByRole("button", { name: "Show 50 more" })).toBeNull();
+    expect(searchBodies(fetchMock)).toHaveLength(3);
+    expect(cursors(fetchMock)).toEqual([]);
+  });
+
+  it("coming back to the main screen runs a fresh search, never a cached list (AC-13)", async () => {
+    const { fetchMock } = mockApi({
+      [PROBLEMS]: noProblems,
+      [VISIT]: returning,
+      [SEARCH]: { body: first() },
+      [WAITING]: none,
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("130 postings · 3 new");
+
+    fireEvent.click(screen.getByRole("link", { name: "Source health" }));
+    await screen.findByRole("heading", { level: 1, name: "Source health" });
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+
+    await waitFor(() => expect(searchBodies(fetchMock)).toHaveLength(2));
+  });
 });

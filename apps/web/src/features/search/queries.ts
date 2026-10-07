@@ -45,6 +45,7 @@ export function useSearchList(req: SearchRequest | null) {
     },
     placeholderData: keepPreviousData, // the list on screen stays while a new search runs
     staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0, // coming back to the screen runs a fresh search, never a cached list (AC-13)
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: false,

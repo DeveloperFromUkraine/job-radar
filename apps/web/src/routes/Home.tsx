@@ -103,7 +103,9 @@ export function Home() {
           }}
           waiting={waiting.data?.waiting_count}
           onRefresh={() => search(skills)}
-          hasNext={pages?.at(-1)?.has_next ?? false}
+          // Only the current request's own pages: a kept list after a refused, failed or running search
+          // can't be paged from here (fetchNextPage would re-run that search) (AC-05, AC-12).
+          hasNext={list.hasNextPage && !list.isPlaceholderData}
           loadingMore={list.isFetchingNextPage}
           moreError={moreFailed && !snapshotExpired ? list.error?.message : undefined}
           onShowMore={() => void list.fetchNextPage()}
