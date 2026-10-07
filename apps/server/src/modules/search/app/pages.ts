@@ -1,5 +1,6 @@
 // Flows 2 and 5: the next 50 postings of a snapshot, in snapshot order, with their current details.
-// A posting closed since loading is left out (sad §11); later additions are never inserted (AC-16).
+// A posting closed since loading is left out (sad §11); a still-open one stays even if its text no
+// longer matches, with its current matches; later additions are never inserted (AC-16).
 import { AppError } from "../../../core/errors.js";
 import type { SearchDeps } from "./deps.js";
 import { PAGE_SIZE, pageInfo, presentPosting } from "./present.js";
@@ -25,6 +26,7 @@ export function nextPage(deps: SearchDeps, snapshots: SnapshotStore, snapshotId:
     matchPostings(
       snapshot.skills,
       readCollection((c) => c.byIds(ids), deps),
+      true,
     ).map((f) => [f.posting.id, f]),
   );
   const items = ids.flatMap((id) => {

@@ -7,8 +7,8 @@ import type { SnapshotStore } from "./snapshots.js";
 import { touchVisit } from "./visits.js";
 
 export function waitingCount(deps: SearchDeps, snapshots: SnapshotStore, snapshotId: string) {
+  touchVisit(deps); // first: a poll on an expired snapshot (410) still keeps the visit going
   const snapshot = knownSnapshot(snapshots, snapshotId);
-  touchVisit(deps);
   const added = readCollection((c) => c.open({ foundAfter: snapshot.loadedAt }), deps);
   return { waiting_count: matchPostings(snapshot.skills, added).length };
 }

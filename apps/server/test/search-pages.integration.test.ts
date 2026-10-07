@@ -123,6 +123,21 @@ describe("paging while collection runs (AC-16)", () => {
     expect(waitingCount(deps, snapshots, first.snapshot_id)).toEqual({ waiting_count: 2 });
   });
 
+  it("keeps a still-open posting whose text no longer matches (no skip)", () => {
+    seedOpenPostings(t.db, 60, () => ({ title: "Go engineer", firstFoundAt: 500 }));
+    const first = runSearch(deps, snapshots, "Go");
+    const order = snapshots.get(first.snapshot_id)?.ids ?? [];
+    // After loading, an update-known rewrites one page-2 posting's text so it no longer mentions Go.
+    const changed = order[55] as string;
+    t.db.run(
+      sql`update collector_listings set title = 'Rust engineer', description = 'Rust' where posting_id = ${changed}`,
+    );
+
+    const second = nextPage(deps, snapshots, first.snapshot_id, "50");
+    expect(second.items.map((p) => p.id)).toEqual(order.slice(50));
+    expect(second.items.find((p) => p.id === changed)?.matched_skills).toEqual([]);
+  });
+
   it("counts every addition for the feed", () => {
     seedOpenPostings(t.db, 2, () => ({ firstFoundAt: 500 }));
     const first = runSearch(deps, snapshots, "");
@@ -138,6 +153,13 @@ describe("waitingCount", () => {
     const first = runSearch(deps, snapshots, "");
     clock += 60_000;
     waitingCount(deps, snapshots, first.snapshot_id);
+    expect(readState(t.db).visitLastSeenAt).toBe(clock);
+  });
+
+  it("refreshes the visit's last seen even when the snapshot is unknown (410)", () => {
+    runSearch(deps, snapshots, "");
+    clock += 60_000;
+    expect(caught(() => waitingCount(deps, snapshots, "nope")).statusCode).toBe(410);
     expect(readState(t.db).visitLastSeenAt).toBe(clock);
   });
 

@@ -21,8 +21,15 @@ export function readCollection<T>(read: (c: Collection) => T, deps: SearchDeps):
   }
 }
 
-/** The skills each posting matches, on its open listings only; the feed (no skills) keeps every posting. */
-export function matchPostings(skills: string[], postings: OpenPosting[]) {
+/**
+ * The skills each posting matches, on its open listings only. Unmatched postings are dropped unless
+ * `keepUnmatched` (the feed, or a next page of a snapshot that already chose its postings).
+ */
+export function matchPostings(
+  skills: string[],
+  postings: OpenPosting[],
+  keepUnmatched = skills.length === 0,
+) {
   const matcher = compileMatcher(skills);
   const result: { posting: OpenPosting; matched: MatchedSkill[] }[] = [];
   for (const posting of postings) {
@@ -30,7 +37,7 @@ export function matchPostings(skills: string[], postings: OpenPosting[]) {
       .filter((l) => l.status === "open")
       .map((l) => ({ title: l.title ?? "", description: l.description ?? "" }));
     const matched = matcher.match(texts);
-    if (skills.length === 0 || matched.length > 0) result.push({ posting, matched });
+    if (keepUnmatched || matched.length > 0) result.push({ posting, matched });
   }
   return result;
 }
