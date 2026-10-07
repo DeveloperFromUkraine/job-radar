@@ -12,10 +12,12 @@ interface InlineBannerProps {
   /** API text goes here as a plain string — React renders it as text, never as markup. */
   children?: ReactNode;
   onRetry?: () => void;
+  /** Another action in the Retry slot, e.g. "Refresh" on the waiting notice. */
+  action?: { label: string; onClick: () => void };
 }
 
 /** Inline, next to what it is about — errors as alerts with Retry, notices as status (design-system). */
-export function InlineBanner({ tone, title, children, onRetry }: InlineBannerProps) {
+export function InlineBanner({ tone, title, children, onRetry, action }: InlineBannerProps) {
   return (
     <div
       role={tone === "error" ? "alert" : "status"}
@@ -32,6 +34,15 @@ export function InlineBanner({ tone, title, children, onRetry }: InlineBannerPro
           className="min-h-11 rounded border border-border px-3 text-text"
         >
           Retry
+        </button>
+      )}
+      {action && (
+        <button
+          type="button"
+          onClick={action.onClick}
+          className="min-h-11 rounded border border-border px-3 text-text"
+        >
+          {action.label}
         </button>
       )}
     </div>

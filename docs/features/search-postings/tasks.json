@@ -1,0 +1,345 @@
+{
+  "slug": "search-postings",
+  "tasks": [
+    {
+      "id": "T1",
+      "title": "Promote the search_state schema: Drizzle schema.ts + generated migration 0003",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-13",
+        "AC-14"
+      ],
+      "dod": "`drizzle-kit` generates `0003_*` from `search/infra/schema.ts`; the integration test proves it equals the staged reference SQL; `createTempDb()` (all migrations) still passes every existing test; no change to `collector/infra/schema.ts`",
+      "files_hint": [
+        "apps/server/src/modules/search/infra/schema.ts",
+        "apps/server/drizzle/",
+        "docs/features/search-postings/migrations/01_create_search_state.up.sql",
+        "docs/features/search-postings/migrations/01_create_search_state.down.sql",
+        "apps/server/test/search-schema.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t01-search-state-schema.md"
+    },
+    {
+      "id": "T2",
+      "title": "Parse and check the owner's skills (split, trim, dedupe, AC-05 rules)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-05"
+      ],
+      "dod": "unit tests for every Edge-cases row pass; no I/O in `skills.ts`",
+      "files_hint": [
+        "apps/server/src/modules/search/domain/skills.ts",
+        "apps/server/src/modules/search/domain/skills.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t02-domain-skills.md"
+    },
+    {
+      "id": "T3",
+      "title": "Match skills against posting text with exact-text boundaries and in-title flags",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-06"
+      ],
+      "dod": "100% of the fixed AC-02 examples pass, in title and in description; AC-06 in-title flag test passes, including a merged posting (title match in the second listing)",
+      "files_hint": [
+        "apps/server/src/modules/search/domain/match.ts",
+        "apps/server/src/modules/search/domain/match.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t03-domain-match.md"
+    },
+    {
+      "id": "T4",
+      "title": "Implement effective-time ordering, the visit/new-mark rule and the safe-link check",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-09",
+        "AC-14"
+      ],
+      "dod": "unit tests for every Edge-cases row pass, with a fake clock; no I/O in the three files",
+      "files_hint": [
+        "apps/server/src/modules/search/domain/order.ts",
+        "apps/server/src/modules/search/domain/visit.ts",
+        "apps/server/src/modules/search/domain/links.ts",
+        "apps/server/src/modules/search/domain/order.test.ts",
+        "apps/server/src/modules/search/domain/visit.test.ts",
+        "apps/server/src/modules/search/domain/links.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t04-domain-order-visit-links.md"
+    },
+    {
+      "id": "T5",
+      "title": "Add the collector's read-only open-postings export (stream, after-moment, by id)",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-04",
+        "AC-08"
+      ],
+      "dod": "integration test proves AC-04 (closed out, reopened in) and the AC-08 shape (closed listing named, no text); no write statement and no edit to existing collector files except an export line if needed",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/open-postings.ts",
+        "apps/server/src/modules/collector/infra/repo/open-postings.ts",
+        "apps/server/test/collector-open-postings.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t05-collector-open-postings-export.md"
+    },
+    {
+      "id": "T6",
+      "title": "Keep search state and record visits (repo + openVisit / heartbeat use cases)",
+      "layer": "app",
+      "deps": [
+        "T1",
+        "T4"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-14"
+      ],
+      "dod": "integration test: remembered skills round-trip (\"React, Go\" → `[\"React\",\"Go\"]`; cleared → `[]`); integration test: 10-min reopen keeps the visit, 31-min reopen rolls it, first visit has `previous = null`",
+      "files_hint": [
+        "apps/server/src/modules/search/infra/repo.ts",
+        "apps/server/src/modules/search/app/visits.ts",
+        "apps/server/src/modules/search/app/deps.ts",
+        "apps/server/test/search-visits.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t06-app-state-and-visits.md"
+    },
+    {
+      "id": "T7",
+      "title": "Run a search: save skills, scan open postings, order, mark new, keep an in-memory snapshot",
+      "layer": "app",
+      "deps": [
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-04",
+        "AC-10",
+        "AC-11",
+        "AC-12"
+      ],
+      "dod": "integration tests cover AC-01, AC-04, AC-10, AC-11 (both variants), AC-12 (export stubbed to throw: 503 + skills saved); a `new_count`/`is_new` assertion with a seeded previous visit; nothing new when previous is null; log line carries no skill or posting text",
+      "files_hint": [
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/snapshots.ts",
+        "apps/server/src/modules/search/app/present.ts",
+        "apps/server/test/search-run.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t07-app-run-search-snapshot.md"
+    },
+    {
+      "id": "T8",
+      "title": "Serve next pages from a snapshot and count waiting postings",
+      "layer": "app",
+      "deps": [
+        "T7"
+      ],
+      "acs": [
+        "AC-15",
+        "AC-16"
+      ],
+      "dod": "integration test: 130 results → 50 / 100 / 130 in one-long-list order (AC-15); integration test: mutate after load (add, close, merge) → no repeats, no shifts, waiting count = matching additions (AC-16); 410 on unknown id, 503 retry returns the same page",
+      "files_hint": [
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/waiting.ts",
+        "apps/server/test/search-pages.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t08-app-pages-and-waiting.md"
+    },
+    {
+      "id": "T9",
+      "title": "Expose the four search routes and wire the module on one shared DB handle",
+      "layer": "ports",
+      "deps": [
+        "T8"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-12",
+        "AC-17"
+      ],
+      "dod": "route tests pass; every 2xx body validates against the search `openapi.yaml`; all existing collector integration tests still pass on the shared handle; exactly one `openDb` call in the server's runtime path",
+      "files_hint": [
+        "apps/server/src/modules/search/ports/routes.ts",
+        "apps/server/src/modules/search/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/src/main.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/test/helpers/contract.ts",
+        "apps/server/test/search-routes.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t09-ports-routes-and-wiring.md"
+    },
+    {
+      "id": "T10",
+      "title": "Prove the NFRs end to end: 10k-posting latency, currency, paging under a live run, late arrivals",
+      "layer": "tests",
+      "deps": [
+        "T9"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-14",
+        "AC-16"
+      ],
+      "dod": "latency tests pass at the spec's thresholds (≤ 1 s p95, both); currency, paging-under-run and late-arrival tests pass",
+      "files_hint": [
+        "apps/server/test/helpers/search-fixtures.ts",
+        "apps/server/test/search-nfr.integration.test.ts",
+        "apps/server/test/search-trust.integration.test.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t10-tests-nfr-and-trust.md"
+    },
+    {
+      "id": "T11",
+      "title": "Add the typed search API client, the TanStack queries and the SkillsField component",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-13"
+      ],
+      "dod": "component tests: prefill, Enter submits, pending, error with `aria-describedby`; client tests use contract examples (no hand-written mocks)",
+      "files_hint": [
+        "apps/web/src/api/search.ts",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/features/search/SkillsField.tsx",
+        "apps/web/src/features/search/SkillsField.test.tsx",
+        "apps/web/src/test/contract.ts"
+      ],
+      "file": "docs/features/search-postings/tasks/t11-ui-api-client-and-skills-field.md"
+    },
+    {
+      "id": "T12",
+      "title": "Build PostingCard (matched skills, time, per-source links) and the Badge `new` tone",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "component tests for AC-06, AC-07, AC-08, AC-09 pass; no `dangerouslySetInnerHTML`; every `<a>` has `target=\"_blank\" rel=\"noopener noreferrer\"`",
+      "files_hint": [
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/features/search/PostingCard.test.tsx",
+        "apps/web/src/components/Badge.tsx"
+      ],
+      "file": "docs/features/search-postings/tasks/t12-ui-posting-card.md"
+    },
+    {
+      "id": "T13",
+      "title": "Compose SCR-01: visit, skills search, summary line and the list's loading/empty/error states",
+      "layer": "ui",
+      "deps": [
+        "T11",
+        "T12"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-14"
+      ],
+      "dod": "`Home.test.tsx` covers loading, default (\"· N new\" + New badges, AC-14), feed, first visit, validation, both empties, error",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.test.tsx",
+        "apps/web/src/features/search/SearchList.tsx"
+      ],
+      "file": "docs/features/search-postings/tasks/t13-ui-main-screen-list.md"
+    },
+    {
+      "id": "T14",
+      "title": "Add show more, the waiting notice with Refresh, the expired-list reload; register new components",
+      "layer": "ui",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-15",
+        "AC-16"
+      ],
+      "dod": "component tests for every inlined state (show more, list expired, waiting) pass; shown pages are never refetched (test asserts no request for earlier cursors); design-system inventory rows added",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.test.tsx",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/components/InlineBanner.tsx",
+        "apps/web/src/components/components.test.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/search-postings/tasks/t14-ui-paging-waiting-expired.md"
+    },
+    {
+      "id": "T15",
+      "title": "Review fixes R2 + R4: next pages keep still-open postings; the waiting poll renews the visit before the snapshot check",
+      "layer": "app",
+      "deps": [
+        "T8"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-16"
+      ],
+      "dod": "integration tests pin both (fail without the fix): a still-open posting whose text changed after loading stays on page 2 with its current matches; a 410 poll still refreshes last seen",
+      "files_hint": [
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/waiting.ts",
+        "apps/server/test/search-pages.integration.test.ts",
+        "docs/features/search-postings/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
+    },
+    {
+      "id": "T16",
+      "title": "Review fix R5: run the latency NFR test in its own project after every other test file",
+      "layer": "tests",
+      "deps": [
+        "T10"
+      ],
+      "acs": [],
+      "dod": "the perf file is excluded from the server project and runs in a server-perf project with groupOrder 1; the 1 s threshold is unchanged",
+      "files_hint": [
+        "vitest.config.ts",
+        "apps/server/vitest.config.ts",
+        "apps/server/vitest.perf.config.ts"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
+    },
+    {
+      "id": "T17",
+      "title": "Review fixes R1 + R3: show more only for the current request's own pages; a fresh search on every return to SCR-01",
+      "layer": "ui",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-12",
+        "AC-13",
+        "AC-15"
+      ],
+      "dod": "Home tests pin both (fail without the fix): no Show 50 more and no re-run after a 400 or 503; navigating away and back sends a second runSearch",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/routes/Home.test.tsx"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
+    }
+  ]
+}

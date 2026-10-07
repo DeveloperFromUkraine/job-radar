@@ -187,7 +187,11 @@ describe("collect now (Flow 2) and module wiring", () => {
       fake.route(path, delayed("{}", 5_000)); // every read is still in flight at shutdown
     }
     const bare = Fastify({ logger: { level: "info", stream } });
-    await bare.register(collectorModule({ databaseFile, sourcesBaseUrl: fake.baseUrl, scheduler: false }));
+    const handle = openDb(databaseFile);
+    bare.addHook("onClose", async () => handle.close());
+    await bare.register(
+      collectorModule({ databaseFile, handle, sourcesBaseUrl: fake.baseUrl, scheduler: false }),
+    );
     await bare.ready();
     const res = await bare.inject({ method: "POST", url: "/api/v1/collector/runs", payload: {} });
     expect(res.statusCode).toBe(202);

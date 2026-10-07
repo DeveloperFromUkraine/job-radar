@@ -1,6 +1,6 @@
 ---
 status: Living
-updated_at: "2026-10-02"
+updated_at: "2026-10-04"
 ---
 
 # Domain Context — job-radar
@@ -13,6 +13,7 @@ updated_at: "2026-10-02"
 - Location restriction — what a source states about where a candidate may work from (countries, regions, time zones or free text), kept exactly as stated. NOT the owner's eligibility verdict (that is the remote filter, a later feature); a source that states nothing is recorded as unknown, never as "anywhere".
 - Owner — the one person who runs job-radar on their own machine to find global remote roles for themselves; the only human role in v1. NOT a visitor on the same network (someone who can reach the machine but is not the owner) and NOT a future product user (multi-user is out of scope).
 - Posting — one open role at one company as the owner sees it; it may be advertised on several sources. NOT a listing (one source's copy of it).
+- Skill — a word or short phrase the owner enters to say what they can work with (a language, framework, tool or practice, e.g. React, C#, Kubernetes), used to narrow the open postings they see. NOT a source's job category (categories decide what the collector keeps; skills decide what the owner sees) and NOT a match score (how well a posting fits — roadmap step 4).
 - Source — an external job board or feed that job-radar reads postings from (e.g. Himalayas, Remotive); each source has its own terms, freshness and failure behaviour, and may be primary or backup. NOT the employer (the company that posted the role) and NOT a listing (one item a source returns).
 - Source health — the owner-visible state of one source: when it last succeeded, what the last run brought (new, updated, closed), and whether it looks wrong (failing, silent, unusually many closures, unusually many unknown restrictions, or no run for too long). NOT the collection run's own outcome (a run can succeed while one source in it is unhealthy).
 - Updated posting — a posting already in the collection whose title, text, location restriction or link changed at one of its sources (the latest statement replaces the stored one), that gained a listing from another source, or that reopened. NOT a newly added posting (collected for the first time) and NOT a posting merely seen again unchanged.
