@@ -1,0 +1,386 @@
+{
+  "slug": "applied-skipped",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Create the tracking_marks table and promote its staged migration",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-09",
+        "AC-15"
+      ],
+      "dod": "drizzle-kit generates the next migration from tracking/infra/schema.ts matching the staged SQL; it applies on a temp DB, deleting a posting cascades its mark row, and inserting a mark for an unknown posting id fails on the reference.",
+      "files_hint": [
+        "docs/features/applied-skipped/migrations/01_create_tracking_marks.up.sql",
+        "docs/features/applied-skipped/migrations/01_create_tracking_marks.down.sql",
+        "apps/server/src/modules/tracking/infra/schema.ts",
+        "apps/server/drizzle/",
+        "apps/server/test/tracking-schema.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t01-tracking-marks-table.md"
+    },
+    {
+      "id": "T02",
+      "title": "Write the mark state machine, undo guard and grace day as pure domain functions",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-03",
+        "AC-04",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "mark.test.ts and grace.test.ts pass with a fake clock over set / change / clear / no-op / undo (first mark, change, clear) / grace-day end at midnight after the next calendar day in the owner's time zone.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/domain/mark.ts",
+        "apps/server/src/modules/tracking/domain/mark.test.ts",
+        "apps/server/src/modules/tracking/domain/grace.ts",
+        "apps/server/src/modules/tracking/domain/grace.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t02-mark-state-machine-and-grace-day.md"
+    },
+    {
+      "id": "T03",
+      "title": "Write the look-alike key and winning-mark rule, on the collector's exported merge normalization",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "look-alike.test.ts passes over the AC-10 example table (Acme Inc / ACME, 'Sr. Backend Engineer (Go) – Remote' / 'Senior Backend Engineer'), the same-company-different-title case, and the winning-mark order; collector merge tests still pass.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/domain/look-alike.ts",
+        "apps/server/src/modules/tracking/domain/look-alike.test.ts",
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/app/match-keys.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t03-look-alike-key.md"
+    },
+    {
+      "id": "T04",
+      "title": "Rename the collector's marks port to ProtectedPostings.protectedAmong and record ADR-0006 as partly superseded",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-09"
+      ],
+      "dod": "Every collector reference uses ProtectedPostings.protectedAmong (noMarks stub kept, renamed fixture fakeProtectedPostings); collector-cleanup integration tests pass unchanged in behaviour, including the port-fails-removes-nothing case.",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/marked-postings.ts",
+        "apps/server/src/modules/collector/app/cleanup.ts",
+        "apps/server/src/modules/collector/app/run-pipeline.ts",
+        "apps/server/src/modules/collector/index.ts",
+        "apps/server/test/collector-cleanup.integration.test.ts",
+        "apps/server/test/collector-e2e.integration.test.ts",
+        "apps/server/test/collector-pipeline-failures.integration.test.ts",
+        "apps/server/test/helpers/protected-postings.ts",
+        "docs/features/remote-boards-collector/adr/0006-keep-owner-marks-behind-a-port-the-collector-consults-before-removal.md"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t04-rename-port-to-protected-postings.md"
+    },
+    {
+      "id": "T05",
+      "title": "Add the collector's read-only exports: postings by id including closed, and the retention outlook",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "An integration test shows postingsById returns closed postings with every source named and links only for open listings, and retentionOutlook returns past-60-days and the removal date matching what dailyCleanup would do, disabled-source days not counted.",
+      "files_hint": [
+        "apps/server/src/modules/collector/app/open-postings.ts",
+        "apps/server/src/modules/collector/infra/repo/open-postings.ts",
+        "apps/server/src/modules/collector/app/retention-outlook.ts",
+        "apps/server/test/collector-read-exports.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t05-collector-read-exports.md"
+    },
+    {
+      "id": "T06",
+      "title": "Write the tracking repo: guarded mark writes, undo, and the mark reads every flow needs",
+      "layer": "infra",
+      "deps": [
+        "T01",
+        "T02"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-04",
+        "AC-15"
+      ],
+      "dod": "tracking-repo.integration.test.ts passes on a temp DB: upsert of the computed row, guarded undo (1 row vs 0 rows), first-mark undo deletes, write for a removed posting raises the FK error, and the marked-ids / marked-order / protected-among reads return the expected sets.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/infra/repo.ts",
+        "apps/server/test/tracking-repo.integration.test.ts",
+        "apps/server/test/helpers/tracking-fixtures.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t06-marks-repo.md"
+    },
+    {
+      "id": "T07",
+      "title": "Implement the mark, change, clear and undo use cases with their error mapping and MarkState",
+      "layer": "app",
+      "deps": [
+        "T05",
+        "T06"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-06",
+        "AC-07",
+        "AC-14"
+      ],
+      "dod": "tracking-marks.integration.test.ts passes: setMark/undoMark return MarkState with the right at_risk and removed_after, map a removed posting to TRACKING_POSTING_NOT_FOUND, a stale undo to TRACKING_MARK_CHANGED_ELSEWHERE, and an injected write failure to TRACKING_MARKS_UNAVAILABLE with nothing written.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/app/marks.ts",
+        "apps/server/test/tracking-marks.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t07-mark-use-cases.md"
+    },
+    {
+      "id": "T08",
+      "title": "Implement ProtectedPostings in tracking and wire it into the collector in app.ts",
+      "layer": "app",
+      "deps": [
+        "T04",
+        "T06"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-09"
+      ],
+      "dod": "tracking-protected.integration.test.ts runs dailyCleanup with the real port: a skipped and an applied posting past 60 days → skipped removed (mark row cascaded), applied kept; an applied-lost posting kept through its grace day and removed the day after.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/app/protected-postings.ts",
+        "apps/server/src/modules/tracking/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/tracking-protected.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t08-protected-postings-port.md"
+    },
+    {
+      "id": "T09",
+      "title": "Implement tracking's read queries for search: marked ids, the marked order, and look-alike hints",
+      "layer": "app",
+      "deps": [
+        "T03",
+        "T05",
+        "T06"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "tracking-queries.integration.test.ts passes: markedIds reflects current marks; markedOrder returns marked + cleared-closed rows newest first with at_risk/removed_after; hintsFor returns the AC-10 hint for the ACME posting, none for a different title, none for a cleared match.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/app/queries.ts",
+        "apps/server/test/tracking-queries.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t09-mark-queries-and-hints.md"
+    },
+    {
+      "id": "T10",
+      "title": "Expose setMark and undoMark as Fastify routes behind the access guard and register the tracking plugin",
+      "layer": "ports",
+      "deps": [
+        "T07",
+        "T08"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-04",
+        "AC-14",
+        "AC-15",
+        "AC-16"
+      ],
+      "dod": "tracking-routes.integration.test.ts validates every response against the applied-skipped contract (loadContract) for 200/400/404/409/415/503, and requests with a foreign Host or Sec-Fetch-Site: cross-site are refused 403 with no mark recorded.",
+      "files_hint": [
+        "apps/server/src/modules/tracking/ports/routes.ts",
+        "apps/server/src/modules/tracking/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/tracking-routes.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t10-tracking-routes.md"
+    },
+    {
+      "id": "T11",
+      "title": "Make search's main list mark-aware: snapshot keeps marked, pages skip them, counts and hints",
+      "layer": "app",
+      "deps": [
+        "T08",
+        "T09"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-08",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "search-marks.integration.test.ts passes (marked left out of first and next pages, cleared-since returns in place, nothing skipped, total/new_count/marked_count right, nothing-left state, waiting counts unmarked only, look_alike set); runSearch/getNextPage/getWaitingCount responses validate against the applied-skipped contract; search NFR test holds ≤1 s p95 with 10,000 open and 5,000 marked.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/waiting.ts",
+        "apps/server/src/modules/search/app/present.ts",
+        "apps/server/src/modules/search/app/deps.ts",
+        "apps/server/src/modules/search/index.ts",
+        "apps/server/src/modules/search/ports/routes.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/search-marks.integration.test.ts",
+        "apps/server/test/search-nfr.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t11-search-main-list-with-marks.md"
+    },
+    {
+      "id": "T12",
+      "title": "Add search's marked view: a fixed-order marked snapshot with skills, closed and cleared postings",
+      "layer": "app",
+      "deps": [
+        "T11"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06"
+      ],
+      "dod": "search-marked.integration.test.ts passes: runMarkedView returns marked + cleared-closed postings newest first with marked_count/cleared_count, skills narrow over every listing, closed postings name every source with links only for open listings; getNextMarkedPage never repeats or skips and shows fresh mark_state; responses validate against the contract; first 50 ≤1 s p95 with 5,000 marked and 20 skills.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/marked.ts",
+        "apps/server/src/modules/search/app/snapshots.ts",
+        "apps/server/src/modules/search/ports/routes.ts",
+        "apps/server/test/search-marked.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t12-search-marked-view.md"
+    },
+    {
+      "id": "T13",
+      "title": "Add the web tracking client, the MarkActions component and PostingCard's look-alike line, marked variant and actions slot",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-02",
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "MarkActions.test.tsx covers unmarked / marked / pending / confirm states and accessible names; PostingCard.test.tsx renders the look-alike line as text from the runSearch found_with_hint example and the marked variant from the runMarkedView example; the api clients' types match the applied-skipped contract examples.",
+      "files_hint": [
+        "apps/web/src/api/tracking.ts",
+        "apps/web/src/api/search.ts",
+        "apps/web/src/test/contract.ts",
+        "apps/web/src/features/tracking/MarkActions.tsx",
+        "apps/web/src/features/tracking/MarkActions.test.tsx",
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/features/search/PostingCard.test.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t13-web-client-markactions-postingcard.md"
+    },
+    {
+      "id": "T14",
+      "title": "Wire marking and the 8-second Undo notice into the main list",
+      "layer": "ui",
+      "deps": [
+        "T13"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-12"
+      ],
+      "dod": "Home.test.tsx (contract-example mocks) shows: card leaves and counts drop only after setMark 200; the notice shows 8 s with a fake clock and closes early on the next mark/search/switch; Undo restores the card to its place with its New badge and counts; a 409 shows the changed-elsewhere message with Show marked postings; the infinite list is never refetched.",
+      "files_hint": [
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/features/tracking/UndoNotice.tsx",
+        "apps/web/src/features/tracking/UndoNotice.test.tsx",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/routes/Home.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t14-web-mark-and-undo.md"
+    },
+    {
+      "id": "T15",
+      "title": "Show the save-error, posting-gone and nothing-left-to-review states on the main screen",
+      "layer": "ui",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "Home.test.tsx shows: a 503 on setMark or undoMark keeps the earlier state with the API message and Retry that repeats the call; a 404 removes the card with 'This posting is no longer in job-radar.' and no Undo; runSearch nothing_left example renders 'Nothing left to review. You've marked 3 matching postings.' with one Show marked postings action; marked_count 0 keeps search's messages.",
+      "files_hint": [
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/routes/Home.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t15-web-save-error-gone-nothing-left.md"
+    },
+    {
+      "id": "T16",
+      "title": "Build the Show marked postings switch and the marked view with change, clear, at-risk confirm and cleared cards",
+      "layer": "ui",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "Home.test.tsx shows: the switch starts off, turning it on runs runMarkedView and lists marked cards with Badge and date, '12 marked and 1 cleared', Closed with links only for open listings, Cleared with 'Removed after 8 Oct'; change and clear update the card in place with Undo; an at_risk applied card asks Continue/Cancel before any call; 410 reloads with the expired message; turning it off reloads the main list.",
+      "files_hint": [
+        "apps/web/src/features/tracking/MarkedToggle.tsx",
+        "apps/web/src/features/tracking/MarkedToggle.test.tsx",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/routes/Home.test.tsx",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t16-web-marked-view.md"
+    },
+    {
+      "id": "T17",
+      "title": "Prove marks hold through every collector event and a restart, and that marking stays under 300 ms p95",
+      "layer": "tests",
+      "deps": [
+        "T08",
+        "T10",
+        "T11"
+      ],
+      "acs": [
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "tracking-collector-events.integration.test.ts passes over merge, close, reopen, text update, restart (reopen the DB file) and clean-up with real marks; tracking-nfr.integration.test.ts shows ≤300 ms p95 over 100 marks against 10,000 open postings and 100% of confirmed marks surviving a restart.",
+      "files_hint": [
+        "apps/server/test/tracking-collector-events.integration.test.ts",
+        "apps/server/test/tracking-nfr.integration.test.ts"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t17-marks-hold-through-collector-and-restart.md"
+    },
+    {
+      "id": "T18",
+      "title": "Add the marked view and grace day to CONTEXT.md and update the roadmap's wave-4 row",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "CONTEXT.md glossary defines 'Marked postings (marked view)' and 'Grace day' with a NOT-reference each; roadmap wave 4 notes that step 6 also edits search/app/ and collector/app/.",
+      "files_hint": [
+        "CONTEXT.md",
+        "docs/roadmap.md"
+      ],
+      "file": "docs/features/applied-skipped/tasks/t18-glossary-and-roadmap.md"
+    }
+  ]
+}
