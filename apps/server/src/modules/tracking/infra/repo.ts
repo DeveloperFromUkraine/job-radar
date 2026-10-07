@@ -69,6 +69,19 @@ export function markedIds(db: Db): Set<string> {
   );
 }
 
+/** Current marks only, with their dates — what look-alike hints are built from (AC-10). */
+export function currentMarks(db: Db) {
+  return db
+    .select({
+      postingId: trackingMarks.postingId,
+      mark: trackingMarks.mark,
+      markedAt: trackingMarks.markedAt,
+    })
+    .from(trackingMarks)
+    .where(isNotNull(trackingMarks.mark))
+    .all() as { postingId: string; mark: "applied" | "skipped"; markedAt: number }[];
+}
+
 /** Every row, most recently changed first, ties by posting id (the marked view's order, AC-05). */
 export function markRowsNewestFirst(db: Db): MarkRow[] {
   return db

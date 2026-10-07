@@ -85,3 +85,17 @@ export function readPostingsByIds(
     result.push(...read(db, inArray(postings.id, ids.slice(i, i + CHUNK)), opts.includeClosed));
   return result;
 }
+
+/** Company and title of the given postings, open or closed — no listings (applied-skipped look-alikes). */
+export function readPostingHeads(db: Db, ids: readonly string[]) {
+  const result: { id: string; company: string; title: string }[] = [];
+  for (let i = 0; i < ids.length; i += CHUNK)
+    result.push(
+      ...db
+        .select({ id: postings.id, company: postings.company, title: postings.title })
+        .from(postings)
+        .where(inArray(postings.id, ids.slice(i, i + CHUNK)))
+        .all(),
+    );
+  return result;
+}

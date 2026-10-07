@@ -1,10 +1,10 @@
 // What search asks tracking (sad §6 Flows 2, 3, 5): which postings are marked now, the marked view's
 // order, fresh mark states, and look-alike hints. Posting details come from collector/app.
-import { postingsByIds } from "../../collector/app/open-postings.js";
+import { postingHeads, postingsByIds } from "../../collector/app/open-postings.js";
 import { retentionOutlook } from "../../collector/app/retention-outlook.js";
 import { lookAlikeKey, winningMark } from "../domain/look-alike.js";
 import type { Mark } from "../domain/mark.js";
-import { markRowsNewestFirst, markedIds as readMarkedIds, rowsFor } from "../infra/repo.js";
+import { currentMarks, markRowsNewestFirst, markedIds as readMarkedIds, rowsFor } from "../infra/repo.js";
 import type { TrackingDeps } from "./deps.js";
 import { type MarkState, presentMarkState } from "./mark-state.js";
 
@@ -59,24 +59,20 @@ export function hintsFor(
   deps: TrackingDeps,
   postings: readonly { id: string; company: string; title: string }[],
 ): Map<string, LookAlike> {
-  const marks = new Map(
-    markRowsNewestFirst(deps.db)
-      .filter((r) => r.mark !== null)
-      .map((r) => [r.postingId, r]),
-  );
+  const marks = new Map(currentMarks(deps.db).map((r) => [r.postingId, r]));
   const hints = new Map<string, LookAlike>();
   if (marks.size === 0) return hints;
 
   type Match = { id: string; mark: Mark; markedAt: number; company: string };
   const byKey = new Map<string, Match[]>();
-  for (const p of postingsByIds(deps.db, [...marks.keys()], { includeClosed: true })) {
+  for (const p of postingHeads(deps.db, [...marks.keys()])) {
     const row = marks.get(p.id);
-    if (!row?.mark) continue;
+    if (!row) continue;
     const key = lookAlikeKey(p.company, p.title);
-    byKey.set(key, [
-      ...(byKey.get(key) ?? []),
-      { id: p.id, mark: row.mark, markedAt: row.markedAt, company: p.company },
-    ]);
+    const match = { id: p.id, mark: row.mark, markedAt: row.markedAt, company: p.company };
+    const list = byKey.get(key);
+    if (list) list.push(match);
+    else byKey.set(key, [match]);
   }
   for (const p of postings) {
     const matches = (byKey.get(lookAlikeKey(p.company, p.title)) ?? []).filter((m) => m.id !== p.id);

@@ -1,10 +1,11 @@
-// Flows 2 and 5: the next 50 postings of a snapshot, in snapshot order, with their current details.
+// Flows 2 and 5: the next 50 unmarked postings of a snapshot, in snapshot order, with their current
+// details; marks are checked as each page loads (applied-skipped ADR-0002, AC-12).
 // A posting closed since loading is left out (sad §11); a still-open one stays even if its text no
 // longer matches, with its current matches; later additions are never inserted (AC-16).
 import { AppError } from "../../../core/errors.js";
 import type { SearchDeps } from "./deps.js";
-import { PAGE_SIZE, pageInfo, presentPosting } from "./present.js";
-import { matchPostings, readCollection } from "./search.js";
+import { walkUnmarked } from "./present.js";
+import { matchPostings, presentPage, readCollection, readMarks } from "./search.js";
 import type { Snapshot, SnapshotStore } from "./snapshots.js";
 
 export function knownSnapshot(snapshots: SnapshotStore, snapshotId: string): Snapshot {
@@ -20,18 +21,18 @@ export function knownSnapshot(snapshots: SnapshotStore, snapshotId: string): Sna
 
 export function nextPage(deps: SearchDeps, snapshots: SnapshotStore, snapshotId: string, cursor: string) {
   const snapshot = knownSnapshot(snapshots, snapshotId);
-  const offset = Number(cursor);
-  const ids = snapshot.ids.slice(offset, offset + PAGE_SIZE);
+  const marked = readMarks((m) => m.markedIds(), deps);
+  const { picked, ...page } = walkUnmarked(snapshot.ids, Number(cursor), marked);
   const current = new Map(
     matchPostings(
       snapshot.skills,
-      readCollection((c) => c.byIds(ids), deps),
+      readCollection((c) => c.byIds(picked), deps),
       true,
     ).map((f) => [f.posting.id, f]),
   );
-  const items = ids.flatMap((id) => {
+  const found = picked.flatMap((id) => {
     const f = current.get(id);
-    return f ? [presentPosting(f.posting, f.matched, snapshot.previousVisitStartedAt)] : [];
+    return f ? [f] : [];
   });
-  return { items, ...pageInfo(offset, snapshot.ids.length) };
+  return { items: presentPage(deps, found, snapshot.previousVisitStartedAt), ...page };
 }

@@ -3,5 +3,6 @@
 export type { OpenListing, OpenPosting } from "../infra/repo/open-postings.js";
 export {
   readOpenPostings as openPostings,
+  readPostingHeads as postingHeads,
   readPostingsByIds as postingsByIds,
 } from "../infra/repo/open-postings.js";

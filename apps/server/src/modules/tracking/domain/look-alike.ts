@@ -39,8 +39,19 @@ function titleKey(title: string): string {
     .join(" ");
 }
 
+// ponytail: process-wide memo of keys, dropped whole at 50k entries; ADR-0004's upgrade path when a
+// page passed 1 s p95 with 5,000 marks. Keys are pure in (company, title), so it can never go stale.
+const keys = new Map<string, string>();
+
 export function lookAlikeKey(company: string, title: string): string {
-  return `${normalizeCompany(company)}|${titleKey(title)}`;
+  const id = `${company}\u0000${title}`;
+  let key = keys.get(id);
+  if (key === undefined) {
+    if (keys.size >= 50_000) keys.clear();
+    key = `${normalizeCompany(company)}|${titleKey(title)}`;
+    keys.set(id, key);
+  }
+  return key;
 }
 
 export interface MarkedForHint {
