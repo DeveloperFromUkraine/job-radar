@@ -282,6 +282,64 @@
         "docs/design-system.md"
       ],
       "file": "docs/features/search-postings/tasks/t14-ui-paging-waiting-expired.md"
+    },
+    {
+      "id": "T15",
+      "title": "Review fixes R2 + R4: next pages keep still-open postings; the waiting poll renews the visit before the snapshot check",
+      "layer": "app",
+      "deps": [
+        "T8"
+      ],
+      "acs": [
+        "AC-14",
+        "AC-16"
+      ],
+      "dod": "integration tests pin both (fail without the fix): a still-open posting whose text changed after loading stays on page 2 with its current matches; a 410 poll still refreshes last seen",
+      "files_hint": [
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/waiting.ts",
+        "apps/server/test/search-pages.integration.test.ts",
+        "docs/features/search-postings/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
+    },
+    {
+      "id": "T16",
+      "title": "Review fix R5: run the latency NFR test in its own project after every other test file",
+      "layer": "tests",
+      "deps": [
+        "T10"
+      ],
+      "acs": [],
+      "dod": "the perf file is excluded from the server project and runs in a server-perf project with groupOrder 1; the 1 s threshold is unchanged",
+      "files_hint": [
+        "vitest.config.ts",
+        "apps/server/vitest.config.ts",
+        "apps/server/vitest.perf.config.ts"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
+    },
+    {
+      "id": "T17",
+      "title": "Review fixes R1 + R3: show more only for the current request's own pages; a fresh search on every return to SCR-01",
+      "layer": "ui",
+      "deps": [
+        "T14"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-12",
+        "AC-13",
+        "AC-15"
+      ],
+      "dod": "Home tests pin both (fail without the fix): no Show 50 more and no re-run after a 400 or 503; navigating away and back sends a second runSearch",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/routes/Home.test.tsx"
+      ],
+      "file": "docs/features/search-postings/_review/review-2026-10-07.md"
     }
   ]
 }

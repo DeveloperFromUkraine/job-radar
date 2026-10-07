@@ -19,5 +19,8 @@
 | T12 | Build PostingCard (matched skills, time, per-source links) and the Badge `new` tone | ui | Volodymyr Kozlov | M | — | done |
 | T13 | Compose SCR-01: visit, skills search, summary line and the list's loading/empty/error states | ui | Volodymyr Kozlov | M | T11, T12 | done |
 | T14 | Add show more, the waiting notice with Refresh, the expired-list reload; register new components | ui | Volodymyr Kozlov | M | T13 | done |
+| T15 | Review fixes R2 + R4: next pages keep still-open postings; the waiting poll renews the visit first | app | Volodymyr Kozlov | S | T8 | done |
+| T16 | Review fix R5: run the latency NFR test in its own project after every other file | tests | Volodymyr Kozlov | S | T10 | done |
+| T17 | Review fixes R1 + R3: show more only for the current request's pages; a fresh search on every return | ui | Volodymyr Kozlov | S | T14 | done |
 
-**Total:** 14 tasks, about 7–8 person-days (S ≈ ½ day, M ≈ ¾ day). The critical path is T1/T4 → T6 → T7 → T8 → T9 → T10.
+**Total:** 17 tasks (T15–T17 from review 2026-10-07), about 7–8 person-days (S ≈ ½ day, M ≈ ¾ day). The critical path is T1/T4 → T6 → T7 → T8 → T9 → T10.

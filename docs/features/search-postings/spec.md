@@ -86,7 +86,7 @@ Traceability: what the list can rely on comes from the collector spec — a post
 ### AC-02 (US-01) — domain invariant
 **Given** a skill the owner entered
 **When** postings are matched against it
-**Then** it matches a posting when it is found in the title or description of any of the posting's open listings, and only where its exact text — symbols included, letter case ignored — stands in the title or description with no letter or digit directly before or after it: "Go" does not match "Google" or "MongoDB"; "Java" does not match "JavaScript"; "C#" matches "C#" but "C" does not match "C#"; ".NET" matches ".NET" but not "ASP.NET"; "Node.js" matches "Node.js" but not "Node"; "machine learning" matches only that phrase
+**Then** it matches a posting when it is found in the title or description of any of the posting's open listings, and only where its exact text — symbols included, letter case ignored — stands in the title or description with no letter or digit directly before it and no letter, digit, `#` or `+` directly after it: "Go" does not match "Google" or "MongoDB"; "Java" does not match "JavaScript"; "C#" matches "C#" but "C" does not match "C#"; ".NET" matches ".NET" but not "ASP.NET"; "Node.js" matches "Node.js" but not "Node"; "machine learning" matches only that phrase
 
 > Accepted noise: a short skill also matches unrelated words written the same way ("Go" in "go-to-market", "R" in "R&D"); the owner sees which skill matched (AC-06) and can enter a longer spelling ("Golang"). A fixed example list covering every case above is part of the tests.
 
@@ -162,7 +162,7 @@ Traceability: what the list can rely on comes from the collector spec — a post
 ### AC-16 (US-07) — domain invariant
 **Given** the owner has 50 postings on screen and a collection run adds, merges, reopens or closes postings
 **When** the owner asks for more
-**Then** no posting already on screen appears again and none that belonged after the last one shown is skipped; postings collected after the list was loaded are not inserted into it — the owner is told how many new postings are waiting and can refresh the list; a posting the collector closes while it is on screen stays on screen until the list is refreshed
+**Then** no posting already on screen appears again and none that belonged after the last one shown is skipped, except postings the collector closed since the list was loaded; postings collected after the list was loaded are not inserted into it — the owner is told how many new postings are waiting and can refresh the list; a posting the collector closes while it is on screen stays on screen until the list is refreshed
 
 ### AC-17 (US-01) — authorization
 **Given** a visitor can reach the owner's machine over the network
