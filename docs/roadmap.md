@@ -24,7 +24,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | shipped |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
 | 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
-| 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope | XS | idea |
+| 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | spec'd |
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
