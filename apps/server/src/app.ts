@@ -8,6 +8,7 @@ import { registerErrorHandling } from "./core/errors.js";
 import { type CollectorModuleOptions, collectorModule } from "./modules/collector/index.js";
 import { healthModule } from "./modules/health/index.js";
 import { searchModule } from "./modules/search/index.js";
+import { createTracking } from "./modules/tracking/index.js";
 
 export interface BuildAppOptions {
   logger?: boolean;
@@ -34,7 +35,15 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     // finishes on an open handle.
     const handle = openDb(options.collector.databaseFile);
     app.addHook("onClose", async () => handle.close());
-    await app.register(collectorModule({ ...options.collector, handle }));
+    // Tracking first: the collector's clean-up asks its ProtectedPostings port what to keep.
+    const tracking = createTracking({
+      db: handle.db,
+      now: options.collector.now ?? Date.now,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // the zone clean-up uses
+    });
+    await app.register(
+      collectorModule({ ...options.collector, handle, protectedPostings: tracking.protectedPostings }),
+    );
     await app.register(searchModule({ db: handle.db, now: options.collector.now }));
   }
   if (spa) await app.register(fastifyStatic, { root: spa, wildcard: false });
