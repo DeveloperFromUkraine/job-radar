@@ -201,6 +201,6 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 ## 8. Open questions
 
 - [ ] Should the look-alike rule also catch titles that differ by more than punctuation, brackets and Sr/Jr, for example a word added or dropped? Default now: no; the AC-10 rule only, tuned against two weeks of real look-alikes. — owner: Volodymyr Kozlov, due: 2026-10-31
-- [ ] Should Undo cover more than the most recent mark? A quick double tap can mark two postings while the notice covers only the second. Default now: the latest mark only; earlier ones are fixed from the marked postings. — owner: Volodymyr Kozlov, due: before sdd:screens
+- [x] Should Undo cover more than the most recent mark? A quick double tap can mark two postings while the notice covers only the second. **Resolved 2026-10-07 (screens):** the latest mark only; earlier ones are fixed from the marked postings, and AC-03 stands as written. — owner: Volodymyr Kozlov
 - [ ] Should a skip lift on its own when the posting changes materially, for example a new listing adds a location the owner can work from? Default now: no; a skip holds until the owner clears it (collector AC-06, AC-11). — owner: Volodymyr Kozlov, due: 2026-10-31
 - [ ] Restoring a pre-migration database backup drops marks set after the backup. Should the changelog only warn about this, or should marks be exportable? Default now: warn in the changelog. — owner: Volodymyr Kozlov, due: before sdd:ship
