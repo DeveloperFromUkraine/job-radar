@@ -23,7 +23,7 @@ Committed approach: **a hard inbox filter with a safety net.** On any posting th
 - The owner's success test is behavioural: they never have to re-review a posting they already decided on (§7).
 
 Traceability: this spec changes these rules in the two shipped specs.
-- Collector AC-10 and its §6 Retention bound: a skipped posting is now removed by clean-up exactly like an unmarked one; only an applied posting is protected, and it is kept for good (AC-09). A cleared posting is also protected for its grace day (AC-07). CONTEXT invariant updated 2026-10-07.
+- Collector AC-10 and its §6 Retention bound: a skipped posting is now removed by clean-up exactly like an unmarked one; only an applied posting is protected, and it is kept for good (AC-09). A posting that loses its applied mark is also kept until the end of the next calendar day (AC-07). CONTEXT invariant updated 2026-10-07.
 - Search AC-01, AC-10 and the Currency NFR: "every open posting" and "exactly the open postings that mention…" now mean every *unmarked* open posting (AC-01, AC-12).
 - Search AC-11: a list empty only because of marks says so (AC-13).
 - Search AC-14 and AC-16: marked postings leave the counts and later pages (AC-12).
@@ -99,29 +99,29 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 **Then** it leaves the list exactly as an applied posting does (AC-01), with the notice "Marked skipped" and Undo, and the company's other postings stay in the list
 
 ### AC-03 (US-03) — happy
-**Given** the owner has just marked a posting and the notice with Undo is showing (it shows for at least 8 seconds, until the owner marks another posting)
+**Given** the owner has just marked a posting, changed its mark or cleared it, and the notice with Undo is showing (it shows for 8 seconds and closes sooner when the owner marks or changes another posting, searches, turns the marked postings on or off, or reloads; once it closes, Undo is no longer offered and the mark is changed from the marked postings)
 **When** the owner presses Undo
-**Then** the posting returns to its earlier state (unmarked, or its previous mark) and to its place in the list, the count is restored, and the posting keeps its "new" flag if it had one
+**Then** the posting returns exactly to its earlier state (unmarked, or its previous mark with that mark's original date) and to its place in the list, the count is restored, and the posting keeps its "new" flag if it had one
 
 ### AC-04 (US-03) — domain invariant
-**Given** the owner marked a posting in one window, and its mark was then changed or cleared in another window
+**Given** the owner set a mark in one window, and since then that posting's mark was changed or cleared from any window, even back to the same mark
 **When** the owner presses Undo in the first window
-**Then** the mark is not reverted, because an undo only reverses a mark that is still the one it set, and the owner is told the mark changed elsewhere and can see the current mark in the marked postings
+**Then** the mark is not reverted, because an undo only reverses a mark that nothing has changed since, and the owner is told the mark changed elsewhere and can see the current mark in the marked postings
 
 ### AC-05 (US-04) — happy
-**Given** the owner has marked postings, some of which have since closed
+**Given** the owner has marked postings, some of which have since closed, and has cleared the marks of some closed postings (AC-07)
 **When** the owner turns on "Show marked postings"
-**Then** the list shows only marked postings, most recently marked first, each with its mark and the date it was set and with the number of marked postings; the owner's skills narrow it as they narrow the main list; a closed posting is labelled "Closed" and names every source, with links only for listings still open; a posting whose mark the owner cleared during its grace day (AC-07) stays in this view labelled "Cleared, removed after <date>" with the applied and skipped actions; and turning the switch off returns to the unmarked list
+**Then** the list shows only marked postings, most recently marked first, each with its mark and the date it was set, and with the number of marked postings. Closed postings whose mark the owner cleared and that clean-up has not yet removed are shown too, labelled "Cleared, removed after <date>" with the applied and skipped actions, and counted separately ("and N cleared"). The owner's skills narrow the view as they narrow the main list. A closed posting is labelled "Closed" and names every source, with links only for listings still open. The order and the pages are fixed when the view loads, as for the main list (AC-12): a card whose mark the owner changes stays in place until the view is refreshed, and later pages never repeat or skip a posting. The switch starts off on every visit, and turning it off returns to the unmarked list.
 
 ### AC-06 (US-04) — happy
 **Given** a posting is shown in the marked postings
 **When** the owner changes its mark (applied to skipped or back) or clears it
-**Then** a changed mark replaces the old one (a posting has at most one mark) and the date updates; a cleared open posting returns to the main list in its publication-time position, and it counts as new only by the rule for new postings (first collected after the previous visit started), never because its mark was cleared
+**Then** a changed mark replaces the old one (a posting has at most one mark) and the date updates. A cleared open posting returns to the main list and its counts in its publication-time position, and it counts as new only by the rule for new postings (first collected after the previous visit started), never because its mark was cleared. A cleared closed posting stays in the marked postings as AC-05 and AC-07 describe.
 
 ### AC-07 (US-04) — domain invariant
-**Given** a marked posting that clean-up would remove at once if it were unmarked (by the collector's 60-day rule, AC-09)
-**When** the owner clears its mark
-**Then** before clearing, the owner is told that without a mark the posting will be removed at clean-up; once cleared, the posting is kept until the end of the next calendar day and stays in the marked postings labelled "Cleared, removed after <date>", where the owner can mark it again until then
+**Given** a posting marked applied that clean-up would remove if it were not applied (it is past the collector's 60-day rule, AC-09)
+**When** the owner clears its mark or changes it to skipped
+**Then** before the change, the owner is told that without the applied mark the posting will be removed at clean-up. Once changed, it is kept until the end of the next calendar day (its grace day), and the owner can mark it applied again until then. Every closed posting whose mark the owner cleared, whatever its age, stays in the marked postings labelled "Cleared, removed after <the date clean-up will remove it>" until it is removed, and the owner can mark it again there. If a source offers the posting again, it is no longer due for removal and keeps its place by the normal rules.
 
 ### AC-08 (US-05) — cross-context
 **Given** the owner has marked a posting applied or skipped
@@ -136,7 +136,7 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 ### AC-10 (US-06) — happy
 **Given** the owner marked a posting at "Acme Inc" titled "Sr. Backend Engineer (Go) – Remote" applied on 3 October, and 8 days after its latest publication time the collector adds a separate open posting from "ACME" titled "Senior Backend Engineer"
 **When** the new posting is shown in the owner's list
-**Then** it carries the hint "You applied to a similar posting at Acme on 3 Oct", and the hint names the earlier mark (applied or skipped) and the date it was set. Two postings are similar when their company and title match the way the collector matches them when merging (collector AC-04 note: letter case, punctuation, generic "remote" wording and legal suffixes ignored) and, beyond that, any bracketed part of the title other than a region name is ignored and "Sr" is read as "Senior" and "Jr" as "Junior". Publication times and location restrictions are not compared.
+**Then** it carries the hint "You applied to a similar posting at Acme on 3 Oct", and the hint names the earlier mark (applied or skipped) and the date it was set. Two postings are similar when their company and title match the way the collector matches them when merging (collector AC-04 note: letter case, punctuation, generic "remote" wording and legal suffixes ignored) and, beyond that, any bracketed part of the title other than a region name is ignored and "Sr" is read as "Senior" and "Jr" as "Junior". Publication times and location restrictions are not compared. When several marked postings match, the hint names an applied one if there is one, otherwise the most recently set skipped mark. Any marked posting job-radar still holds can be the match, closed ones included; a posting whose mark was cleared is unmarked and gives no hint.
 
 ### AC-11 (US-06) — domain invariant
 **Given** a look-alike posting carries a hint about a marked one
@@ -144,19 +144,19 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 **Then** the look-alike is never hidden and never inherits the mark; it stays in the list and counts until the owner marks it; and a posting from the same company with a different title carries no hint
 
 ### AC-12 (US-07) — domain invariant
-**Given** the owner has 50 postings on screen and has marked some of them, or marked postings in another window, since the list was loaded
+**Given** the owner has 50 postings on screen and, since the list was loaded, has marked some of them, or marks were set or cleared in another window
 **When** the owner asks for more, or a waiting count is shown
-**Then** no posting marked since the list was loaded appears on a later page; no unmarked posting that belonged after the last one shown is skipped; the count of postings and the count of new postings shown both leave out marked postings; and the number of new postings waiting counts only unmarked ones
+**Then** marks are checked as each page loads: a later page leaves out postings marked since the list was loaded and includes postings whose mark was cleared since, in their publication-time position, and no unmarked posting that belonged after the last one shown is skipped. Cards marked in another window stay on screen, and this window's counts do not change, until the owner refreshes or searches (as search AC-16 does for a posting that closes while on screen). The count of postings and the count of new postings drop as the owner marks postings in this window, and the number of new postings waiting counts only unmarked ones.
 
 ### AC-13 (US-07) — error
-**Given** every open posting matching the owner's skills (or every open posting, with no skills) is marked
+**Given** no unmarked open posting matches the owner's skills (or no unmarked open posting exists, with no skills), and at least one matching open posting is marked
 **When** the owner searches or opens the main screen
-**Then** the owner sees that nothing is left to review, with how many matching postings they have marked and one action to show the marked postings, instead of the "nothing matches" or "first collection has not brought postings yet" message
+**Then** the owner sees that nothing is left to review, with how many matching open postings they have marked and one action to show the marked postings, instead of the "nothing matches" or "first collection has not brought postings yet" message. When no open posting matches at all, marked or not, search AC-11's messages apply unchanged.
 
 ### AC-14 (US-01) — error
 **Given** job-radar cannot save marks at the moment
-**When** the owner marks a posting applied or skipped
-**Then** the posting stays in the list unmarked, the owner sees a plain-language message with a retry action, and nothing is hidden that was not saved
+**When** the owner marks a posting, presses Undo, changes a mark or clears it
+**Then** the screen keeps its earlier state, the owner sees a plain-language message with a retry action, and nothing is shown that was not saved
 
 ### AC-15 (US-04) — error
 **Given** a posting on screen was removed by clean-up after the list was loaded
@@ -177,7 +177,7 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 | Marked view | ≤ 1 s p95 to show the first 50 marked postings, with 5,000 marked postings (about 60 days of skips plus every applied posting) and up to 20 skills | integration test against a seeded collection; p95 over 50 loads |
 | Durability | 100% of marks confirmed to the owner survive a restart; a mark is confirmed only once saved | integration test: mark, restart, reload; failure path per AC-14 |
 | Phone layout | the applied and skipped actions are each at least 44×44 px and at least 8 px apart; the marked view is usable at 360 px with no horizontal scrolling | browser check at 360 px (manual at ship until spec search-postings §8 R6 is automated) |
-| Undo window | the Undo notice stays at least 8 s, or until the next mark | component test with a controlled clock |
+| Undo window | the Undo notice shows for 8 s, and closes sooner on the next mark, search, switch of the marked postings or reload | component test with a controlled clock |
 
 ## 6.1 Security / privacy
 
@@ -194,9 +194,9 @@ Collector AC-06, AC-07 and AC-11 are re-verified here with real marks (AC-08).
 ## 7. Metrics / KPIs
 
 - **Decided postings that come back**: postings the owner had marked that reappear unmarked in the normal list. Baseline: not measurable (no marks exist). Target: 0 in the first 2 weeks of use, measured by the owner's log of "I've already seen this one" moments and by a test over every collector event (merge, close, reopen, update, restart, clean-up).
-- **Double applications prevented**: look-alike postings shown with an "applied" hint that the owner then skips, rather than applying again. Baseline: 0. Target: every look-alike of an applied posting carries the hint, 100% in the AC-10 example set; usage counted over the first 4 weeks.
-- **Mis-click rate**: share of marks undone or cleared within a day. Baseline: not measurable. Target: under 10% after 2 weeks. Higher means the actions sit too close or the Undo notice is missed, and the layout should be revisited.
-- **Inbox reach**: share of visits that end with no posting left to review (AC-13 state). Baseline: 0 (no marks). Target: at least 1 visit in 3 within the first 2 weeks, showing the list works as an inbox.
+- **Double applications prevented**: look-alike postings shown with an "applied" hint that the owner then skips, rather than applying again. Baseline: 0. Target: every look-alike of an applied posting carries the hint, 100% in the AC-10 example set; usage counted from the owner's own log over the first 4 weeks; the app records nothing extra.
+- **Mis-click rate**: share of marks undone or cleared within a day. Baseline: not measurable. Target: under 10% after 2 weeks, measured from the owner's own two-week log (the app keeps no history of marks). Higher means the actions sit too close or the Undo notice is missed, and the layout should be revisited.
+- **Inbox reach**: share of visits that end with no posting left to review (AC-13 state). Baseline: 0 (no marks). Target: at least 1 visit in 3 within the first 2 weeks, showing the list works as an inbox; measured from the owner's own log.
 
 ## 8. Open questions
 
