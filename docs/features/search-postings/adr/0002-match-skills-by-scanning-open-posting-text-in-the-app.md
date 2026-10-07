@@ -43,7 +43,7 @@ AC-02 defines a precise rule: a skill matches where its exact text — symbols i
 - Every search reads all open-posting text; cost grows linearly with the open collection and runs on the shared event loop.
 
 **Neutral**
-- If the QG-2 test or logged durations show p95 above 1 s, the upgrade path is an in-memory text cache keyed by the last finished run, then a substring pre-filter — the matcher stays as the final check (SAD §11).
+- If the QG-2 test or logged durations show p95 above 1 s, the upgrade path is an in-memory text cache keyed by the last finished run (SAD §11). A substring pre-filter was measured on 2026-10-07 and gives no gain: the 20-skill worst case is memory-bound, 315–440 ms for every variant.
 
 ## Links
 

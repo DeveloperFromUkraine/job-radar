@@ -381,7 +381,7 @@ Reuses the existing deployment unchanged: one Node.js process on `127.0.0.1:3000
 - Alerts: none — personal tool; the NFR integration test is the guard (§10 QG-2).
 
 **Scaling thresholds:**
-- The scan is sized for the NFR's 10,000 open postings. Above that, or if a logged search passes 1 s, apply the §11 mitigation (in-memory text cache, then a substring pre-filter).
+- The scan is sized for the NFR's 10,000 open postings. Above that, or if a logged search passes 1 s, apply the §11 mitigation (an in-memory text cache) (a substring pre-filter was measured on 2026-10-07 and gives no gain: the 20-skill worst case is memory-bound, 315–440 ms for every variant).
 - Snapshots: at most 20 kept, the oldest evicted first, each expiring after 2 h idle — a 10,000-posting snapshot is ~10,000 ids (≈ 0.5 MB).
 
 ## 8. Crosscutting concepts
@@ -445,7 +445,7 @@ ADR files live under `docs/features/search-postings/adr/NNNN-<title>.md`.
 
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| Scan time grows with the open collection; the collector expects 20–40k listings within its 60-day retention, so open postings may outgrow the NFR's 10,000 (ADR-0002) | Medium | QG-2 test at 10,000 guards every build; `durationMs` logged per search; if p95 passes 1 s, cache open-posting text in memory keyed by the last finished run, then add a substring pre-filter | Volodymyr Kozlov |
+| Scan time grows with the open collection; the collector expects 20–40k listings within its 60-day retention, so open postings may outgrow the NFR's 10,000 (ADR-0002) | Medium | QG-2 test at 10,000 guards every build; `durationMs` logged per search; if p95 passes 1 s, cache open-posting text in memory keyed by the last finished run (a substring pre-filter was measured on 2026-10-07 and gives no gain: the 20-skill worst case is memory-bound, 315–440 ms for every variant) | Volodymyr Kozlov |
 | The scan runs synchronously on the event loop the collection runner shares | Low | Bounded by QG-2 (≤ 1 s); the collector's responsiveness test keeps running; move the scan to a worker thread only if both start to fail | Tech Lead |
 | Spec AC-02's rule text ("no letter or digit before or after") contradicts its own example ("C" does not match "C#"); this design blocks a match on `#` or `+` directly after a skill (§8) | Medium | Patch AC-02's wording in `spec.md` to the §8 rule before `/sdd:tasks`; the example list in QG-1 encodes it either way | Volodymyr Kozlov — applied 2026-10-07 (review R7) |
 | Spec AC-15 / AC-16 say no posting after the last one shown is skipped; this design leaves out a posting closed after the list loaded (closed postings are never shown, spec §3) — ADR-0003, §10 QG-3 | Low | Patch AC-16's wording in `spec.md` ("…none that belonged after the last one shown is skipped, except postings the collector closed since the list was loaded") before `/sdd:tasks` | Volodymyr Kozlov — applied 2026-10-07 (review R7) |
