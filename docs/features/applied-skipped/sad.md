@@ -274,7 +274,214 @@ sequenceDiagram
     Web-->>Owner: appended below, cleared-since postings in place, look-alikes flagged and kept
 ```
 
-The `sequences` stage completes coverage. Still to draw: the marked view with change, clear and the AC-07 confirm step (AC-05 – AC-07); clean-up asking the port (AC-08, AC-09); the "nothing left to review" state (AC-13); and the refused cross-site request (AC-16).
+### Flow 3: the owner opens the marked postings (US-04; AC-05)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant Search as service · search
+    participant Tracking as service · tracking
+    participant Collector as service · collector
+    participant DB as data-store
+
+    Note over Owner,UI: Precondition: the owner has marked postings, some since closed, and cleared some closed ones (SCR-01)
+    Owner->>UI: turns on Show marked postings
+    UI->>Search: loads the marked view with the owner's skills
+    Search->>Tracking: marked and cleared-closed postings in mark order
+    Tracking->>DB: reads marks newest first, cleared ones by when they were cleared
+    DB-->>Tracking: posting ids with mark, date and cleared time
+    Tracking->>Collector: retention outlook for these postings
+    Collector-->>Tracking: past the 60-day rule or not, and the removal date
+    Tracking-->>Search: ordered ids with mark, date, removal date and at-risk flag
+    Search->>Collector: reads those postings by id, closed ones included
+    Collector-->>Search: details, every source named, links only for open listings
+    Search->>Search: keeps those matching the skills, fixes order and pages in a new snapshot
+    Search-->>UI: first 50, N marked and M cleared, cursor
+    UI-->>Owner: marked postings with mark and date, Closed and Cleared labels
+    opt owner asks for more
+        UI->>Search: next page from the cursor
+        Search-->>UI: next 50 from the same snapshot, no repeats or gaps
+        UI-->>Owner: appended below
+    end
+    Owner->>UI: turns the switch off
+    UI-->>Owner: the unmarked main list again (Flow 5)
+    Note over Owner,UI: Postcondition: order and pages fixed when the view loaded, switch off again on the next visit
+```
+
+### Flow 4: the owner changes or clears a mark from the marked postings (US-04; AC-06, AC-07, AC-14, AC-15)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant Tracking as service · tracking
+    participant Collector as service · collector
+    participant DB as data-store
+
+    Note over Owner,UI: Precondition: the posting is shown in the marked postings (Flow 3)
+    Owner->>UI: changes the mark or clears it
+    opt the posting is applied and flagged at risk (past the 60-day rule)
+        UI-->>Owner: warns that without the applied mark it will be removed at clean-up
+        alt owner cancels
+            UI-->>Owner: nothing changed
+        else owner confirms
+            Note over Owner,UI: continues below
+        end
+    end
+    UI->>Tracking: changes or clears the mark
+    Tracking->>DB: writes the new mark, the previous state, a new change id, and when applied was lost if it was
+    Note over Tracking,DB: persists the mark row keyed by posting id (applied-lost time starts the grace day)
+    alt posting removed by clean-up since the view loaded
+        DB-->>Tracking: no such posting
+        Tracking-->>UI: posting no longer in job-radar
+        UI-->>Owner: told it is gone, card leaves, nothing recorded
+    else save fails
+        DB-->>Tracking: error
+        Tracking-->>UI: could not save
+        UI-->>Owner: card keeps its earlier mark, message with Retry
+    else mark changed
+        DB-->>Tracking: saved
+        Tracking-->>UI: new mark, date and change id
+        UI-->>Owner: new mark and date on the card in place, notice with Undo (Flow 1)
+    else open posting cleared
+        DB-->>Tracking: saved
+        Tracking-->>UI: cleared, change id
+        UI-->>Owner: card stays until refresh, notice with Undo, posting back in the main list in its date position, not new
+    else closed posting cleared
+        DB-->>Tracking: saved
+        Tracking->>Collector: when clean-up will remove it
+        Collector-->>Tracking: retention date
+        Tracking-->>UI: cleared, removal date (the later of the grace day end and the retention date), change id
+        UI-->>Owner: card labelled Cleared, removed after the date, applied and skipped offered again
+    end
+    Note over Owner,UI: Postcondition: at most one mark per posting, a lost applied mark protects the posting until the end of the next calendar day
+```
+
+### Flow 5: the owner searches or opens the main screen with marks (US-05, US-07; AC-08, AC-12, AC-13)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant Search as service · search
+    participant Tracking as service · tracking
+    participant Collector as service · collector
+    participant DB as data-store
+
+    Note over Owner,UI: Precondition: some matching open postings are marked, possibly before a restart
+    Owner->>UI: searches or opens the main screen
+    UI->>Search: first page with the owner's skills
+    Search->>Collector: matching open postings
+    Collector-->>Search: posting ids in publication order
+    Search->>Search: new snapshot of every match, marked ones included
+    Search->>Tracking: which postings are marked now
+    Tracking->>DB: reads current marks
+    DB-->>Tracking: marked posting ids, the same after a restart
+    Tracking-->>Search: marked posting ids
+    Search->>Search: drops marked ids, counts unmarked total, unmarked new, and marked matches
+    alt no unmarked match, at least one marked match
+        Search-->>UI: empty page with the marked-match count
+        UI-->>Owner: nothing left to review, N marked, action to show the marked postings
+    else no match at all, marked or not
+        Search-->>UI: empty page, no marked matches
+        UI-->>Owner: search's nothing matches or first collection message, unchanged
+    else unmarked matches
+        Search->>Tracking: look-alike hints for the first 50 (as Flow 2)
+        Tracking-->>Search: hint per posting
+        Search-->>UI: first 50 with hints, unmarked counts, cursor
+        UI-->>Owner: list and counts without marked postings
+    end
+    Note over UI,Search: cards marked in another window stay on screen and counts hold until refresh or search
+    UI->>Search: how many new postings are waiting
+    Search->>Tracking: which postings are marked now
+    Tracking-->>Search: marked posting ids
+    Search-->>UI: count of unmarked new postings waiting
+    UI-->>Owner: waiting count
+    Note over Owner,UI: Postcondition: no marked posting is in the list or its counts, after a restart too
+```
+
+### Flow 6: a collection run touches marked postings, then daily clean-up asks which are protected (US-05; AC-07, AC-08, AC-09)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Collector as service · collector
+    participant Sources as external-system
+    participant Tracking as service · tracking
+    participant DB as data-store
+
+    Note over Collector: Trigger: scheduled collection run
+    Collector->>Sources: reads listings
+    Sources-->>Collector: listings
+    Collector->>DB: merges, updates, closes or reopens postings, keeping each posting id
+    Note over Collector,DB: persists postings and listings only, mark rows untouched, first-collected time kept
+    Note over Collector,Tracking: a marked posting keeps its mark, stays out of the list and is not new. A source offering a posting again ends its due-for-removal state
+    Collector->>DB: has clean-up already run today
+    DB-->>Collector: last clean-up day (the idempotency key)
+    alt already ran today
+        Collector->>Collector: skips clean-up
+    else first finished run of the day
+        Collector->>DB: postings past 60 counted days
+        DB-->>Collector: candidates
+        Collector->>Tracking: which of these are protected
+        Tracking->>DB: applied marks, and applied lost within the grace day
+        DB-->>Tracking: protected posting ids
+        Tracking-->>Collector: protected posting ids
+        alt port fails
+            Note over Collector,Tracking: fail-safe instead of a dead-letter: nothing removed today, retried at tomorrow's clean-up
+        else answered
+            Collector->>DB: removes unprotected candidates, skipped and cleared ones included
+            Note over Collector,DB: mark rows of removed postings deleted by cascade
+        end
+        Collector->>DB: records today as the clean-up day
+    end
+    Note over Collector,DB: Postcondition: applied postings kept for good, a lost applied mark kept to the end of its grace day
+```
+
+**Coverage (spec §4 / §5 → flow).**
+
+| User story | Flows |
+|---|---|
+| US-01 Mark applied | Flow 1 |
+| US-02 Mark skipped | Flow 1 (same path with the skipped mark) |
+| US-03 Undo right away | Flow 1 (undo branch); Flow 4 offers the same Undo after a change or clear |
+| US-04 Review and change marks | Flow 3, Flow 4 |
+| US-05 Keep marks through collection changes | Flow 5 (restart), Flow 6 |
+| US-06 Look-alike warning | Flow 2, Flow 5 (first page) |
+| US-07 Trust the list while marking | Flow 2, Flow 5 |
+
+| AC | Shown in |
+|---|---|
+| AC-01 | Flow 1, saved branch |
+| AC-02 | Flow 1, the same path with the skipped mark; the company's other postings are untouched because only this posting's row is written |
+| AC-03 | Flow 1, restored branch |
+| AC-04 | Flow 1, mark-changed-elsewhere branch |
+| AC-05 | Flow 3 |
+| AC-06 | Flow 4, mark-changed / open-cleared / closed-cleared branches |
+| AC-07 | Flow 4, the at-risk warning and the closed-cleared branch; Flow 6, the grace day in the protected answer |
+| AC-08 | Flow 6, collection-run notes (merge, update, close, reopen); Flow 5, marks read from the store after a restart |
+| AC-09 | Flow 6, answered branch |
+| AC-10 | Flow 2, hint step; Flow 5, unmarked-matches branch |
+| AC-11 | Flow 2, look-alikes kept and counted |
+| AC-12 | Flow 2 (later pages); Flow 5 (counts, waiting count, other-window note) |
+| AC-13 | Flow 5, nothing-left-to-review and no-match branches |
+| AC-14 | Flow 1 and Flow 4, save-fails branches (Undo's save failure follows the same branch) |
+| AC-15 | Flow 1 and Flow 4, posting-removed branches |
+| AC-16 | N/A, not a tracking runtime flow: the global loopback bind, Host check and same-origin JSON guard reject the request before any tracking code runs (collector ADR-0007, `core/access.ts`) |
+
+**Flags from `sequences` (for design / data-model; no ADR written).**
+- Participant labels differ: Flows 1–2 use module names, and Flows 3–6 use generic roles qualified by the §5 module (`service · tracking`). Flows 1–2 were left untouched.
+- Flow 6 has no dead-letter. Clean-up is in-process, keyed by the last clean-up day, and its port failure is a fail-safe retried the next day (collector ADR-0006). This is the existing collector behaviour, not a new decision.
+- Persist and read hints for `data-model`:
+  - The mark row is keyed by posting id and cascades on posting delete (Flows 1, 4, 6).
+  - The marked view reads marks ordered by mark time, and cleared-closed rows by cleared time (Flow 3).
+  - Every page and waiting count reads the set of currently marked ids (Flows 2, 5).
+  - Clean-up asks for applied rows or applied-lost-within-grace among candidate ids (Flow 6).
+- No participant outside §5 was needed. Flow 3 uses the collector's retention outlook, which §5 already declares (`retention-outlook.ts`).
 
 ## 7. Deployment view
 
