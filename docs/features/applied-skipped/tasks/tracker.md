@@ -14,7 +14,7 @@
 | T07 | [Implement the mark, change, clear and undo use cases with their error mapping and MarkState](./t07-mark-use-cases.md) | app | Volodymyr Kozlov | M | T05, T06 | done |
 | T08 | [Implement ProtectedPostings in tracking and wire it into the collector in app.ts](./t08-protected-postings-port.md) | app | Volodymyr Kozlov | S | T04, T06 | done |
 | T09 | [Implement tracking's read queries for search: marked ids, the marked order, and look-alike hints](./t09-mark-queries-and-hints.md) | app | Volodymyr Kozlov | M | T03, T05, T06 | done |
-| T10 | [Expose setMark and undoMark as Fastify routes behind the access guard and register the tracking plugin](./t10-tracking-routes.md) | ports | Volodymyr Kozlov | S | T07, T08 | todo |
+| T10 | [Expose setMark and undoMark as Fastify routes behind the access guard and register the tracking plugin](./t10-tracking-routes.md) | ports | Volodymyr Kozlov | S | T07, T08 | done |
 | T11 | [Make search's main list mark-aware: snapshot keeps marked, pages skip them, counts and hints](./t11-search-main-list-with-marks.md) | app | Volodymyr Kozlov | M | T08, T09 | todo |
 | T12 | [Add search's marked view: a fixed-order marked snapshot with skills, closed and cleared postings](./t12-search-marked-view.md) | app | Volodymyr Kozlov | M | T11 | todo |
 | T13 | [Add the web tracking client, the MarkActions component and PostingCard's look-alike line, marked variant and actions slot](./t13-web-client-markactions-postingcard.md) | ui | Volodymyr Kozlov | M | — | todo |

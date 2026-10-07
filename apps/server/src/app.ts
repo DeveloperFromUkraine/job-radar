@@ -44,6 +44,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(
       collectorModule({ ...options.collector, handle, protectedPostings: tracking.protectedPostings }),
     );
+    await app.register(tracking.plugin);
     await app.register(searchModule({ db: handle.db, now: options.collector.now }));
   }
   if (spa) await app.register(fastifyStatic, { root: spa, wildcard: false });
