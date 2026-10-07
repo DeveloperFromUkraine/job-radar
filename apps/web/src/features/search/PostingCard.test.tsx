@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import type { Posting, PostingPage, SearchResult } from "../../api/search";
+import type { MarkedPosting, MarkedResult, Posting, PostingPage, SearchResult } from "../../api/search";
 import { contractExample } from "../../test/contract";
 import { PostingCard } from "./PostingCard";
 
@@ -100,5 +100,63 @@ describe("PostingCard (SCR-01)", () => {
     const link = screen.getByRole("link", { name: "Jobicy" });
     expect(link.className).toContain("min-h-11");
     expect(link.className).toContain("min-w-11");
+  });
+
+  describe("applied-skipped additions", () => {
+    const withHint = () =>
+      contractExample<SearchResult>("runSearch", 200, "found_with_hint").items[0] as Posting;
+    const marked = () => contractExample<MarkedResult>("runMarkedView", 200).items[0] as MarkedPosting;
+
+    it("says when a posting looks like one the owner marked, as plain text (AC-10)", () => {
+      card(withHint());
+      const line = screen.getByText("You applied to a similar posting at Acme Inc on 3 Oct");
+      expect(line.className).toContain("text-text-muted");
+    });
+
+    it("shows no look-alike line without a hint (AC-11)", () => {
+      card({ ...withHint(), look_alike: null });
+      expect(screen.queryByText(/similar posting/)).toBeNull();
+    });
+
+    it("names a skipped look-alike as skipped", () => {
+      const p = withHint();
+      card({ ...p, look_alike: { mark: "skipped", marked_at: "2026-10-01T10:00:00Z", company: "Acme Inc" } });
+      expect(screen.getByText("You skipped a similar posting at Acme Inc on 1 Oct")).toBeTruthy();
+    });
+
+    it("shows the marked variant: mark badge and date, Closed, no New badge (AC-05)", () => {
+      render(<PostingCard posting={marked()} now={NOW} />);
+      expect(screen.getByText("Applied").className).toContain("border-border text-text");
+      expect(screen.getByText("Applied on 3 Oct")).toBeTruthy();
+      expect(screen.getByText("Closed")).toBeTruthy();
+      expect(screen.queryByText("New")).toBeNull();
+      expect(screen.queryByRole("link")).toBeNull();
+    });
+
+    it("labels a cleared closed posting with its removal date (AC-07)", () => {
+      const p = marked();
+      render(
+        <PostingCard
+          posting={{ ...p, mark_state: { ...p.mark_state, mark: null, removed_after: "2026-10-08" } }}
+          now={NOW}
+        />,
+      );
+      expect(screen.getByText("Cleared")).toBeTruthy();
+      expect(screen.getByText("Cleared · removed after 8 Oct")).toBeTruthy();
+    });
+
+    it("renders actions and a banner at the bottom of the card", () => {
+      render(
+        <PostingCard
+          posting={withHint()}
+          now={NOW}
+          banner={<p>banner</p>}
+          actions={<button type="button">act</button>}
+        />,
+      );
+      const article = screen.getByRole("article");
+      expect(article.lastElementChild?.textContent).toBe("act");
+      expect(screen.getByText("banner")).toBeTruthy();
+    });
   });
 });

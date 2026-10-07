@@ -9,7 +9,7 @@ files_hint: ["apps/web/src/api/tracking.ts", "apps/web/src/api/search.ts", "apps
 owner: "Volodymyr Kozlov"
 estimate: "M"
 context_budget: "M"
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task. Every quoted chunk ends with its provenance signature; the source always
