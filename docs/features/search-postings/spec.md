@@ -204,7 +204,7 @@ None — every question raised in the interview was decided (matching rule, orde
 
 Deferred at review (2026-10-07, `_review/review-2026-10-07.md`):
 
-- **R6 — Phone layout NFR is not measured automatically.** jsdom can't measure layout, so the 360 px / 44×44 px check is a manual check in ship's verification for now; an automated browser-mode test is deferred. Owner: Volodymyr Kozlov, due 2026-10-31.
+- **R6 — Phone layout NFR is not measured automatically.** jsdom can't measure layout, so the 360 px / 44×44 px check is a manual check in ship's verification for now; an automated browser-mode test is deferred. *Manual check done at ship 2026-10-07: no sideways scroll at 360 px, all 47 targets ≥ 44×44 px after a fix to the source link's min width (`2ce46f5`).* Owner: Volodymyr Kozlov, due 2026-10-31.
 - **R8 — A failed collection read is not logged.** `search/app/search.ts` turns every read error into a 503 without logging the cause. Owner: Volodymyr Kozlov, due 2026-10-31.
 - **R9 — An old waiting count stays after the poll starts failing.** A poll that once returned N keeps "N new postings are waiting" visible after later 410/503 polls (`Home.tsx`). Owner: Volodymyr Kozlov, due 2026-10-31.
 - **R10 — A posting stored in the same millisecond as the snapshot is in neither the list nor the waiting count** (`waiting.ts` counts `> loadedAt`). Accepted as rare. Owner: Volodymyr Kozlov, due 2026-10-31.
