@@ -90,7 +90,7 @@ flowchart LR
 | 1 | 1 | project root (new) | 2 |
 | 2 | 2 | `collector/` (new) | 3 |
 | 3 | 3 ∥ 11 | 3: `search/` (new) · 11: Polish board adapters in `collector/infra/sources/` (new) — disjoint modules | 4, 5, 6, 10 |
-| 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new) · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — disjoint modules | 7 |
+| 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new), plus `search/app/` paging and counts and read-only `collector/app/` exports · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — not fully disjoint: 6 changes search's paging, so land it before 4 and 5 touch the list (applied-skipped sad §11) | 7 |
 | 5 | 7 | `alerts/` (new) | — |
 
 Step 11 holds its wave-3 slot only once the Access to Polish job boards area is reconnoitred and it trades `fog` for a size; its recon (D4, D5) runs now, in parallel with step 2. Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.

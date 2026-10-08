@@ -9,7 +9,7 @@ files_hint: ["CONTEXT.md", "docs/roadmap.md"]
 owner: "Volodymyr Kozlov"
 estimate: "S"
 context_budget: "S"
-status: "todo"
+status: "done"
 ---
 
 <!-- Self-contained task. Every quoted chunk ends with its provenance signature; the source always
