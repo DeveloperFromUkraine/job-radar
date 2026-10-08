@@ -1,14 +1,22 @@
 import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../api/collector";
-import type { SearchResult } from "../api/search";
+import type { MarkedPage, MarkedResult, SearchResult } from "../api/search";
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
-import { type SearchRequest, useSearchList, useVisit, useWaitingCount } from "../features/search/queries";
+import { MarkedList } from "../features/search/MarkedList";
+import {
+  type SearchRequest,
+  useMarkedList,
+  useSearchList,
+  useVisit,
+  useWaitingCount,
+} from "../features/search/queries";
 import { SearchList } from "../features/search/SearchList";
 import { SkillsField } from "../features/search/SkillsField";
 import { ProblemMarker } from "../features/source-health/ProblemMarker";
 import { useProblems } from "../features/source-health/queries";
 import { MarkActions } from "../features/tracking/MarkActions";
+import { MarkedToggle } from "../features/tracking/MarkedToggle";
 import { useMarks } from "../features/tracking/mutations";
 import { noticeKey, UndoNotice } from "../features/tracking/UndoNotice";
 
@@ -29,17 +37,31 @@ export function Home() {
   }, [visit.data, request]);
 
   const marks = useMarks();
-  // "Show marked postings" (AC-05): off on every visit; T16 renders the marked view from it.
-  const [, setMarkedView] = useState(false);
-  const showMarked = () => {
-    marks.closeNotice();
-    setMarkedView(true);
-  };
+  // "Show marked postings" (AC-05): off on every visit; on, it is its own snapshot with the field's skills.
+  const [markedRequest, setMarkedRequest] = useState<SearchRequest | null>(null);
+  const markedView = markedRequest !== null;
+  const marked = useMarkedList(markedRequest);
+  const runs = useRef(0);
   const [expired, setExpired] = useState(false);
+  const [markedExpired, setMarkedExpired] = useState(false);
+  const openMarked = (text: string) => {
+    setMarkedExpired(false);
+    marks.reset(); // closes the notice (AC-03)
+    setMarkedRequest({ skills: text, run: ++runs.current });
+  };
   const search = (text: string) => {
     setExpired(false);
+    if (markedView) return openMarked(text); // the switch stays on (screens.md owner decision)
     marks.reset();
     setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
+  };
+  const showMarked = () => openMarked(skills);
+  const switchMarked = (on: boolean) => {
+    if (on) return showMarked();
+    setMarkedRequest(null);
+    marks.reset();
+    setExpired(false);
+    setRequest((r) => ({ skills, run: (r?.run ?? 0) + 1 })); // the unmarked list again
   };
 
   // A failed or refused search leaves the last list on screen (AC-05, AC-12).
@@ -52,8 +74,8 @@ export function Home() {
 
   // Cards marked in this window leave the list and its counts; pages are never refetched (AC-12).
   const allShown = (pages ?? []).flatMap((p) => p.items);
-  const postings = allShown.filter((p) => !marks.hidden.has(p.id));
-  const hiddenNew = allShown.filter((p) => marks.hidden.has(p.id) && p.is_new).length;
+  const postings = allShown.filter((p) => !marks.hiddenFromMain(p.id));
+  const hiddenNew = allShown.filter((p) => marks.hiddenFromMain(p.id) && p.is_new).length;
   const counted = result && {
     ...result,
     total: result.total - (allShown.length - postings.length),
@@ -75,6 +97,19 @@ export function Home() {
     setExpired(true);
   }, [snapshotExpired, request]);
 
+  const markedPages = marked.data?.pages as (MarkedResult | MarkedPage)[] | undefined;
+  const markedResult = markedPages?.[0] as MarkedResult | undefined;
+  const markedCode = marked.error instanceof ApiError ? marked.error.code : undefined;
+  const markedMoreFailed = marked.isFetchNextPageError;
+  const markedInvalid = !markedMoreFailed && markedCode === "SEARCH_INVALID_SKILLS";
+  const markedFailed = markedMoreFailed || markedInvalid ? null : marked.error;
+  const markedSnapshotExpired = markedMoreFailed && markedCode === "SEARCH_SNAPSHOT_EXPIRED";
+  useEffect(() => {
+    if (!markedSnapshotExpired || !markedRequest) return;
+    setMarkedRequest({ skills: markedRequest.skills, run: ++runs.current });
+    setMarkedExpired(true);
+  }, [markedSnapshotExpired, markedRequest]);
+
   return (
     <div className="flex flex-col gap-4">
       {problems.data?.has_problem && <ProblemMarker />}
@@ -92,10 +127,59 @@ export function Home() {
         onChange={setSkills}
         onSubmit={() => search(skills)}
         disabled={loading}
-        pending={list.isFetching && !list.isFetchingNextPage}
-        error={invalid ? list.error?.message : undefined}
+        pending={
+          markedView
+            ? marked.isFetching && !marked.isFetchingNextPage
+            : list.isFetching && !list.isFetchingNextPage
+        }
+        error={
+          markedView
+            ? markedInvalid
+              ? marked.error?.message
+              : undefined
+            : invalid
+              ? list.error?.message
+              : undefined
+        }
       />
-      {failed && (
+      <MarkedToggle
+        on={markedView}
+        disabled={loading || (markedView ? marked.isFetching : list.isFetching)}
+        onChange={switchMarked}
+      />
+      {markedView && (
+        <>
+          {markedFailed && (
+            <InlineBanner
+              tone="error"
+              title="Couldn't load the marked postings."
+              onRetry={() => void marked.refetch()}
+            >
+              {markedFailed.message}
+            </InlineBanner>
+          )}
+          {!markedResult && !markedFailed && !markedInvalid && (
+            <div className="flex flex-col gap-3">
+              <SkeletonRow />
+              <SkeletonRow />
+              <SkeletonRow />
+            </div>
+          )}
+          {markedExpired && <InlineBanner tone="info" title="This list had expired and was reloaded." />}
+          {markedResult && (
+            <MarkedList
+              result={markedResult}
+              postings={(markedPages ?? []).flatMap((p) => p.items)}
+              marks={marks}
+              hasNext={marked.hasNextPage}
+              loadingMore={marked.isFetchingNextPage}
+              moreError={markedMoreFailed && !markedSnapshotExpired ? marked.error?.message : undefined}
+              onShowMore={() => void marked.fetchNextPage()}
+            />
+          )}
+        </>
+      )}
+      {!markedView && failed && (
         <InlineBanner
           tone="error"
           title="Couldn't load postings."
@@ -104,17 +188,17 @@ export function Home() {
           {failed.message}
         </InlineBanner>
       )}
-      {loading && (
+      {!markedView && loading && (
         <div className="flex flex-col gap-3">
           <SkeletonRow />
           <SkeletonRow />
           <SkeletonRow />
         </div>
       )}
-      {expired && (
+      {!markedView && expired && (
         <InlineBanner tone="info" title="This list had expired and was reloaded from the newest." />
       )}
-      {counted && (
+      {!markedView && counted && (
         <SearchList
           result={counted}
           postings={postings}
