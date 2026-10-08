@@ -9,13 +9,27 @@ import { setMark, undoMark } from "../../api/tracking";
 import type { Choice } from "./MarkActions";
 
 export type Notice =
-  | { kind: "marked"; postingId: string; mark: Mark | null; changeId: string }
-  | { kind: "refused"; message: string };
+  /** `error`: the Undo failed to save (AC-14); the notice stays with Retry. */
+  | { kind: "marked"; postingId: string; mark: Mark | null; changeId: string; error?: string }
+  | { kind: "refused"; message: string }
+  | { kind: "gone" };
+
+const isGone = (err: unknown) => err instanceof ApiError && err.code === "TRACKING_POSTING_NOT_FOUND";
 
 export function useMarks() {
   const [hidden, setHidden] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
   const [pending, setPending] = useState<{ postingId: string; choice: Choice } | null>(null);
+  /** Per card: a save that failed, with the choice Retry repeats (AC-14). */
+  const [failed, setFailed] = useState<ReadonlyMap<string, { message: string; choice: Choice }>>(new Map());
+  const setFailure = (postingId: string, failure?: { message: string; choice: Choice }) =>
+    setFailed((f) => {
+      const next = new Map(f);
+      if (failure) next.set(postingId, failure);
+      else next.delete(postingId);
+      return next;
+    });
+  const hide = (postingId: string) => setHidden((h) => new Set(h).add(postingId));
   const marking = useMutation({
     mutationFn: ({ postingId, choice }: { postingId: string; choice: Choice }) => setMark(postingId, choice),
   });
@@ -30,9 +44,18 @@ export function useMarks() {
       { postingId, choice },
       {
         onSuccess: (state) => {
-          setHidden((h) => new Set(h).add(postingId));
+          setFailure(postingId);
+          hide(postingId);
           // A new notice replaces the old one: Undo covers only the latest change (AC-03).
           setNotice({ kind: "marked", postingId, mark: state.mark, changeId: state.change_id as string });
+        },
+        onError: (err) => {
+          if (isGone(err)) {
+            // Removed by clean-up since the list loaded: it leaves, nothing recorded (AC-15).
+            setFailure(postingId);
+            hide(postingId);
+            setNotice({ kind: "gone" });
+          } else setFailure(postingId, { message: err.message, choice });
         },
         onSettled: () => setPending(null),
       },
@@ -56,6 +79,8 @@ export function useMarks() {
         onError: (err) => {
           if (err instanceof ApiError && err.code === "TRACKING_MARK_CHANGED_ELSEWHERE")
             setNotice({ kind: "refused", message: err.message });
+          else if (isGone(err)) setNotice({ kind: "gone" });
+          else setNotice({ ...notice, error: err.message });
         },
       },
     );
@@ -63,6 +88,7 @@ export function useMarks() {
 
   return {
     hidden,
+    failed,
     notice,
     pending,
     undoPending: undoing.isPending,
@@ -72,6 +98,7 @@ export function useMarks() {
     /** A new list: nothing is hidden from it, and the notice closes (AC-03). */
     reset: () => {
       setHidden(new Set());
+      setFailed(new Map());
       setNotice(null);
     },
   };

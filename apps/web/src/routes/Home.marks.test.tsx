@@ -156,3 +156,87 @@ describe("SCR-01 marking and Undo", () => {
     await waitFor(() => expect(notice()).toBeNull());
   });
 });
+
+const unavailable = {
+  status: 503,
+  body: {
+    error: {
+      code: "TRACKING_MARKS_UNAVAILABLE",
+      message: "Job-radar could not save your mark just now. Try again.",
+    },
+  },
+};
+const gone = {
+  status: 404,
+  body: { error: { code: "TRACKING_POSTING_NOT_FOUND", message: "This posting is no longer in job-radar." } },
+};
+
+describe("SCR-01 mark failures and nothing left (AC-13, AC-14, AC-15)", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("save error: the card keeps its state with the message and Retry, which repeats the call (AC-14)", async () => {
+    const { fetchMock } = await open({ [MARK(A)]: [unavailable, state(A, "applied", "c1")] });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(within(alert).getByText("Couldn't save your mark.")).toBeTruthy();
+    expect(within(alert).getByText("Job-radar could not save your mark just now. Try again.")).toBeTruthy();
+    expect(titles()).toEqual(["Role A", "Role B", "Role C"]);
+    expect(screen.getByText("130 postings · 3 new")).toBeTruthy();
+    expect(notice()).toBeNull();
+
+    fireEvent.click(within(alert).getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(titles()).toEqual(["Role B", "Role C"]));
+    expect(screen.queryByRole("alert")).toBeNull();
+    const marks = fetchMock.mock.calls.filter(([p]) => String(p) === `/api/v1/tracking/marks/${A}`);
+    expect(marks.map(([, init]) => init?.body)).toEqual(['{"mark":"applied"}', '{"mark":"applied"}']);
+  });
+
+  it("a failed Undo keeps the notice with the message and Retry (AC-14)", async () => {
+    await open({ [MARK(A)]: state(A, "applied", "c1"), [UNDO(A)]: [unavailable, state(A, null, "c2")] });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    await waitFor(() => expect(notice()).not.toBeNull());
+    fireEvent.click(within(notice() as HTMLElement).getByRole("button", { name: "Undo" }));
+
+    expect(await screen.findByText(/could not save your mark/)).toBeTruthy(); // the notice remounts
+    expect(titles()).toEqual(["Role B", "Role C"]);
+    fireEvent.click(within(notice() as HTMLElement).getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(titles()).toEqual(["Role A", "Role B", "Role C"]));
+  });
+
+  it("posting gone: the card leaves with no mark and no Undo, the count drops (AC-15)", async () => {
+    await open({ [MARK(B)]: gone });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role B skipped" }));
+    await waitFor(() => expect(titles()).toEqual(["Role A", "Role C"]));
+    expect(screen.getByText("129 postings · 3 new")).toBeTruthy();
+    expect(within(notice() as HTMLElement).getByText("This posting is no longer in job-radar.")).toBeTruthy();
+    expect(within(notice() as HTMLElement).queryByRole("button")).toBeNull();
+  });
+
+  it("nothing left to review: the marked count and one action to show them (AC-13)", async () => {
+    mockApi({
+      [PROBLEMS]: base,
+      [VISIT]: returning,
+      [SEARCH]: { body: contractExample<SearchResult>("runSearch", 200, "nothing_left") },
+    });
+    renderWithProviders(<App />);
+    expect(
+      await screen.findByText("Nothing left to review. You've marked 3 matching postings."),
+    ).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Show marked postings" })).toBeTruthy();
+    expect(screen.queryByText(/Nothing matches/)).toBeNull();
+  });
+
+  it("marking the last posting on screen leaves nothing to review", async () => {
+    const one = { ...found(), total: 1, new_count: 0, items: [found().items[1] as Posting] };
+    mockApi({
+      [PROBLEMS]: base,
+      [VISIT]: returning,
+      [SEARCH]: { body: one },
+      [MARK(B)]: state(B, "skipped", "c1"),
+    });
+    renderWithProviders(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Mark Role B skipped" }));
+    expect(await screen.findByText("Nothing left to review. You've marked 1 matching posting.")).toBeTruthy();
+  });
+});

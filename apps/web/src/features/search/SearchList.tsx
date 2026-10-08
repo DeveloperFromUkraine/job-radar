@@ -22,6 +22,10 @@ interface SearchListProps {
   onShowMore: () => void;
   /** MarkActions for a card (applied-skipped). */
   actionsFor?: (posting: Posting) => ReactNode;
+  /** A failed save on a card, above its actions (AC-14). */
+  bannerFor?: (posting: Posting) => ReactNode;
+  /** "Show marked postings" from the nothing-left-to-review state (AC-13). */
+  onShowMarked?: () => void;
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
@@ -39,6 +43,8 @@ export function SearchList({
   moreError,
   onShowMore,
   actionsFor,
+  bannerFor,
+  onShowMarked,
 }: SearchListProps) {
   const feed = result.skills.length === 0;
   const clear = (
@@ -56,6 +62,20 @@ export function SearchList({
           </Link>
         </InlineBanner>
         {!feed && clear}
+      </div>
+    );
+  }
+  const marked = result.marked_count ?? 0;
+  if (result.total === 0 && marked > 0) {
+    // Empty only because of marks (AC-13): not search's "nothing matches".
+    return (
+      <div className="flex flex-col gap-3">
+        <p>Nothing left to review. You've marked {count(marked, "matching posting")}.</p>
+        {onShowMarked && (
+          <Button className="md:self-start" onClick={onShowMarked}>
+            Show marked postings
+          </Button>
+        )}
       </div>
     );
   }
@@ -84,7 +104,7 @@ export function SearchList({
       <ul className="flex flex-col gap-3">
         {postings.map((p) => (
           <li key={p.id}>
-            <PostingCard posting={p} actions={actionsFor?.(p)} />
+            <PostingCard posting={p} banner={bannerFor?.(p)} actions={actionsFor?.(p)} />
           </li>
         ))}
       </ul>

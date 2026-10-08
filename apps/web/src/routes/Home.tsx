@@ -58,6 +58,7 @@ export function Home() {
     ...result,
     total: result.total - (allShown.length - postings.length),
     new_count: result.new_count - hiddenNew,
+    marked_count: (result.marked_count ?? 0) + (allShown.length - postings.length),
   };
 
   const code = list.error instanceof ApiError ? list.error.code : undefined;
@@ -130,6 +131,21 @@ export function Home() {
           loadingMore={list.isFetchingNextPage}
           moreError={moreFailed && !snapshotExpired ? list.error?.message : undefined}
           onShowMore={() => void list.fetchNextPage()}
+          onShowMarked={showMarked}
+          bannerFor={(p) => {
+            const failure = marks.failed.get(p.id);
+            return (
+              failure && (
+                <InlineBanner
+                  tone="error"
+                  title="Couldn't save your mark."
+                  onRetry={() => marks.mark(p.id, failure.choice)}
+                >
+                  {failure.message}
+                </InlineBanner>
+              )
+            );
+          }}
           actionsFor={(p) => (
             <MarkActions
               title={p.title}
