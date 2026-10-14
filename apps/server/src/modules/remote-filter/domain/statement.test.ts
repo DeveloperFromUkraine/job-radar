@@ -80,6 +80,12 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["USA, Польша", "PL", check("not_recognised")],
   ["USA, 波兰", "PL", check("not_recognised")],
   ["USA 🌍", "PL", check("not_recognised")],
+  // Review F-2: a bare zone name that is also the judged country's code is unknown
+  ["PT", "PT", check("not_recognised")],
+  ["Remote, MT", "MT", check("not_recognised")],
+  ["ET", "ET", check("not_recognised")],
+  ["PT", "PL", NOT_OPEN],
+  ["PST", "PT", NOT_OPEN],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {

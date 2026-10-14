@@ -23,6 +23,7 @@ export type ListingVerdict =
 interface Reading {
   places: Array<Set<string>>; // each named country (one code) or region (its members)
   zones: Array<[number, number]>; // offset ranges in minutes, inclusive
+  shortZones: string[]; // two-letter zone names (et, ct, mt, pt): also country codes
   anywhere: boolean;
   ambiguous: string[]; // codes of names that are also a part of another country (Georgia)
   exception: boolean;
@@ -64,6 +65,7 @@ function read(statement: string): Reading {
   const r: Reading = {
     places: [],
     zones: [],
+    shortZones: [],
     anywhere: false,
     ambiguous: [],
     exception: false,
@@ -88,6 +90,7 @@ function read(statement: string): Reading {
     })
     .replace(ZONE_RE, (_all, from: string, to?: string) => {
       const offsets = [...zoneOffsets(from), ...(to ? zoneOffsets(to) : [])];
+      for (const z of [from, to]) if (z?.length === 2) r.shortZones.push(z);
       if (to) r.zones.push([Math.min(...offsets), Math.max(...offsets)]);
       else for (const o of offsets) r.zones.push([o, o]);
       return " , ";
@@ -118,6 +121,8 @@ export function listingVerdict(statement: string | null, country: string, date: 
   if (statement.length > MAX_LENGTH) return check("not_recognised");
   const r = read(statement);
   if (r.exception) return check("exception");
+  // "PT" may be Pacific Time or Portugal: unknown when it is the judged country's own code (review F-2).
+  if (r.shortZones.includes(country.toLowerCase())) r.unknown = true;
 
   // "Anywhere" is Worldwide only when it is the whole statement; beside other parts it is dropped (AC-10).
   const otherParts = r.places.length + r.zones.length > 0 || r.unknown || r.ambiguous.length > 0;
