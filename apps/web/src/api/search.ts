@@ -1,6 +1,8 @@
 // Typed client for the search API (docs/features/search-postings/contracts/openapi.yaml), with the
-// mark-aware shapes and the marked view from docs/features/applied-skipped/contracts/openapi.yaml.
+// marked view from docs/features/applied-skipped/contracts/openapi.yaml and the mark- and location-aware
+// main list from docs/features/remote-filter/contracts/openapi.yaml.
 import { request } from "./collector";
+import type { LocationCheck, LocationFilter } from "./remoteFilter";
 
 export interface Visit {
   last_skills: string[];
@@ -50,6 +52,8 @@ export interface Posting {
   matched_skills: MatchedSkill[];
   listings: Listing[];
   look_alike: LookAlike | null;
+  /** The "check location" reason, or null when it fits or the list has no filter (remote-filter AC-02). */
+  location_check: LocationCheck | null;
 }
 
 /** A marked-view posting, open or closed (applied-skipped AC-05). */
@@ -91,7 +95,10 @@ export interface SearchResult extends PostingPage {
   new_count: number;
   /** Matching open postings that are marked — "nothing left to review" (AC-13). */
   marked_count: number;
+  /** Unmarked matches not open to the filter's country (remote-filter AC-07, AC-08); 0 with none or off. */
+  hidden_count: number;
   collection_empty: boolean;
+  location_filter: LocationFilter;
 }
 
 export interface WaitingCount {

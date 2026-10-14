@@ -104,7 +104,7 @@ Every action in the bar and the choice is at least 44×44 px; on phones the acti
 
 | Component | Why no existing primitive fits | Registered in design-system |
 |---|---|---|
-| LocationFilterBar | No inventory component shows a persistent filter state with its own actions. InlineBanner is for notices and errors, MarkedToggle is a single switch, and the filter has four modes with one to three actions each. It composes Button and InlineBanner | pending |
-| CountryChoice | SkillsField is bound to the skills search (its submit runs a search and its validation is the skills check). The country input needs suggestions from `countries` (a native `<datalist>`) and the server's unknown-name answer. It composes Button and InlineBanner, and follows SkillsField's error pattern (`aria-describedby`, `aria-invalid`) | pending |
+| LocationFilterBar | No inventory component shows a persistent filter state with its own actions. InlineBanner is for notices and errors, MarkedToggle is a single switch, and the filter has four modes with one to three actions each. It composes Button and InlineBanner | yes |
+| CountryChoice | SkillsField is bound to the skills search (its submit runs a search and its validation is the skills check). The country input needs suggestions from `countries` (a native `<datalist>`) and the server's unknown-name answer. It composes Button and InlineBanner, and follows SkillsField's error pattern (`aria-describedby`, `aria-invalid`) | yes |
 
 PostingCard (check line), SearchList (hidden part of the summary, filter empty message) and Badge (existing `notice` tone) are extended, not new.
