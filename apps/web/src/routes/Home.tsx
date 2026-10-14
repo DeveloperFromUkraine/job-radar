@@ -85,7 +85,7 @@ export function Home() {
     ...result,
     total: result.total - (allShown.length - postings.length),
     new_count: result.new_count - hiddenNew,
-    marked_count: (result.marked_count ?? 0) + markedHere,
+    marked_count: result.marked_count + markedHere,
   };
 
   const code = list.error instanceof ApiError ? list.error.code : undefined;

@@ -26,6 +26,6 @@
 | T19 | Review fix R1 (server) + R7 part: removed_after is the last day the posting stays; cleared open is back in the list | app | Volodymyr Kozlov | S | T07, T11 | done |
 | T20 | Review fixes R2 + R5 + R6: each mark handles its own answer; no Undo for a null change_id; reset on a new list | ui | Volodymyr Kozlov | S | T16 | done |
 | T21 | Review fixes R3 + R4 + R10: nothing-left counts marks only; Undo waits while saving; focus follows mark and Undo | ui | Volodymyr Kozlov | S | T20 | done |
-| T22 | Review fixes R1 (web) + R7 + R8: Cleared with no date; missing web tests; contract-required fields required | ui | Volodymyr Kozlov | S | T21 | todo |
+| T22 | Review fixes R1 (web) + R7 + R8: Cleared with no date; missing web tests; contract-required fields required | ui | Volodymyr Kozlov | S | T21 | done |
 
 **Total:** 22 tasks (T19–T22 from review 2026-10-08), ~8.25 person-days (S ≈ ¼ day, M ≈ ½ day).

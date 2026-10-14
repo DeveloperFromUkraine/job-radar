@@ -20,6 +20,19 @@ const UNDO = `POST /api/v1/tracking/marks/${P}/undo`;
 const state = (over: Partial<MarkState>): { body: MarkState } => ({
   body: { ...item().mark_state, ...over },
 });
+const unavailable = {
+  status: 503,
+  body: {
+    error: {
+      code: "TRACKING_MARKS_UNAVAILABLE",
+      message: "Job-radar could not save your mark just now. Try again.",
+    },
+  },
+};
+const gone = {
+  status: 404,
+  body: { error: { code: "TRACKING_POSTING_NOT_FOUND", message: "This posting is no longer in job-radar." } },
+};
 const routes = {
   [PROBLEMS]: { body: contractExample("getCollectorProblems", 200, "none") },
   [VISIT]: { body: contractExample<Visit>("openVisit", 200, "returning") },
@@ -89,6 +102,46 @@ describe("SCR-01 marked view", () => {
     fireEvent.click(await screen.findByRole("button", { name: `Clear the mark on ${TITLE}` }));
     expect(await within(card()).findByText("Not marked")).toBeTruthy();
     expect(notice()).toBeNull();
+  });
+
+  it("clearing an open posting shows it as Not marked with Applied and Skipped, and Mark cleared (AC-06)", async () => {
+    await openMarked(
+      { [MARK]: state({ mark: null, removed_after: null, change_id: "c9" }) },
+      { ...view(), items: [{ ...item(), status: "open" }] },
+    );
+    fireEvent.click(await screen.findByRole("button", { name: `Clear the mark on ${TITLE}` }));
+    expect(await within(card()).findByText("Not marked")).toBeTruthy();
+    expect(within(card()).getByRole("button", { name: `Mark ${TITLE} applied` })).toBeTruthy();
+    expect(within(card()).getByRole("button", { name: `Mark ${TITLE} skipped` })).toBeTruthy();
+    expect(within(card()).queryByText("Cleared")).toBeNull();
+    expect(within(notice() as HTMLElement).getByText("Mark cleared")).toBeTruthy();
+  });
+
+  it("save error on a change: the card keeps its mark, with the message and Retry (AC-14)", async () => {
+    await openMarked({ [MARK]: unavailable });
+    fireEvent.click(await screen.findByRole("button", { name: `Mark ${TITLE} skipped` }));
+    const alert = await within(card()).findByRole("alert");
+    expect(within(alert).getByText("Couldn't save your mark.")).toBeTruthy();
+    expect(within(alert).getByRole("button", { name: "Retry" })).toBeTruthy();
+    expect(within(card()).getByText("Applied on 3 Oct")).toBeTruthy();
+    expect(within(card()).getByText("Applied")).toBeTruthy();
+    expect(notice()).toBeNull();
+  });
+
+  it("posting gone on a clear: the card leaves the view with the gone notice and no Undo (AC-15)", async () => {
+    await openMarked({ [MARK]: gone });
+    fireEvent.click(await screen.findByRole("button", { name: `Clear the mark on ${TITLE}` }));
+    await waitFor(() => expect(screen.queryByRole("article")).toBeNull());
+    expect(within(notice() as HTMLElement).getByText("This posting is no longer in job-radar.")).toBeTruthy();
+    expect(within(notice() as HTMLElement).queryByRole("button")).toBeNull();
+  });
+
+  it("turning the switch off closes the notice (AC-03)", async () => {
+    await openMarked({ [MARK]: state({ mark: "skipped", change_id: "c9" }) });
+    fireEvent.click(await screen.findByRole("button", { name: `Mark ${TITLE} skipped` }));
+    await waitFor(() => expect(notice()).not.toBeNull());
+    fireEvent.click(toggle());
+    await waitFor(() => expect(notice()).toBeNull());
   });
 
   it("asks before an at-risk applied posting loses its mark; Cancel sends nothing (AC-07)", async () => {

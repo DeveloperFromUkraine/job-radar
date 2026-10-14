@@ -65,7 +65,7 @@ export function SearchList({
       </div>
     );
   }
-  const marked = result.marked_count ?? 0;
+  const marked = result.marked_count;
   if (result.total === 0 && marked > 0) {
     // Empty only because of marks (AC-13): not search's "nothing matches".
     return (

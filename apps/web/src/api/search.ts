@@ -49,7 +49,7 @@ export interface Posting {
   is_new: boolean;
   matched_skills: MatchedSkill[];
   listings: Listing[];
-  look_alike?: LookAlike | null;
+  look_alike: LookAlike | null;
 }
 
 /** A marked-view posting, open or closed (applied-skipped AC-05). */
@@ -90,7 +90,7 @@ export interface SearchResult extends PostingPage {
   total: number;
   new_count: number;
   /** Matching open postings that are marked — "nothing left to review" (AC-13). */
-  marked_count?: number;
+  marked_count: number;
   collection_empty: boolean;
 }
 

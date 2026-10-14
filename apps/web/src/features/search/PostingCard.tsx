@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { SOURCE_NAMES } from "../../api/collector";
-import type { Listing, MarkedPosting, MarkState, Posting } from "../../api/search";
+import type { Listing, MarkedPosting, Posting } from "../../api/search";
 import { Badge } from "../../components/Badge";
 import { ago, shortDate } from "../../lib/time";
 
@@ -61,19 +61,26 @@ function Source({ listing }: { listing: Listing }) {
 // A date-only value (removed_after) is read at noon, so no time zone moves it to another day.
 const day = (date: string) => shortDate(date.length === 10 ? `${date}T12:00:00` : date);
 
-function markLine(state: MarkState): string {
-  if (state.mark === null)
-    return state.removed_after ? `Cleared · removed after ${day(state.removed_after)}` : "Not marked";
+// Cleared and closed: a row with no mark. removed_after is null while the age is frozen (contract).
+const clearedClosed = (posting: MarkedPosting) =>
+  posting.status === "closed" && posting.mark_state.mark === null && posting.mark_state.marked_at !== null;
+
+function markLine(posting: MarkedPosting): string {
+  const state = posting.mark_state;
+  if (state.mark === null) {
+    if (!clearedClosed(posting)) return "Not marked";
+    return state.removed_after ? `Cleared · removed after ${day(state.removed_after)}` : "Cleared";
+  }
   return `${state.mark === "applied" ? "Applied" : "Skipped"} on ${day(state.marked_at as string)}`;
 }
 
 function MarkBadges({ posting }: { posting: MarkedPosting }) {
-  const { mark, removed_after } = posting.mark_state;
+  const { mark } = posting.mark_state;
   return (
     <span className="flex shrink-0 gap-1">
       {mark === "applied" && <Badge tone="notice">Applied</Badge>}
       {mark === "skipped" && <Badge tone="disabled">Skipped</Badge>}
-      {mark === null && removed_after && <Badge tone="disabled">Cleared</Badge>}
+      {clearedClosed(posting) && <Badge tone="disabled">Cleared</Badge>}
       {posting.status === "closed" && <Badge tone="disabled">Closed</Badge>}
     </span>
   );
@@ -108,7 +115,7 @@ export function PostingCard({ posting, now = Date.now(), banner, actions }: Post
         )}
       </div>
       <p className="text-text-muted md:col-start-1">{posting.company}</p>
-      {marked && <p className="text-sm md:col-start-1">{markLine(marked.mark_state)}</p>}
+      {marked && <p className="text-sm md:col-start-1">{markLine(marked)}</p>}
       <div className="md:col-start-2 md:row-start-1">
         <Time posting={posting} now={now} />
       </div>

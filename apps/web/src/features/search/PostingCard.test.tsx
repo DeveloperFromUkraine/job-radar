@@ -145,6 +145,18 @@ describe("PostingCard (SCR-01)", () => {
       expect(screen.getByText("Cleared · removed after 8 Oct")).toBeTruthy();
     });
 
+    it("labels a cleared closed posting Cleared even with no removal date (age frozen, AC-07)", () => {
+      const p = marked();
+      render(
+        <PostingCard
+          posting={{ ...p, mark_state: { ...p.mark_state, mark: null, removed_after: null } }}
+          now={NOW}
+        />,
+      );
+      expect(screen.getAllByText("Cleared")).toHaveLength(2); // the badge and the mark line
+      expect(screen.queryByText("Not marked")).toBeNull();
+    });
+
     it("renders actions and a banner at the bottom of the card", () => {
       render(
         <PostingCard

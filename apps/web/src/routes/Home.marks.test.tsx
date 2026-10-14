@@ -195,6 +195,29 @@ describe("SCR-01 marking and Undo", () => {
     );
   });
 
+  it("turning the switch on closes the notice (AC-03)", async () => {
+    await open({
+      [MARK(A)]: state(A, "applied", "c1"),
+      "POST /api/v1/search/marked-snapshots": { body: contractExample("runMarkedView", 200) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    await waitFor(() => expect(notice()).not.toBeNull());
+    fireEvent.click(screen.getByRole("switch", { name: "Show marked postings" }));
+    await waitFor(() => expect(notice()).toBeNull());
+  });
+
+  it("never refetches the list after a mark or an Undo: cards change from the answers alone (AC-12)", async () => {
+    const { calls } = await open({ [MARK(A)]: state(A, "applied", "c1"), [UNDO(A)]: state(A, null, "c2") });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    fireEvent.click(
+      await within(await screen.findByTestId("undo-notice")).findByRole("button", { name: "Undo" }),
+    );
+    await waitFor(() => expect(titles()).toEqual(["Role A", "Role B", "Role C"]));
+    // runSearch once (the first list) and no getNextPage; the waiting poll is not a refetch.
+    expect(calls.filter((c) => c.path === "/api/v1/search/snapshots")).toHaveLength(1);
+    expect(calls.filter((c) => c.path.endsWith("/pages"))).toEqual([]);
+  });
+
   it("a search closes the notice (AC-03)", async () => {
     await open({ [MARK(A)]: state(A, "applied", "c1") });
     fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
