@@ -76,6 +76,10 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["USA, Canada...", "PL", check("not_recognised")],
   ["<script>alert(1)</script>", "PL", check("not_recognised")],
   ["Worldwide except <b>Poland</b>", "PL", check("exception")],
+  // Review F-1: other scripts and emoji are unknown words, never separators
+  ["USA, Польша", "PL", check("not_recognised")],
+  ["USA, 波兰", "PL", check("not_recognised")],
+  ["USA 🌍", "PL", check("not_recognised")],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {

@@ -19,5 +19,8 @@
 | T12 | [Wire the filter into the main list: re-search on change, hidden count in the summary, the check-location mark, the filter's empty message and the marked view](./t12-web-main-list-with-filter.md) | ui | Volodymyr Kozlov | M | T11 | done |
 | T13 | [Prove "Anywhere" end to end from collection to verdict, and search speed with the filter on](./t13-end-to-end-and-speed.md) | tests | Volodymyr Kozlov | S | T05, T09, T10 | done |
 | T14 | [Add the hidden count and one-off look to CONTEXT.md, amend the collector spec's "Anywhere" reading, and point applied-skipped's contract at this one](./t14-glossary-collector-spec-and-contract-pointers.md) | docs | Volodymyr Kozlov | S | — | done |
+| T15 | [Review fix F-1: non-Latin words and emoji count as unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | — | done |
+| T16 | [Review fix F-2: bare zone name equal to the judged country is unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T15 | todo |
+| T17 | [Review fix F-3: empty-message switch shows pending and error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | — | todo |
 
-**Total:** 14 tasks, ~5.5 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 17 tasks, ~6.25 person-days (S ≈ ¼ day, M ≈ ½ day).

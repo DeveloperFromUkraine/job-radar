@@ -293,6 +293,56 @@
         "docs/features/applied-skipped/contracts/openapi.yaml"
       ],
       "file": "docs/features/remote-filter/tasks/t14-glossary-collector-spec-and-contract-pointers.md"
+    },
+    {
+      "id": "T15",
+      "title": "Review fix F-1: words in non-Latin script and emoji count as unknown words, never as separators",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"USA, Польша\", \"USA, 波兰\" and \"USA 🌍\" for PL as check/not_recognised (fails without the fix); the property test's UNFAMILIAR list carries Польша and 🌍",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T16",
+      "title": "Review fix F-2: a bare two-letter zone name equal to the judged country code is read as unknown",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-13"
+      ],
+      "dod": "statement.test pins \"PT\" for PT, \"Remote, MT\" for MT and \"ET\" for ET as check/not_recognised, while \"PT\" for PL stays not_open (fails without the fix)",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T17",
+      "title": "Review fix F-3: the empty message's Switch filter off / Back to button shows pending and a switch error with Retry",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location test pins it (fails without the fix): Switch filter off from the filter-hid-everything state fails (500), an alert with Retry appears, and the button is disabled while the request runs",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
     }
   ]
 }
