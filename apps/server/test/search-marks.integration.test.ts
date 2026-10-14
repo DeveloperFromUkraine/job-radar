@@ -39,6 +39,18 @@ function caught(fn: () => unknown): AppError {
 }
 
 describe("the main list leaves marked postings out (AC-01, AC-08, AC-12)", () => {
+  it("puts a cleared open posting back in the list and its counts, new only if first collected after the previous visit (AC-06)", () => {
+    setSearchState(t.db, { previousVisitStartedAt: 1_500_000 });
+    const [old] = seedOpenPostings(t.db, 1, () => ({ firstFoundAt: 1_000_000 }));
+    const [fresh] = seedOpenPostings(t.db, 1, () => ({ firstFoundAt: 2_000_000 }));
+    mark([old as string, fresh as string], null); // marked once, then cleared
+
+    const result = runSearch(deps, snapshots, "");
+    expect(result).toMatchObject({ total: 2, new_count: 1, marked_count: 0 });
+    const isNew = Object.fromEntries(result.items.map((p) => [p.id, p.is_new]));
+    expect(isNew).toEqual({ [old as string]: false, [fresh as string]: true });
+  });
+
   it("keeps marked matches in the snapshot but not on the page or in the counts", () => {
     const ids = seedOpenPostings(t.db, 120);
     const probe = runSearch(deps, snapshots, "");

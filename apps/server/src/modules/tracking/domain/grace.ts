@@ -11,10 +11,10 @@ export function ownerDay(at: number, timeZone: string): string {
   }).format(at);
 }
 
-/** The calendar day after `day` (YYYY-MM-DD); plain date arithmetic, no time zone involved. */
-export function nextDay(day: string): string {
+/** The calendar day `by` days after `day` (YYYY-MM-DD); plain date arithmetic, no time zone involved. */
+export function nextDay(day: string, by = 1): string {
   const [y, m, d] = day.split("-").map(Number) as [number, number, number];
-  return new Date(Date.UTC(y, m - 1, d + 1)).toISOString().slice(0, 10);
+  return new Date(Date.UTC(y, m - 1, d + by)).toISOString().slice(0, 10);
 }
 
 /** The last day a posting that lost applied at `appliedLostAt` is still protected. */

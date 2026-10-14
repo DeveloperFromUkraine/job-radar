@@ -98,9 +98,16 @@ describe("mark use cases (Flows 1 and 4)", () => {
 
   it("shows the retention date when it is later than the grace day", () => {
     const p = addPosting(t.db);
-    aged(p, "closed", 10); // removable 50 days from now
+    aged(p, "closed", 10); // removable from 2026-11-26 12:15 Kyiv; that day's clean-up may run after it
     setMark(deps, p, "skipped");
-    expect(setMark(deps, p, null).removed_after).toBe("2026-11-26");
+    expect(setMark(deps, p, null).removed_after).toBe("2026-11-25");
+  });
+
+  it("shows today, not a past day, for a cleared closed posting already past the 60-day rule", () => {
+    const p = addPosting(t.db);
+    aged(p, "closed", 61);
+    setMark(deps, p, "skipped");
+    expect(setMark(deps, p, null).removed_after).toBe("2026-10-07");
   });
 
   it("gives no removal date for a cleared open posting (it is back in the main list)", () => {

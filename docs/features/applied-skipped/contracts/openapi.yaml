@@ -629,8 +629,10 @@ components:
           description: |
             For a cleared closed posting, the last calendar day (owner's time zone) before clean-up
             removes it. That is the later of the grace-day end (tracking_marks.applied_lost_at,
-            AC-07) and the retention date. Shown as "Cleared, removed after <date>" (AC-05).
-            Null otherwise.
+            AC-07) and the retention date (the day before the counted age passes 60 days, never
+            before today). Shown as "Cleared, removed after <date>" (AC-05). Null otherwise, and
+            null while every source of the posting stays disabled (its age is frozen, so there is
+            no removal date; the web shows just "Cleared").
 
     LookAlike:
       type: object
