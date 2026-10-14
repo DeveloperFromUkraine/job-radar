@@ -7,7 +7,7 @@
 |---|---|---|---|---|---|---|
 | T01 | [Create the remote_filter_settings table and promote its staged migration](./t01-remote-filter-settings-table.md) | migration | Volodymyr Kozlov | S | — | done |
 | T02 | [Build the country vocabulary from Intl plus the hand-kept alias, region, zone, filler and short-code tables](./t02-country-vocabulary.md) | domain | Volodymyr Kozlov | M | — | done |
-| T03 | [Read one location statement and decide one listing's verdict for a country and a date](./t03-statement-reader-and-listing-verdict.md) | domain | Volodymyr Kozlov | M | T02 | todo |
+| T03 | [Read one location statement and decide one listing's verdict for a country and a date](./t03-statement-reader-and-listing-verdict.md) | domain | Volodymyr Kozlov | M | T02 | done |
 | T04 | [Combine listing verdicts into one posting verdict and pin the fixed example set at a winter and a summer date](./t04-posting-verdict-and-example-set.md) | domain | Volodymyr Kozlov | M | T03 | todo |
 | T05 | [Keep an explicit "Anywhere" as stated in the collector, treat it as nothing stated for merge and change checks, and export it with the enabled sources](./t05-collector-keeps-anywhere.md) | domain | Volodymyr Kozlov | M | — | todo |
 | T06 | [Write the settings repo with the lazily created singleton row and its test fixture](./t06-settings-repo.md) | infra | Volodymyr Kozlov | S | T01 | todo |
