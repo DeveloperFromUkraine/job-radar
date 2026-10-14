@@ -62,6 +62,77 @@ describe.skipIf(process.env.SKIP_PERF)("search latency at 10,000 open postings",
     expect(p95(pages)).toBeLessThanOrEqual(1_000);
   }, 120_000);
 
+  // remote-filter spec §6: the same target with the filter on for Poland. ~50 distinct statements (the
+  // 2026-10-14 collection's size), then the worst case where every statement is distinct.
+  it("holds ≤ 1 s p95 with the location filter on for Poland (remote-filter §6)", async () => {
+    const STATEMENTS = [
+      "USA",
+      "EMEA",
+      "LATAM",
+      "Europe",
+      "Poland",
+      "UK",
+      "Canada, USA",
+      "APAC",
+      "Worldwide",
+      "Spain",
+      "🇵🇱 Poland, 🇺🇦 Ukraine",
+      "UTC-1 to UTC+3",
+      "Helsinki",
+      "Worldwide except Poland",
+      "Anywhere",
+      "United States, UTC-10 to UTC+14",
+      "Germany",
+      "Brazil, Canada, USA",
+      "Europe, USA",
+      "Mexico",
+    ];
+    const measure = async () => {
+      const searches: number[] = [];
+      for (let i = 0; i < 50; i++) {
+        const started = performance.now();
+        const body = (await post("/api/v1/search/snapshots", { skills: SKILLS })).json();
+        searches.push(performance.now() - started);
+        expect(body.location_filter.mode).toBe("own");
+        expect(body.total + body.hidden_count).toBe(1_250);
+        expect(body.hidden_count).toBeGreaterThan(0);
+      }
+      return p95(searches);
+    };
+    expect((await post("/api/v1/remote-filter/country", { name: "Poland" })).statusCode).toBe(200);
+    try {
+      t.db.run(sql`update collector_listings set location_restriction = case abs(random()) % 50
+        ${sql.raw(STATEMENTS.map((s, i) => `when ${i} then '${s}'`).join(" "))} else 'USA, Region ' || (rowid % 30) end`);
+      const typical = await measure();
+      // Every statement distinct yet readable: three of 40 countries that leave Poland out, by rowid.
+      const C =
+        "USA Canada Mexico Brazil Chile Peru Japan India Kenya Egypt Spain France Italy Ireland Norway Sweden Finland Denmark Portugal Greece Austria Belgium Croatia Estonia Latvia Malta Cyprus Iceland Turkey Israel Jordan Ghana Nigeria Morocco Tunisia Vietnam Thailand Singapore Australia Argentina".split(
+          " ",
+        );
+      const rows = t.db.all<{ id: string; rowid: number }>(sql`select id, rowid from collector_listings`);
+      t.db.transaction((tx) => {
+        for (const { id, rowid } of rows) {
+          const pick = [rowid % 40, Math.floor(rowid / 40) % 40, Math.floor(rowid / 1600) % 40].map(
+            (i) => C[i],
+          );
+          tx.run(
+            sql`update collector_listings set location_restriction = ${`${pick.join(", ")}, ${rowid % 2 ? "UTC-8" : "PST"}`} where id = ${id}`,
+          );
+        }
+      });
+      const allDistinct = await measure();
+      console.info(
+        `remote-filter search p95: ${Math.round(typical)} ms typical, ${Math.round(allDistinct)} ms all distinct`,
+      );
+      expect(typical).toBeLessThanOrEqual(1_000);
+      expect(allDistinct).toBeLessThanOrEqual(1_000);
+    } finally {
+      // The next test measures marks alone: back to every posting open to everyone, filter off.
+      t.db.run(sql`update collector_listings set location_restriction = 'Worldwide'`);
+      await post("/api/v1/remote-filter/filter", { on: false });
+    }
+  }, 180_000);
+
   // applied-skipped spec §6: the same targets with 5,000 marked postings. Every other React posting
   // is marked (625), so each page walks past marked ids; the other 4,375 marks are non-matching.
   it("holds the same targets with 5,000 marked postings (applied-skipped §6)", async () => {

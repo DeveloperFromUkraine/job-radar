@@ -17,7 +17,7 @@
 | T10 | [Make search's main list location-aware: active filter, verdicts before the snapshot, hidden/total/new counts, check reasons and the waiting count](./t10-search-location-aware.md) | app | Volodymyr Kozlov | M | T07, T08 | done |
 | T11 | [Add the web remote-filter client, the LocationFilterBar and the CountryChoice on SCR-01](./t11-web-location-bar-and-country-choice.md) | ui | Volodymyr Kozlov | M | — | todo |
 | T12 | [Wire the filter into the main list: re-search on change, hidden count in the summary, the check-location mark, the filter's empty message and the marked view](./t12-web-main-list-with-filter.md) | ui | Volodymyr Kozlov | M | T11 | todo |
-| T13 | [Prove "Anywhere" end to end from collection to verdict, and search speed with the filter on](./t13-end-to-end-and-speed.md) | tests | Volodymyr Kozlov | S | T05, T09, T10 | todo |
+| T13 | [Prove "Anywhere" end to end from collection to verdict, and search speed with the filter on](./t13-end-to-end-and-speed.md) | tests | Volodymyr Kozlov | S | T05, T09, T10 | done |
 | T14 | [Add the hidden count and one-off look to CONTEXT.md, amend the collector spec's "Anywhere" reading, and point applied-skipped's contract at this one](./t14-glossary-collector-spec-and-contract-pointers.md) | docs | Volodymyr Kozlov | S | — | todo |
 
 **Total:** 14 tasks, ~5.5 person-days (S ≈ ¼ day, M ≈ ½ day).
