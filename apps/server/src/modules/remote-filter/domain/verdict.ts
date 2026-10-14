@@ -10,10 +10,12 @@ export function postingVerdict(
   country: string,
   date: Date,
   isStatedAnywhere: (statement: string | null) => boolean,
+  /** One listing's verdict; app/verdicts.ts passes a per-call cache keyed by statement text. */
+  readListing: (statement: string | null) => ListingVerdict = (s) => listingVerdict(s, country, date),
 ): ListingVerdict {
   const statesSomething = statements.some((s) => s !== null && s.trim() !== "" && !isStatedAnywhere(s));
   const read = statesSomething ? statements.filter((s) => !isStatedAnywhere(s)) : statements;
-  const verdicts = read.map((s) => listingVerdict(s, country, date));
+  const verdicts = read.map(readListing);
   if (verdicts.some((v) => v.kind === "fits")) return { kind: "fits" };
   const reasons = verdicts.flatMap((v) => (v.kind === "check" ? [v.reason] : []));
   if (reasons.length)
