@@ -22,7 +22,7 @@ Same drizzle-kit flow as the collector, search and tracking (project ADR-0003). 
 ## Verification (better-sqlite3 on Node 22.23, in-memory, `foreign_keys = ON`)
 
 - Applied the live migrations `0000`–`0004`, then ran the staged up twice: idempotent. Down restores the pre-up schema exactly, and up again gives an identical schema.
-- `pragma table_info`: `id INTEGER NN PK, country TEXT, filter_on INTEGER NN, look_country TEXT, look_visit_started_at INTEGER`.
+- `pragma table_info`: `id INTEGER NN PK, country TEXT, filter_on INTEGER NN, look_country TEXT, look_started_at INTEGER`.
 - Inserting a row without `filter_on` fails with `SQLITE_CONSTRAINT_NOTNULL`. The lazy upsert must write `filter_on`.
 - `EXPLAIN QUERY PLAN` for the settings read is the integer primary key.
 
@@ -43,5 +43,7 @@ N/A. The remote-filter module has no domain or infra code yet, so there is nothi
 
 - One deviation from `search_state`: `filter_on` is `NOT NULL`, where `search_state` keeps every column nullable. An unknown on/off state has no meaning (AC-07), and `is_first_fill` is the precedent for a NOT NULL boolean. The lazy upsert writes `true`.
 - No `<!-- TBD -->`.
+
+**Amended during `api` (2026-10-14):** `look_visit_started_at` was renamed `look_started_at` (the time the look was started). The old column needed remote-filter to know the current visit when a look starts, which would make it call search, a module cycle. Re-verified after the rename.
 
 Next stage: `/sdd:api remote-filter`.

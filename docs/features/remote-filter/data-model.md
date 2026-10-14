@@ -34,7 +34,7 @@ erDiagram
         text country
         integer filter_on
         text look_country
-        integer look_visit_started_at
+        integer look_started_at
     }
     search_state {
         integer id PK
@@ -54,7 +54,7 @@ erDiagram
     }
 ```
 
-`remote_filter_settings` has no FK. The other tables are shown only for the read side: `search_state.visit_started_at` is the visit a look is matched against (search passes it in), and the collector tables are where the stated locations are read. They are owned and migrated by search and the collector.
+`remote_filter_settings` has no FK. The other tables are shown only for the read side: `search_state.visit_started_at` is the visit start search passes in when it asks for the active filter, and the collector tables are where the stated locations are read. They are owned and migrated by search and the collector.
 
 ## Entities
 
@@ -68,7 +68,7 @@ erDiagram
 | `country` | text | | The owner's country as an ISO 3166-1 alpha-2 code from the ADR-0003 country list (e.g. `PL`, `XK`). `NULL` means no country chosen yet: no filter and the prompt to choose (AC-04). Written only after the name was found in the list, so a refused name never changes it (AC-05). |
 | `filter_on` | integer (boolean) | NOT NULL | Written `true` when the row is first created. Switched off and on only by the owner (AC-07). Choosing or changing the country sets it `true` (AC-13). Has no effect while `country` is `NULL`. |
 | `look_country` | text | | The one-off look's country, ISO alpha-2. `NULL` means no look. Starting a look never changes `country` or `filter_on` (AC-06). |
-| `look_visit_started_at` | integer | | The `search_state.visit_started_at` value of the visit the look was started in. The look is active only while it equals the current visit start, so a reload keeps it and a new visit (more than 30 min away) ends it with no clean-up job (AC-06). Cleared together with `look_country` on "back". |
+| `look_started_at` | integer | | When the look was started. Search passes its current `search_state.visit_started_at` when it asks for the active filter; the look is active only if `look_started_at` is not before it. A reload stays in the same visit and keeps the look; a new visit (more than 30 min away) starts later and ends it, with no clean-up job (AC-06). Remote-filter never reads search state. Cleared together with `look_country` on "back". |
 
 **Aggregate root:** root (singleton).
 **Access patterns:** read and written by PK only. It is read on every search, waiting poll and settings read (Flows 1–5), and written only by the owner's actions: choose or change the country, switch the filter, start or end a look (Flows 2–4). No secondary index.
@@ -79,7 +79,7 @@ erDiagram
 |---|---|---|
 | A listing's stated location (AC-01 – AC-03) | `collector_listings.location_restriction` | Read as stated; `NULL` = not stated; an exact "Anywhere" / "Anywhere in the World" = Worldwide when it stands alone (AC-10) |
 | Open listings only (AC-03) | `collector_listings.status`, and the enabled-source set from the collector's settings | `status = 'open'` and the source is enabled; read through the collector `app/` exports |
-| The current visit (AC-06) | `search_state.visit_started_at` | Passed in by search; compared with `look_visit_started_at` |
+| The current visit (AC-06) | `search_state.visit_started_at` | Passed in by search; compared with `look_started_at` |
 
 ## Indexes
 

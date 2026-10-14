@@ -100,7 +100,7 @@ Search asks remote-filter for verdicts when it builds a list. The web app's main
 
 **UI architecture (web-frontend):** unchanged from the project. It stays a single-page app (project ADR-0001) with server data through TanStack Query (collector ADR-0002).
 - The owner's country and on/off state are a query plus mutations against remote-filter's routes.
-- The one-off look is kept by remote-filter on the server, tagged with the visit it was started in, so a browser reload keeps it (AC-06). It ends on "back", or by itself once search starts a new visit (search AC-14).
+- The one-off look is kept by remote-filter on the server, tagged with when it was started, so a browser reload within the visit keeps it (AC-06). It ends on "back", or by itself once search starts a new visit (search AC-14).
 - Any change of country, look or on/off runs a new search, and the list reloads from the top (ADR-0002).
 - Visual states belong to `screens.md`. Existing components are reused (Badge for the mark, InlineBanner for the filter state and empty message, Button).
 
@@ -122,7 +122,7 @@ No new UI-architecture choice crosses the gate; this note is inline only.
 
 **Inline decisions (below the ADR gate):**
 - The owner's country (an ISO alpha-2 code) and the on/off state live in one row of a new `remote_filter_settings` table. No country chosen means no filter (AC-04). Choosing or changing a country switches the filter on (AC-13).
-- The one-off look lives in the same row: the look country and the start time of the visit it belongs to. Search passes its current visit start. A look from an earlier visit is ignored, which ends it with no clean-up job. Starting a look never touches the owner's own country or on/off state (AC-06).
+- The one-off look lives in the same row: the look country and when it was started. Search passes its current visit start, and a look started before it (an earlier visit) is ignored, which ends it with no clean-up job. Starting a look never touches the owner's own country or on/off state (AC-06).
 - "Anywhere" (spec AC-10) is one predicate, `isStatedAnywhere()`, in `collector/domain/listing.ts`: an exact "Anywhere" or "Anywhere in the World", any case, after trimming. The Jobicy and We Work Remotely readers keep it as stated instead of turning it into `null`. The merge rule's location-conflict check and the listing's change check treat it as `null`, so a listing going from `null` to "Anywhere" is not an updated posting. Source health's unknown-location count counts only `null`. remote-filter reads the predicate through a collector `app/` re-export.
 - An open listing for the verdict is one with status open from an enabled source (spec AC-03). remote-filter reads the enabled-source set through a new read-only collector export.
 
@@ -183,7 +183,7 @@ apps/web/src/
 **State kept by remote-filter.** One `remote_filter_settings` row:
 - the owner's country: an ISO 3166-1 alpha-2 code, or none until chosen;
 - whether the filter is on;
-- the one-off look country, if any, and the start time of the visit it belongs to.
+- the one-off look country, if any, and when it was started.
 
 Exact columns belong to `data-model`. Nothing goes in browser storage.
 
@@ -508,7 +508,7 @@ sequenceDiagram
 - Flow 7 needs `service · tracking`. The §5 container view leaves tracking out as unchanged; it is the existing tracking module, not a new participant.
 - Flow 6 has no dead-letter. Collection is in-process and runs on the schedule; a failed fetch records a failed outcome and is read again when next due (collector ADR-0003). This is existing collector behaviour, not a new decision.
 - Persist and read hints for `data-model`:
-  - One settings row (country, on/off, look country, look visit start) is read on every search and every waiting poll, and written only by the owner's actions (Flows 2–5).
+  - One settings row (country, on/off, look country, look start time) is read on every search and every waiting poll, and written only by the owner's actions (Flows 2–5).
   - No new collector column. The listing's location restriction now also holds Anywhere statements, and the merge and change checks compare them as nothing stated (Flow 6).
 
 ## 7. Deployment view

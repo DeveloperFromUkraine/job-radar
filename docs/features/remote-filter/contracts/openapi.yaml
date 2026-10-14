@@ -1,0 +1,755 @@
+openapi: 3.1.0
+
+info:
+  title: job-radar Remote-filter API (remote-filter)
+  version: 0.1.0
+  description: |
+    "Remote" rarely means "from anywhere": most postings job-radar collects state a country or
+    region that leaves the owner's country out, and the owner discards them by eye every day
+    (spec §1). This API keeps the owner's country and whether the location filter is on, offers
+    the one country list the chooser and the filter share (ADR-0003), and starts or ends a
+    one-off look at another country. Search uses the same settings to leave out the postings not
+    open to the country, to say how many it hid, and to mark the uncertain ones "check location"
+    (ADR-0002).
+
+    Scope of this document:
+    - **remote-filter** (new): read the settings and the country list, choose the country, switch
+      the filter on or off, start or end a one-off look (ADR-0001).
+    - **search** (changed): `runSearch`, `getNextPage` and `getWaitingCount` restated with their
+      location-aware behaviour. These restatements supersede the matching operations in
+      `docs/features/applied-skipped/contracts/openapi.yaml`, which superseded search-postings'.
+      `openVisit`, `runMarkedView` and `getNextMarkedPage` are unchanged and not repeated here:
+      the marked view never asks for a verdict (AC-11).
+    - **collector**: no HTTP change. An explicit "Anywhere" now arrives in
+      `Listing.location_restriction` as stated instead of null (AC-10).
+
+    Access (collector ADR-0007), unchanged: no accounts, loopback only, loopback `Host` headers only,
+    a state-changing request is refused when `Sec-Fetch-Site` is `cross-site`, and a JSON body is
+    required. No CORS headers are sent, so another site cannot read the settings either. The 403
+    responses are what AC-12 rests on.
+    Errors use the repo's single envelope `{ "error": { "code", "message" } }` (core/errors.ts).
+    Location statements are untrusted plain text, and the web app renders them only as text
+    (search AC-09).
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+
+# No authentication scheme: access is limited by the network boundary (collector ADR-0007), not by credentials.
+security: []
+
+tags:
+  - name: remote-filter
+    description: The owner's country, the filter's on/off state, the one-off look and the country list
+  - name: search
+    description: Main list, aware of marks and of the location filter
+
+paths:
+  /api/v1/remote-filter/settings:
+    get:
+      tags: [remote-filter]
+      summary: Read the owner's country, the filter's on/off state and the country list
+      description: |
+        Read on opening the main screen (sad.md §6 flows 1, 3, 4). Creates the settings row lazily
+        with the filter on and no country (data-model). `country: null` means none chosen yet, so
+        the web shows every posting with the prompt to choose (AC-04). The one-off look is **not**
+        reported here: whether a look is still active depends on the current visit, which search
+        knows, so the list's actual filter comes back in `SearchResult.location_filter`.
+
+        `countries` is the one list the chooser and the filter share (ADR-0003). The web may suggest
+        from it as the owner types, but the server decides what a typed name means.
+      operationId: getRemoteFilterSettings
+      responses:
+        "200":
+          description: The settings and the country list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteFilterSettings" }
+              examples:
+                first_open:
+                  summary: Never chosen a country (AC-04)
+                  value:
+                    country: null
+                    filter_on: true
+                    countries:
+                      - { code: PL, name: Poland, flag: "🇵🇱" }
+                      - { code: PT, name: Portugal, flag: "🇵🇹" }
+                poland_off:
+                  summary: Poland chosen, filter switched off (AC-07)
+                  value:
+                    country: { code: PL, name: Poland, flag: "🇵🇱" }
+                    filter_on: false
+                    countries:
+                      - { code: PL, name: Poland, flag: "🇵🇱" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/remote-filter/country:
+    post:
+      tags: [remote-filter]
+      summary: Choose or change the owner's country
+      description: |
+        Looks the typed name up in the country list: the English name, an alias, or the flag, ignoring
+        case and surrounding spaces (ADR-0003, sad.md §8). On a match it saves the country and
+        switches the filter on, also when it was off (AC-04, AC-13); the web then searches again. A name that
+        matches no country (a typo such as "Polnd", or a region such as "Europe") changes nothing
+        and answers 400 `REMOTE_FILTER_UNKNOWN_COUNTRY` (AC-05). A look in progress is left as it is.
+      operationId: chooseCountry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CountryNameRequest" }
+            examples:
+              poland: { summary: Choose Poland (AC-04), value: { name: Poland } }
+              portugal: { summary: Change to Portugal (AC-13), value: { name: "🇵🇹" } }
+      responses:
+        "200":
+          description: The settings after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteFilterSettings" }
+              example:
+                country: { code: PT, name: Portugal, flag: "🇵🇹" }
+                filter_on: true
+                countries:
+                  - { code: PT, name: Portugal, flag: "🇵🇹" }
+        "400": { $ref: "#/components/responses/UnknownCountry" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/remote-filter/filter:
+    post:
+      tags: [remote-filter]
+      summary: Switch the location filter on or off
+      description: |
+        Saves the on/off state; the country is kept (sad.md §6 flow 4). The state survives restarts
+        and changes only through this call or `chooseCountry` (AC-07). With no country chosen the
+        state is saved but filters nothing. The web then searches again (ADR-0002); during a look,
+        switching does not end the look, and the owner's state returns when the look ends (AC-06).
+      operationId: setFilterOn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FilterOnRequest" }
+            example: { on: false }
+      responses:
+        "200":
+          description: The settings after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RemoteFilterSettings" }
+              example:
+                country: { code: PL, name: Poland, flag: "🇵🇱" }
+                filter_on: false
+                countries:
+                  - { code: PL, name: Poland, flag: "🇵🇱" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/remote-filter/look:
+    post:
+      tags: [remote-filter]
+      summary: Start a one-off look at another country, or end it
+      description: |
+        `name` starts a look: looked up as in `chooseCountry`, saved with the time it started, and
+        the owner's country and on/off state are left untouched (AC-06). The look is active for
+        searches in the current visit only: search passes its visit start and a look started
+        before it is ignored, so a reload keeps the look and a new visit ends it (data-model).
+        `name: null` ends the look ("back to Poland"), and the owner's own state returns. Works with
+        no country chosen; ending it then returns to the unfiltered list with the prompt (AC-06).
+        An unknown name changes nothing and answers 400 (AC-05).
+      operationId: setLook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LookRequest" }
+            examples:
+              start: { summary: Look at Germany (AC-06), value: { name: Germany } }
+              end: { summary: Back to the owner's country, value: { name: null } }
+      responses:
+        "200":
+          description: The look after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LookState" }
+              examples:
+                started: { value: { look: { code: DE, name: Germany, flag: "🇩🇪" } } }
+                ended: { value: { look: null } }
+        "400": { $ref: "#/components/responses/UnknownCountry" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/search/snapshots:
+    post:
+      tags: [search]
+      summary: Run a skills search (or the feed) and return its first 50 shown postings
+      description: |
+        As in applied-skipped (skills checked and saved, every open posting matched, newest first,
+        marks dropped as each page loads). What changes (ADR-0002, sad.md §6 flows 1, 2, 4):
+        - Search asks remote-filter for the **active filter** for its current visit: the look
+          country if a look started in this visit, else the owner's country when the filter is on,
+          else none.
+        - With a filter, each matching posting gets one verdict from its open listings from enabled
+          sources (AC-01 – AC-03). Postings not open to the country are left out of the snapshot and
+          counted in `hidden_count`; the rest keep their order, the uncertain ones with a
+          `location_check` reason (AC-02).
+        - `total` and `new_count` count only shown, unmarked postings (AC-07, AC-09). `marked_count`
+          is unchanged in meaning.
+        - `location_filter` says which filter the list was built with, so the screen always states it
+          (AC-07, US-05).
+
+        The filter's empty-list state (AC-08) is 200 with `total: 0` and `hidden_count > 0`; it wins
+        over "nothing left to review" whenever `hidden_count > 0`. A 503 also covers settings that
+        cannot be read: a list built without them could hide nothing or the wrong things.
+      operationId: runSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            example: { skills: "Go, TypeScript" }
+      responses:
+        "200":
+          description: The snapshot's first page of shown postings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResult" }
+              examples:
+                filtered:
+                  summary: 102 shown, 38 hidden, not open to Poland (AC-07); one check mark (AC-02)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a1
+                    skills: [Go]
+                    total: 102
+                    new_count: 2
+                    marked_count: 0
+                    hidden_count: 38
+                    collection_empty: false
+                    location_filter:
+                      mode: own
+                      country: { code: PL, name: Poland, flag: "🇵🇱" }
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000b5
+                        title: Senior Backend Engineer
+                        company: Example Co
+                        published_at: "2026-10-13T08:00:00Z"
+                        first_seen_at: "2026-10-13T09:10:00Z"
+                        is_new: true
+                        matched_skills:
+                          - { skill: Go, in_title: false }
+                        listings:
+                          - source_id: jobicy
+                            status: open
+                            url: https://jobs.example.test/jobicy/123
+                            location_restriction: Worldwide except Poland
+                        look_alike: null
+                        location_check: exception
+                    has_next: true
+                    next_cursor: "50"
+                all_hidden:
+                  summary: The filter hid all 12 matches (AC-08)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a2
+                    skills: [Haskell]
+                    total: 0
+                    new_count: 0
+                    marked_count: 0
+                    hidden_count: 12
+                    collection_empty: false
+                    location_filter:
+                      mode: own
+                      country: { code: PL, name: Poland, flag: "🇵🇱" }
+                    items: []
+                    has_next: false
+                    next_cursor: null
+                look:
+                  summary: A one-off look at Germany (AC-06)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a3
+                    skills: []
+                    total: 0
+                    new_count: 0
+                    marked_count: 0
+                    hidden_count: 41
+                    collection_empty: false
+                    location_filter:
+                      mode: look
+                      country: { code: DE, name: Germany, flag: "🇩🇪" }
+                    items: []
+                    has_next: false
+                    next_cursor: null
+        "400": { $ref: "#/components/responses/InvalidSkills" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 shown postings of a snapshot
+      description: |
+        As in applied-skipped. The snapshot already holds only postings the filter shows, in order,
+        so paging walks it unchanged; marks are still dropped as each page loads. Each item carries
+        the `location_check` decided when the snapshot was built (ADR-0002: a snapshot's statements
+        are frozen with it).
+      operationId: getNextPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "50" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostingPage" }
+              example:
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000b2
+                    title: Full-stack Developer (Node.js)
+                    company: Example Co
+                    published_at: null
+                    first_seen_at: "2026-10-01T12:00:00Z"
+                    is_new: false
+                    matched_skills:
+                      - { skill: Go, in_title: false }
+                    listings:
+                      - source_id: weworkremotely
+                        status: open
+                        url: https://jobs.example.test/wwr/77
+                        location_restriction: null
+                    look_alike: null
+                    location_check: not_stated
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/waiting:
+    post:
+      tags: [search]
+      summary: How many shown, unmarked matching postings were collected after the snapshot loaded
+      description: |
+        As in applied-skipped, and now also only the postings the snapshot's own filter would show:
+        the same country and mode the snapshot was built with (sad.md §6 flow 5, AC-09). A failed
+        poll (410, 503) is still silent.
+      operationId: getWaitingCount
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+            example: {}
+      responses:
+        "200":
+          description: Waiting count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingCount" }
+              example: { waiting_count: 2 }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+components:
+  parameters:
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: The id the snapshot's first call returned (UUIDv7, in memory only)
+
+  responses:
+    ValidationError:
+      description: The body or a path parameter does not match the schema
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: VALIDATION_ERROR, message: "body/on must be boolean" }
+    UnknownCountry:
+      description: |
+        The name matches no country in the list (AC-05): a typo, a region, or a two-letter code that
+        is not on the short-code list. Nothing was saved; the list and the saved country stay as they
+        were. A body that does not match the schema gets `VALIDATION_ERROR`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: REMOTE_FILTER_UNKNOWN_COUNTRY, message: "No country matches that name." }
+    InvalidSkills:
+      description: The skills fail the check (search AC-05), so nothing ran
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_INVALID_SKILLS, message: "24 skills entered; search takes at most 20." }
+    Forbidden:
+      description: The Host header is not loopback, or the request is cross-site (collector ADR-0007, AC-12)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            host:
+              value:
+                error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+            cross_site:
+              value:
+                error: { code: CROSS_SITE_REQUEST, message: "Cross-site requests are not accepted." }
+    UnsupportedMediaType:
+      description: The request has no JSON body (collector ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
+    SnapshotExpired:
+      description: Unknown or expired snapshot (search ADR-0003); the web reloads the list from the start
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_SNAPSHOT_EXPIRED, message: "This list has expired; it was reloaded from the newest." }
+    CollectionUnavailable:
+      description: |
+        The postings, the marks or the location settings cannot be read (search AC-12). The web shows a
+        plain-language message with Retry and keeps the last list visible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_COLLECTION_UNAVAILABLE, message: "Job-radar could not read its postings just now. Try again." }
+    Internal:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: INTERNAL, message: "Internal server error" }
+
+  schemas:
+    # Repo envelope (apps/server/src/core/errors.ts) — deviation from the flat {code, message, details?} default.
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Z][A-Z0-9_]*$"
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (REMOTE_FILTER_..., SEARCH_...)
+            message:
+              type: string
+
+    EmptyRequest:
+      type: object
+      additionalProperties: false
+      description: No fields. The JSON body is required by the access guard (collector ADR-0007)
+
+    CountryCode:
+      type: string
+      pattern: "^[A-Z]{2}$"
+      description: ISO 3166-1 alpha-2 code from the ADR-0003 country list (XK for Kosovo); remote_filter_settings.country / .look_country
+
+    Country:
+      type: object
+      required: [code, name, flag]
+      additionalProperties: false
+      description: One entry of the country list (ADR-0003)
+      properties:
+        code: { $ref: "#/components/schemas/CountryCode" }
+        name:
+          type: string
+          description: English name from Intl.DisplayNames, or the list's preferred alias where Intl's is unusual (e.g. "Hong Kong")
+        flag:
+          type: string
+          description: The flag emoji derived from the code
+
+    RemoteFilterSettings:
+      type: object
+      required: [country, filter_on, countries]
+      additionalProperties: false
+      properties:
+        country:
+          oneOf:
+            - $ref: "#/components/schemas/Country"
+            - type: "null"
+          description: remote_filter_settings.country; null = not chosen yet (AC-04)
+        filter_on:
+          type: boolean
+          description: remote_filter_settings.filter_on (AC-07)
+        countries:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Country" }
+          description: The whole country list, ordered by name
+
+    CountryName:
+      type: string
+      minLength: 1
+      maxLength: 100
+      description: A country as the owner typed it — name, alias or flag; matched ignoring case and surrounding spaces
+
+    CountryNameRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name: { $ref: "#/components/schemas/CountryName" }
+
+    FilterOnRequest:
+      type: object
+      required: [on]
+      additionalProperties: false
+      properties:
+        on:
+          type: boolean
+          description: The new remote_filter_settings.filter_on
+
+    LookRequest:
+      type: object
+      required: [name]
+      additionalProperties: false
+      properties:
+        name:
+          oneOf:
+            - $ref: "#/components/schemas/CountryName"
+            - type: "null"
+          description: The country to look at; null ends the look
+
+    LookState:
+      type: object
+      required: [look]
+      additionalProperties: false
+      properties:
+        look:
+          oneOf:
+            - $ref: "#/components/schemas/Country"
+            - type: "null"
+          description: remote_filter_settings.look_country after the change; null = no look
+
+    LocationFilter:
+      type: object
+      required: [mode, country]
+      additionalProperties: false
+      description: The filter a list was built with (search asks remote-filter for the active filter of its visit)
+      properties:
+        mode:
+          type: string
+          enum: [none, own, look, off]
+          description: |
+            none — no country chosen and no look: every posting, with the prompt to choose (AC-04).
+            own — filtered for the owner's country. look — filtered for a one-off country (AC-06).
+            off — the owner switched the filter off: every posting, no check marks (AC-07).
+        country:
+          oneOf:
+            - $ref: "#/components/schemas/Country"
+            - type: "null"
+          description: The country the list was filtered for (own or look); the owner's country when off; null when none
+
+    LocationCheck:
+      type: string
+      enum: [exception, hours_only, not_recognised, not_stated]
+      description: |
+        Why a shown posting carries "check location" (AC-02), one reason in this priority:
+        mentions an exception > only working hours fit > location not recognised > location not stated.
+
+    SearchRequest:
+      type: object
+      required: [skills]
+      additionalProperties: false
+      properties:
+        skills:
+          type: string
+          description: The skills field exactly as typed, comma-separated (search AC-05). Empty = no skills.
+
+    PageRequest:
+      type: object
+      required: [cursor]
+      additionalProperties: false
+      properties:
+        cursor: { $ref: "#/components/schemas/Cursor" }
+
+    Cursor:
+      type: string
+      pattern: "^[0-9]{1,6}$"
+      description: Opaque to the web; the snapshot position after the last id read, from the previous page's `next_cursor`
+
+    Skill:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: One skill as the owner spelled it, trimmed (search AC-05)
+
+    MatchedSkill:
+      type: object
+      required: [skill, in_title]
+      additionalProperties: false
+      properties:
+        skill: { $ref: "#/components/schemas/Skill" }
+        in_title:
+          type: boolean
+          description: True when a matched open listing's title has it
+
+    Listing:
+      type: object
+      required: [source_id, status, url, location_restriction]
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          pattern: "^[a-z0-9_]+$"
+          description: collector_listings.source_id
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_listings.status
+        url:
+          type: [string, "null"]
+          format: uri
+          description: collector_listings.url, only when the listing is open and the URL is http(s) (search AC-08, AC-09)
+        location_restriction:
+          type: [string, "null"]
+          description: collector_listings.location_restriction exactly as the source stated it, an explicit "Anywhere" included (AC-10); null = not stated
+
+    LookAlike:
+      type: object
+      required: [mark, marked_at, company]
+      additionalProperties: false
+      description: Unchanged from applied-skipped; computed only for shown postings, so a hidden look-alike carries none (AC-11)
+      properties:
+        mark:
+          type: string
+          enum: [applied, skipped]
+        marked_at:
+          type: string
+          format: date-time
+        company:
+          type: string
+
+    Posting:
+      type: object
+      required: [id, title, company, published_at, first_seen_at, is_new, matched_skills, listings, look_alike, location_check]
+      additionalProperties: false
+      description: A main-list posting, always unmarked and shown by the filter; applied-skipped's Posting plus `location_check`
+      properties:
+        id: { type: string, format: uuid, description: collector_postings.id }
+        title: { type: string, description: collector_postings.title; plain text }
+        company: { type: string, description: collector_postings.company; plain text }
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: Effective publication time (search AC-03)
+        first_seen_at:
+          type: string
+          format: date-time
+          description: collector_postings.first_found_at
+        is_new:
+          type: boolean
+          description: first_found_at later than the previous visit's start (search AC-14); a hidden posting shown after switching off is new too (AC-09)
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+          description: Every listing with its location as stated, so the mark's reason can be checked against each (AC-02)
+        look_alike:
+          oneOf:
+            - $ref: "#/components/schemas/LookAlike"
+            - type: "null"
+        location_check:
+          oneOf:
+            - $ref: "#/components/schemas/LocationCheck"
+            - type: "null"
+          description: The "check location" reason, or null when the posting fits or the list has no filter (mode none or off)
+
+    PostingPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Posting" }
+          description: Shown, unmarked postings in snapshot order
+        has_next:
+          type: boolean
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+
+    SearchResult:
+      type: object
+      required: [snapshot_id, skills, total, new_count, marked_count, hidden_count, collection_empty, location_filter, items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        snapshot_id: { type: string, format: uuid }
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+        total:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings — "102 postings" (AC-07)
+        new_count:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings that are new (AC-09)
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Matching open postings that are marked (applied-skipped AC-13), whatever their location
+        hidden_count:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings not open to the filter's country — "38 hidden, not open to Poland" (AC-07, AC-08); 0 with mode none or off
+        collection_empty:
+          type: boolean
+          description: No open posting at all (search AC-11)
+        location_filter: { $ref: "#/components/schemas/LocationFilter" }
+        items: { $ref: "#/components/schemas/PostingPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/PostingPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/PostingPage/properties/next_cursor" }
+
+    WaitingCount:
+      type: object
+      required: [waiting_count]
+      additionalProperties: false
+      properties:
+        waiting_count:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings first collected after the snapshot loaded, under the snapshot's filter (AC-09)
