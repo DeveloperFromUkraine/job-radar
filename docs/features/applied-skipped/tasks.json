@@ -545,6 +545,23 @@
         "apps/web/src/routes/Home.marks.test.tsx"
       ],
       "file": "docs/features/applied-skipped/_review/review-2026-10-14-r2.md"
+    },
+    {
+      "id": "T26",
+      "title": "Re-review 3 fix R20: save-error banners also clear when a new marked list arrives",
+      "layer": "ui",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-14"
+      ],
+      "dod": "Home.marked test pins it (fails without the fix): a change fails (503), a search with the switch on reloads the view, no alert remains",
+      "files_hint": [
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/routes/Home.marked.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-14-r3.md"
     }
   ]
 }
