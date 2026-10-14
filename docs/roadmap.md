@@ -24,7 +24,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | shipped |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
 | 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
-| 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | spec'd |
+| 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | shipped |
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
@@ -102,3 +102,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 1 · Project skeleton | 2026-09-29 | commit `5a7f2b4` (no PR) |
 | 2 · Remote-boards collector | 2026-10-03 | branch `feature/remote-boards-collector` (no remote yet), [changelog](features/remote-boards-collector/changelog.md) |
 | 3 · Search on request | 2026-10-07 | [PR #2](https://github.com/DeveloperFromUkraine/job-radar/pull/2), [changelog](features/search-postings/changelog.md) |
+| 6 · Applied / skipped marks | 2026-10-14 | branch `feature/applied-skipped` (PR pending), [changelog](features/applied-skipped/changelog.md) |
