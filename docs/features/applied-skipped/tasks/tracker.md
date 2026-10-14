@@ -27,5 +27,7 @@
 | T20 | Review fixes R2 + R5 + R6: each mark handles its own answer; no Undo for a null change_id; reset on a new list | ui | Volodymyr Kozlov | S | T16 | done |
 | T21 | Review fixes R3 + R4 + R10: nothing-left counts marks only; Undo waits while saving; focus follows mark and Undo | ui | Volodymyr Kozlov | S | T20 | done |
 | T22 | Review fixes R1 (web) + R7 + R8: Cleared with no date; missing web tests; contract-required fields required | ui | Volodymyr Kozlov | S | T21 | done |
+| T23 | Re-review fix R13: main-list marks reset only on a new main snapshot; the switch never brings marked cards back | ui | Volodymyr Kozlov | S | T22 | todo |
+| T24 | Re-review fixes R15 + R14: notice focus only when focus was lost; gone notice focusable; screens.md dateless Cleared | ui | Volodymyr Kozlov | S | T23 | todo |
 
-**Total:** 22 tasks (T19–T22 from review 2026-10-08), ~8.25 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 24 tasks (T19–T22 from review 2026-10-08, T23–T24 from re-review 2026-10-14), ~8.75 person-days (S ≈ ¼ day, M ≈ ½ day).

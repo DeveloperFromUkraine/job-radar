@@ -480,6 +480,47 @@
         "apps/web/src/api/search.ts"
       ],
       "file": "docs/features/applied-skipped/_review/review-2026-10-08.md"
+    },
+    {
+      "id": "T23",
+      "title": "Re-review fix R13: main-list marks reset only when a new main snapshot arrives, so the switch never brings marked cards back",
+      "layer": "ui",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "Home test pins it (fails without the fix): mark a card, switch on, switch off with the main search failing; the card stays out and the counts stay down",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/routes/Home.marks.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-14.md"
+    },
+    {
+      "id": "T24",
+      "title": "Re-review fixes R15 + R14: a notice takes focus only when focus was lost, the gone notice focuses itself; screens.md lists the dateless Cleared card",
+      "layer": "ui",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-05",
+        "AC-07"
+      ],
+      "dod": "UndoNotice tests pin both (fail without the fix): focus stays in a field the owner moved to; the gone notice takes focus when focus was on body; screens.md cleared-card and marked-variant rows include Cleared with no date",
+      "files_hint": [
+        "apps/web/src/features/tracking/UndoNotice.tsx",
+        "apps/web/src/features/tracking/UndoNotice.test.tsx",
+        "docs/features/applied-skipped/screens.md"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-14.md"
     }
   ]
 }
