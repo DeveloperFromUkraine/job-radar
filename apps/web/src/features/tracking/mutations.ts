@@ -17,8 +17,8 @@ export type Notice =
 
 const isGone = (err: unknown) => err instanceof ApiError && err.code === "TRACKING_POSTING_NOT_FOUND";
 
-/** `listKey`: the snapshot on screen. Cards carry their own states, so this window's states reset only
- * when a new list arrives — never while a kept list is still on screen (AC-12). */
+/** `listKey`: the main list's snapshot. Cards carry their own states, so this window's states reset
+ * only when a new main list arrives — never while a kept list is still on screen (AC-12). */
 export function useMarks(listKey: string | undefined) {
   const [states, setStates] = useState<ReadonlyMap<string, MarkState>>(new Map());
   /** Removed by clean-up since the list loaded (AC-15): the card leaves. */

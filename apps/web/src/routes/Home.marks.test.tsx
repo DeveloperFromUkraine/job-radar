@@ -195,6 +195,23 @@ describe("SCR-01 marking and Undo", () => {
     );
   });
 
+  it("turning the switch off with a failing main search keeps cards marked in this window out (AC-12, AC-13)", async () => {
+    await open({
+      [SEARCH]: [{ body: found() }, unavailable],
+      [MARK(A)]: state(A, "applied", "c1"),
+      "POST /api/v1/search/marked-snapshots": { body: contractExample("runMarkedView", 200) },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    await waitFor(() => expect(titles()).toEqual(["Role B", "Role C"]));
+    const toggle = () => screen.getByRole("switch", { name: "Show marked postings" });
+    fireEvent.click(toggle());
+    expect(await screen.findByText(/marked and \d+ cleared/)).toBeTruthy();
+    fireEvent.click(toggle());
+    expect(await screen.findByText("Couldn't load postings.")).toBeTruthy();
+    expect(titles()).toEqual(["Role B", "Role C"]);
+    expect(screen.getByText("129 postings · 2 new")).toBeTruthy();
+  });
+
   it("turning the switch on closes the notice (AC-03)", async () => {
     await open({
       [MARK(A)]: state(A, "applied", "c1"),
