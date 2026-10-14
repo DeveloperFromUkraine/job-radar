@@ -102,4 +102,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 1 · Project skeleton | 2026-09-29 | commit `5a7f2b4` (no PR) |
 | 2 · Remote-boards collector | 2026-10-03 | branch `feature/remote-boards-collector` (no remote yet), [changelog](features/remote-boards-collector/changelog.md) |
 | 3 · Search on request | 2026-10-07 | [PR #2](https://github.com/DeveloperFromUkraine/job-radar/pull/2), [changelog](features/search-postings/changelog.md) |
-| 6 · Applied / skipped marks | 2026-10-14 | branch `feature/applied-skipped` (PR pending), [changelog](features/applied-skipped/changelog.md) |
+| 6 · Applied / skipped marks | 2026-10-14 | [PR #3](https://github.com/DeveloperFromUkraine/job-radar/pull/3) (stacked on #2), [changelog](features/applied-skipped/changelog.md) |
