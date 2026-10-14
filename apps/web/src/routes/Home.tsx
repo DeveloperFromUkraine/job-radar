@@ -70,12 +70,9 @@ export function Home() {
   const result = pages?.[0] as SearchResult | undefined;
   const markedPages = marked.data?.pages as (MarkedResult | MarkedPage)[] | undefined;
   const markedResult = markedPages?.[0] as MarkedResult | undefined;
-  // Marks in this window last until a new main snapshot arrives (AC-12). Keyed on the main list only:
-  // the marked view coming and going must not reset them while the kept main list is on screen.
-  // ponytail: the marked view prefers this window's states over its snapshot's, so a mark another
-  // window changed after ours shows our older state until the next main search; a confirmedAt
-  // per state compared with the snapshot time would fix it if that ever matters.
-  const marks = useMarks(result?.snapshot_id);
+  // Main-list marks last until a new main snapshot arrives (AC-12): the marked view coming and going
+  // never resets them. The marked view's own states reset with each marked snapshot (AC-04).
+  const marks = useMarks(result?.snapshot_id, markedResult?.snapshot_id);
 
   const waiting = useWaitingCount(result?.snapshot_id); // errors stay silent (contract)
 

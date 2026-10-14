@@ -29,6 +29,6 @@
 | T22 | Review fixes R1 (web) + R7 + R8: Cleared with no date; missing web tests; contract-required fields required | ui | Volodymyr Kozlov | S | T21 | done |
 | T23 | Re-review fix R13: main-list marks reset only on a new main snapshot; the switch never brings marked cards back | ui | Volodymyr Kozlov | S | T22 | done |
 | T24 | Re-review fixes R15 + R14: notice focus only when focus was lost; gone notice focusable; screens.md dateless Cleared | ui | Volodymyr Kozlov | S | T23 | done |
-| T25 | Re-review 2 fixes R16 + R17: the marked view reads its own states per marked snapshot; focus test from a focused button | ui | Volodymyr Kozlov | S | T24 | todo |
+| T25 | Re-review 2 fixes R16 + R17: the marked view reads its own states per marked snapshot; focus test from a focused button | ui | Volodymyr Kozlov | S | T24 | done |
 
 **Total:** 25 tasks (T19–T22 from review 2026-10-08, T23–T25 from re-reviews 2026-10-14), ~9 person-days (S ≈ ¼ day, M ≈ ½ day).

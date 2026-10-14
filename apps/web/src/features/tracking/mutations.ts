@@ -17,10 +17,13 @@ export type Notice =
 
 const isGone = (err: unknown) => err instanceof ApiError && err.code === "TRACKING_POSTING_NOT_FOUND";
 
-/** `listKey`: the main list's snapshot. Cards carry their own states, so this window's states reset
- * only when a new main list arrives — never while a kept list is still on screen (AC-12). */
-export function useMarks(listKey: string | undefined) {
+/** Cards carry their own states, so this window's confirmed states only cover changes since a list
+ * loaded. `listKey`, the main list's snapshot: `states` (hiding and counts) reset only when a new main
+ * list arrives, never while a kept list is still on screen (AC-12). `viewKey`, the marked view's
+ * snapshot: `viewStates` reset with each new one, so the view shows the server's current mark (AC-04). */
+export function useMarks(listKey: string | undefined, viewKey: string | undefined) {
   const [states, setStates] = useState<ReadonlyMap<string, MarkState>>(new Map());
+  const [viewStates, setViewStates] = useState<ReadonlyMap<string, MarkState>>(new Map());
   /** Removed by clean-up since the list loaded (AC-15): the card leaves. */
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -35,7 +38,10 @@ export function useMarks(listKey: string | undefined) {
       else next.delete(postingId);
       return next;
     });
-  const confirm = (state: MarkState) => setStates((m) => new Map(m).set(state.posting_id, state));
+  const confirm = (state: MarkState) => {
+    setStates((m) => new Map(m).set(state.posting_id, state));
+    setViewStates((m) => new Map(m).set(state.posting_id, state));
+  };
   /** After Undo, focus goes back to the restored card (PostingCard's id). */
   const [focusCard, setFocusCard] = useState<string | null>(null);
   useEffect(() => {
@@ -50,6 +56,11 @@ export function useMarks(listKey: string | undefined) {
     setGone(new Set());
     setFailed(new Map());
     setPending(new Map());
+  }
+  const [shownViewKey, setShownViewKey] = useState(viewKey);
+  if (shownViewKey !== viewKey) {
+    setShownViewKey(viewKey);
+    setViewStates(new Map());
   }
   const undoing = useMutation({
     mutationFn: ({ postingId, changeId }: { postingId: string; changeId: string }) =>
@@ -116,6 +127,7 @@ export function useMarks(listKey: string | undefined) {
 
   return {
     states,
+    viewStates,
     gone,
     /** Main list: left out once removed, or marked in this window (AC-01, AC-12). */
     hiddenFromMain: (postingId: string) =>

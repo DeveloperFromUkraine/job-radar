@@ -51,7 +51,7 @@ export function MarkedList({
         {postings
           .filter((p) => !marks.gone.has(p.id))
           .map((p) => {
-            const state = marks.states.get(p.id) ?? p.mark_state;
+            const state = marks.viewStates.get(p.id) ?? p.mark_state;
             const failure = marks.failed.get(p.id);
             const choose = (choice: Choice) => {
               // AC-07: losing applied on a posting past the 60-day rule asks first.

@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
-import type { MarkState, Posting, SearchResult, Visit } from "../api/search";
+import type { MarkedPosting, MarkedResult, MarkState, Posting, SearchResult, Visit } from "../api/search";
 import { contractExample } from "../test/contract";
 import { mockApi, renderWithProviders } from "../test/render";
 
@@ -129,6 +129,32 @@ describe("SCR-01 marking and Undo", () => {
     expect(titles()).toEqual(["Role B", "Role C"]);
   });
 
+  it("undo refused, then Show marked postings shows the current mark from the server, not this window's (AC-04)", async () => {
+    const view = contractExample<MarkedResult>("runMarkedView", 200);
+    const item = view.items[0] as MarkedPosting;
+    const now = {
+      ...item.mark_state,
+      posting_id: A,
+      mark: "skipped" as const,
+      marked_at: "2026-10-07T09:15:00Z",
+    };
+    await open({
+      [MARK(A)]: state(A, "applied", "c1"),
+      [UNDO(A)]: refused,
+      "POST /api/v1/search/marked-snapshots": {
+        body: { ...view, items: [{ ...item, id: A, title: "Role A", mark_state: now }] },
+      },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    fireEvent.click(
+      await within(await screen.findByTestId("undo-notice")).findByRole("button", { name: "Undo" }),
+    );
+    await screen.findByText(/This mark was changed elsewhere/); // the refused notice replaces the marked one
+    fireEvent.click(within(notice() as HTMLElement).getByRole("button", { name: "Show marked postings" }));
+    const card = await screen.findByRole("article");
+    expect(await within(card).findByText("Skipped on 7 Oct")).toBeTruthy();
+  });
+
   it("the notice closes after 8 s, and Undo is gone with it (spec §6 Undo window)", async () => {
     await open({ [MARK(A)]: state(A, "applied", "c1") });
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -183,7 +209,9 @@ describe("SCR-01 marking and Undo", () => {
 
   it("focus follows the card: onto Undo after a mark, back onto the restored card after Undo", async () => {
     await open({ [MARK(A)]: state(A, "applied", "c1"), [UNDO(A)]: state(A, null, "c2") });
-    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    const markA = screen.getByRole("button", { name: "Mark Role A applied" });
+    markA.focus(); // a keyboard user: focus is on the card button that is about to leave
+    fireEvent.click(markA);
     const undo = await within(await screen.findByTestId("undo-notice")).findByRole("button", {
       name: "Undo",
     });
