@@ -35,13 +35,17 @@ export function UndoNotice({ notice, onUndo, onClose, onShowMarked, undoPending 
     const timer = setTimeout(() => close.current(), UNDO_MS);
     return () => clearTimeout(timer);
   }, [timed]);
-  // Each notice is a new element (its key): focus moves to its action, since the card the owner
-  // acted on has just left the list or changed its buttons.
+  // Each notice is a new element (its key). When the card the owner acted on left the list or changed
+  // its buttons, focus fell to <body>: it moves to the notice's action, or to the notice itself when
+  // it has none (gone). A slow answer never pulls focus from where the owner has moved on to.
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => box.current?.querySelector("button")?.focus(), []);
+  useEffect(() => {
+    const lost = document.activeElement === null || document.activeElement === document.body;
+    if (lost) (box.current?.querySelector("button") ?? box.current)?.focus();
+  }, []);
 
   return (
-    <div ref={box} data-testid="undo-notice" className="sticky bottom-0 py-2">
+    <div ref={box} tabIndex={-1} data-testid="undo-notice" className="sticky bottom-0 py-2 outline-none">
       {notice.kind === "marked" && notice.error !== undefined && (
         // A failed Undo: the notice keeps its place and offers Retry (AC-14).
         <InlineBanner tone="error" title="Couldn't undo your mark." onRetry={onUndo}>

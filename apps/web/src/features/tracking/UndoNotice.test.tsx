@@ -37,4 +37,17 @@ describe("UndoNotice (spec §6 Undo window)", () => {
     render(<UndoNotice notice={notice} onUndo={() => {}} onClose={() => {}} />);
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Undo" }));
   });
+
+  it("leaves focus where the owner moved it when a slow answer opens the notice", () => {
+    render(<input aria-label="Your skills" />);
+    const field = screen.getByLabelText("Your skills");
+    field.focus();
+    render(<UndoNotice notice={notice} onUndo={() => {}} onClose={() => {}} />);
+    expect(document.activeElement).toBe(field);
+  });
+
+  it("the gone notice, with no button, takes focus itself when the card's focus was lost", () => {
+    render(<UndoNotice notice={{ kind: "gone" }} onUndo={() => {}} onClose={() => {}} />);
+    expect(document.activeElement).toBe(screen.getByTestId("undo-notice"));
+  });
 });

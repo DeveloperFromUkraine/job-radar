@@ -58,7 +58,7 @@ Component tree: App shell › ProblemMarker (when flagged) › SkillsField › M
 | loading | The owner turns the switch on, or searches with it on. `runMarkedView` is in flight | NEW: MarkedToggle (on), SkeletonRow ×3 | as search 01-b |
 | default | `runMarkedView` 200 (AC-05). The summary reads "12 marked and 1 cleared"; "and N cleared" only when `cleared_count > 0`. Cards are most recently marked first. Each card shows a mark Badge ("Applied" / "Skipped") with "on 3 Oct" from `mark_state.marked_at`, and MarkActions offering a change of mark plus Clear | MarkedToggle (on), PostingCard (marked variant, extended) ×≤50, MarkActions (marked), Badge (tone `notice` for Applied, `disabled` for Skipped) | wireframe 01-e |
 | closed card | `status: closed` (AC-05). Badge "Closed" (tone `disabled`). Every source is named, with a link only for a listing still open (contract `Listing.url`) | PostingCard (marked), Badge | wireframe 01-e |
-| cleared card | `mark_state.mark: null` on a closed posting (AC-05, AC-07). Badge "Cleared" with the line "Removed after 8 Oct" from `removed_after`, and the actions Applied / Skipped (no Clear) | PostingCard (marked), Badge (tone `disabled`), MarkActions | wireframe 01-e |
+| cleared card | `mark_state.mark: null` on a closed posting (AC-05, AC-07). Badge "Cleared" with the line "Removed after 8 Oct" from `removed_after`, or just "Cleared" when `removed_after` is null (every source of the posting disabled, so its age is frozen and there is no removal date; re-review 2026-10-14 R14), and the actions Applied / Skipped (no Clear) | PostingCard (marked), Badge (tone `disabled`), MarkActions | wireframe 01-e |
 | at-risk confirm | The owner presses Clear or Skipped on an applied card with `mark_state.at_risk: true` (AC-07, flow 4 `opt`). Before any call, the card's actions turn into the warning "Without the applied mark, this posting will be removed at clean-up." and two buttons, Continue and Cancel. Cancel restores the actions with nothing sent; Continue sends `setMark` | MarkActions (confirm) | wireframe 01-f |
 | changing | `setMark` in flight | MarkActions (pending) | — |
 | changed | `setMark` 200 with a mark (AC-06). The card stays in place with the new Badge and date, and the notice "Marked skipped" / "Marked applied" with Undo shows | PostingCard (marked), InlineBanner (info, action "Undo") | as 01-b |
@@ -92,7 +92,7 @@ A labelled switch, "Show marked postings", placed under SkillsField: a native `<
 | Part | Rule | Source |
 |---|---|---|
 | Look-alike line | Main list only, when `look_alike` is set. `text-sm text-text-muted`, plain text: "You applied to a similar posting at <company> on <d Mon>" / "You skipped …" | AC-10, AC-11 |
-| Marked variant | Marked view: there is no New badge. The title row carries the mark Badge and, when closed, "Closed". The mark line reads "Applied on 3 Oct" / "Skipped on 1 Oct" / "Cleared · removed after 8 Oct" / "Not marked" | AC-05, AC-06, AC-07 |
+| Marked variant | Marked view: there is no New badge. The title row carries the mark Badge and, when closed, "Closed". The mark line reads "Applied on 3 Oct" / "Skipped on 1 Oct" / "Cleared · removed after 8 Oct" / "Cleared" (no date while the age is frozen) / "Not marked" | AC-05, AC-06, AC-07 |
 | Actions slot | MarkActions at the bottom of the card, full card width on phones | design-system touch & reach, spec §6 Phone layout |
 
 The 360 px layout has no horizontal scroll. Long titles and company names wrap, as in search-postings (spec §6 Phone layout).
