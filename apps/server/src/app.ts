@@ -7,6 +7,7 @@ import { openDb } from "./core/db.js";
 import { registerErrorHandling } from "./core/errors.js";
 import { type CollectorModuleOptions, collectorModule } from "./modules/collector/index.js";
 import { healthModule } from "./modules/health/index.js";
+import { createRemoteFilter } from "./modules/remote-filter/index.js";
 import { searchModule } from "./modules/search/index.js";
 import { createTracking } from "./modules/tracking/index.js";
 
@@ -45,6 +46,8 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       collectorModule({ ...options.collector, handle, protectedPostings: tracking.protectedPostings }),
     );
     await app.register(tracking.plugin);
+    const remoteFilter = createRemoteFilter({ db: handle.db, now: options.collector.now ?? Date.now });
+    await app.register(remoteFilter.plugin);
     await app.register(searchModule({ db: handle.db, now: options.collector.now }));
   }
   if (spa) await app.register(fastifyStatic, { root: spa, wildcard: false });
