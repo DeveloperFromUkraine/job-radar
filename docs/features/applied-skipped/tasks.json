@@ -381,6 +381,105 @@
         "docs/roadmap.md"
       ],
       "file": "docs/features/applied-skipped/tasks/t18-glossary-and-roadmap.md"
+    },
+    {
+      "id": "T19",
+      "title": "Review fix R1 (server) + R7 part: removed_after is the last day the posting stays; a cleared open posting is back in the main list",
+      "layer": "app",
+      "deps": [
+        "T7",
+        "T11"
+      ],
+      "acs": [
+        "AC-05",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "tracking-marks pins the retention date as the day before ownerDay(removableFrom), and never before today (fails without the fix); search-marks pins that clearing an old open posting puts it back in total and items with is_new false; the openapi removed_after text says it is null while the age is frozen",
+      "files_hint": [
+        "apps/server/src/modules/tracking/app/mark-state.ts",
+        "apps/server/test/tracking-marks.integration.test.ts",
+        "apps/server/test/search-marks.integration.test.ts",
+        "docs/features/applied-skipped/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-08.md"
+    },
+    {
+      "id": "T20",
+      "title": "Review fixes R2 + R5 + R6: every mark call handles its own answer, a null change_id offers no Undo, and marks reset only when a new list arrives",
+      "layer": "ui",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-12",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "Home tests pin all three (fail without the fix): two cards marked back to back both leave and both counts drop; a clear that returns change_id null shows no Undo; after a new search fails, cards marked in this window stay hidden",
+      "files_hint": [
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/MarkedList.tsx",
+        "apps/web/src/routes/Home.marks.test.tsx",
+        "apps/web/src/routes/Home.marked.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-08.md"
+    },
+    {
+      "id": "T21",
+      "title": "Review fixes R3 + R4 + R10: the nothing-left count counts marks only, Undo is disabled and the timer waits while it saves, and focus follows the mark and the Undo",
+      "layer": "ui",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-13",
+        "AC-15"
+      ],
+      "dod": "tests pin each (fail without the fix): a card that left as gone is not counted as marked; while an undo is in flight Undo is disabled and the notice outlives 8 s; after a mark focus is on Undo, and after Undo it is on the restored card",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/tracking/UndoNotice.tsx",
+        "apps/web/src/components/InlineBanner.tsx",
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/features/tracking/UndoNotice.test.tsx",
+        "apps/web/src/routes/Home.marks.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-08.md"
+    },
+    {
+      "id": "T22",
+      "title": "Review fixes R1 (web) + R7 + R8: a cleared closed card with no date says Cleared, the missing web tests, and contract-required fields required",
+      "layer": "ui",
+      "deps": [
+        "T21"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-10",
+        "AC-12",
+        "AC-13",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "PostingCard pins Cleared with no date; Home.marked tests cover a 503 (badge kept, Retry) and a 404 (card leaves, gone notice) on change/clear, and the cleared-open card; Home.marks tests cover the notice closing on the switch and no runSearch/getNextPage after a mark or undo; look_alike and marked_count are required in api/search.ts with fixtures updated",
+      "files_hint": [
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/features/search/PostingCard.test.tsx",
+        "apps/web/src/routes/Home.marked.test.tsx",
+        "apps/web/src/routes/Home.marks.test.tsx",
+        "apps/web/src/api/search.ts"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-08.md"
     }
   ]
 }
