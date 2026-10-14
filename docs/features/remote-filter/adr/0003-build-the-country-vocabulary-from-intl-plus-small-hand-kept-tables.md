@@ -21,7 +21,7 @@ The filter has to recognise a country by name, common short name or flag ("USA",
 
 - Spec §6 Seasonal stability: the same verdict on a winter date and a summer date. Offsets must follow real daylight-saving rules.
 - Spec §6 Verdict correctness: every distinct statement in the 2026-10-14 collection must give its expected verdict. These include WWR's ISO official names ("Moldova (Republic of)", "United Kingdom of Great Britain and Northern Ireland") and Jobicy's short codes ("USA", "UK").
-- `CLAUDE.md`: no new dependency for what the platform already does.
+- Fewer moving parts: every dependency is one more thing to keep current on a one-person project.
 - One list feeds both the chooser (web) and the filter (server).
 
 ## Considered options

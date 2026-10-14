@@ -100,7 +100,7 @@ Search asks remote-filter for verdicts when it builds a list. The web app's main
 
 **UI architecture (web-frontend):** unchanged from the project. It stays a single-page app (project ADR-0001) with server data through TanStack Query (collector ADR-0002).
 - The owner's country and on/off state are a query plus mutations against remote-filter's routes.
-- The one-off look is client state on SCR-01. Its country goes with each search request, and it ends on "back" or a new visit (search AC-14).
+- The one-off look is kept by remote-filter on the server, tagged with the visit it was started in, so a browser reload keeps it (AC-06). It ends on "back", or by itself once search starts a new visit (search AC-14).
 - Any change of country, look or on/off runs a new search, and the list reloads from the top (ADR-0002).
 - Visual states belong to `screens.md`. Existing components are reused (Badge for the mark, InlineBanner for the filter state and empty message, Button).
 
@@ -122,6 +122,7 @@ No new UI-architecture choice crosses the gate; this note is inline only.
 
 **Inline decisions (below the ADR gate):**
 - The owner's country (an ISO alpha-2 code) and the on/off state live in one row of a new `remote_filter_settings` table. No country chosen means no filter (AC-04). Choosing or changing a country switches the filter on (AC-13).
+- The one-off look lives in the same row: the look country and the start time of the visit it belongs to. Search passes its current visit start. A look from an earlier visit is ignored, which ends it with no clean-up job. Starting a look never touches the owner's own country or on/off state (AC-06).
 - "Anywhere" (spec AC-10) is one predicate, `isStatedAnywhere()`, in `collector/domain/listing.ts`: an exact "Anywhere" or "Anywhere in the World", any case, after trimming. The Jobicy and We Work Remotely readers keep it as stated instead of turning it into `null`. The merge rule's location-conflict check and the listing's change check treat it as `null`, so a listing going from `null` to "Anywhere" is not an updated posting. Source health's unknown-location count counts only `null`. remote-filter reads the predicate through a collector `app/` re-export.
 - An open listing for the verdict is one with status open from an enabled source (spec AC-03). remote-filter reads the enabled-source set through a new read-only collector export.
 
@@ -158,13 +159,13 @@ apps/server/src/
 │   ├── domain/                    vocabulary.ts (Intl + aliases, regions, zones, fillers, short codes)
 │   │                              statement.ts (read one statement) · verdict.ts (listing + posting verdict, reason)
 │   ├── app/                       verdicts.ts (verdicts for postings and a country, per-call cache)
-│   │                              settings.ts (read, choose country, switch on/off) · countries.ts (list, lookup)
+│   │                              settings.ts (read, choose country, switch on/off, start or end a look, active filter for a visit) · countries.ts (list, lookup)
 │   ├── infra/                     schema.ts (remote_filter_settings) · repo.ts (the only SQL in the module)
 │   ├── ports/routes.ts            settings + countries, set country, switch on/off
 │   └── index.ts                   Fastify plugin
 └── modules/search/app/
     ├── deps.ts                    + LocationReader (remote-filter's verdicts, replaceable in tests)
-    ├── search.ts                  takes an optional look country; filters by verdict before the snapshot;
+    ├── search.ts                  asks the active filter for this visit (own country, a look, or off); filters by verdict before the snapshot;
     │                              total / new / hidden / marked counts; check reason on each shown posting
     ├── snapshots.ts               Snapshot + location { country, on }, hiddenCount
     ├── present.ts                 Posting + location_check (reason or null)
@@ -175,15 +176,16 @@ apps/web/src/
 ├── api/remoteFilter.ts            NEW typed client for remote-filter's routes
 ├── features/remote-filter/        NEW CountryChoice (in place, unknown-name message) · FilterBar (state line,
 │                                  hidden count, off/on, look at another country, back) · LocationCheck mark
-└── features/search/               SearchList passes the look country, shows the filter's empty message;
+└── features/search/               SearchList re-searches after any filter change, shows the filter's empty message;
                                    PostingCard shows the LocationCheck mark
 ```
 
 **State kept by remote-filter.** One `remote_filter_settings` row:
 - the owner's country: an ISO 3166-1 alpha-2 code, or none until chosen;
-- whether the filter is on.
+- whether the filter is on;
+- the one-off look country, if any, and the start time of the visit it belongs to.
 
-Exact columns belong to `data-model`. The one-off look is not stored on the server, and nothing goes in browser storage.
+Exact columns belong to `data-model`. Nothing goes in browser storage.
 
 **Snapshots.** Search's in-memory snapshots keep their shape, limits and expiry (search ADR-0003). A main-list snapshot now also records:
 - the country it was filtered for, or none when the filter is off or no country is chosen;
@@ -201,7 +203,7 @@ C4Container
 
     Container_Boundary(jr, "job-radar (owner's machine)") {
         Container(web, "Web app", "React 19 + Vite SPA, TanStack Query", "Main screen: country choice, filter state and hidden count, off switch, one-off look, check location marks")
-        Container(rf, "Remote-filter API", "Fastify 5 routes, remote-filter module", "Keeps the owner's country and on/off state, lists countries, decides location verdicts")
+        Container(rf, "Remote-filter API", "Fastify 5 routes, remote-filter module", "Keeps the owner's country, on/off state and one-off look, lists countries, decides location verdicts")
         Container(search, "Search API", "Fastify 5 routes, search module", "Builds the list snapshot without postings not open to the country, counts what it hid")
         Container(collector, "Collector", "collector module, in-process runner", "Collects and merges listings, keeps stated locations and an explicit Anywhere as stated")
         ContainerDb(db, "Local database", "SQLite via Drizzle", "Postings and listings (collector), search state, marks, the owner's country and filter state")
@@ -210,9 +212,9 @@ C4Container
     System_Ext(sources, "Job sources", "Remote job boards")
 
     Rel(owner, web, "Chooses a country, switches the filter, looks at another country", "browser on loopback")
-    Rel(web, rf, "Reads settings and countries, sets the country, switches the filter", "JSON over HTTP")
-    Rel(web, search, "Searches with the look country if any, pages, polls waiting", "JSON over HTTP")
-    Rel(search, rf, "Asks the owner's settings and the verdict of each matching posting", "remote-filter app export")
+    Rel(web, rf, "Reads settings and countries, sets the country, switches the filter, starts or ends a look", "JSON over HTTP")
+    Rel(web, search, "Searches, pages, polls waiting", "JSON over HTTP")
+    Rel(search, rf, "Asks the active filter for this visit and the verdict of each matching posting", "remote-filter app export")
     Rel(rf, collector, "Reads the Anywhere rule and which sources are enabled", "collector app export")
     Rel(search, collector, "Reads open postings with their listings", "collector app export")
     Rel(rf, db, "Reads and writes the settings row", "Drizzle")
@@ -221,7 +223,7 @@ C4Container
     Rel(collector, sources, "Reads listings", "HTTPS")
 ```
 
-The owner's browser talks to two server parts. The Remote-filter API holds the owner's country and on/off state and serves the country list. The Search API builds the list. Search asks remote-filter for the settings and for each matching posting's verdict, then keeps only what is shown. Remote-filter reads two things from the collector: the "Anywhere" rule and which sources are enabled. The collector keeps collecting as before, now keeping an explicit "Anywhere" as stated. All three keep their data in the one local SQLite file. Tracking is unchanged and left out of this view.
+The owner's browser talks to two server parts. The Remote-filter API holds the owner's country, on/off state and any one-off look, and serves the country list. The Search API builds the list. Search asks remote-filter for the settings and for each matching posting's verdict, then keeps only what is shown. Remote-filter reads two things from the collector: the "Anywhere" rule and which sources are enabled. The collector keeps collecting as before, now keeping an explicit "Anywhere" as stated. All three keep their data in the one local SQLite file. Tracking is unchanged and left out of this view.
 
 ## 6. Runtime view
 
@@ -268,22 +270,28 @@ sequenceDiagram
     participant Search as Search API
 
     Owner->>Web: looks at postings open to Germany
-    Web->>Web: finds Germany in the country list
+    Web->>RF: starts a look at Germany for this visit
     alt not a known country
+        RF-->>Web: no country matches that name
         Web-->>Owner: no country matches that name, view unchanged
     else Germany
-        Web->>Search: searches with the look country Germany
+        RF-->>Web: look at Germany, own country and on or off state unchanged
+        Web->>Search: searches
+        Search->>RF: active filter for this visit
+        RF-->>Search: Germany, on for the look
         Search->>RF: verdicts of the matching postings for Germany
         RF-->>Search: verdict per posting
         Search-->>Web: first 50, hidden count for Germany
         Web-->>Owner: showing postings open to Germany, back to Poland action
         Owner->>Web: presses back to Poland
-        Web->>Search: searches without a look country
-        Search->>RF: the owner's settings
+        Web->>RF: ends the look
+        Web->>Search: searches
+        Search->>RF: active filter for this visit
         RF-->>Search: Poland, own on or off state
         Search-->>Web: the owner's own list
         Web-->>Owner: own country and own on or off state again
     end
+    Note over Web,RF: a reload keeps the look, a new visit after more than 30 minutes away ends it
 ```
 
 Seeded here: the main path and the one-off look. `sequences` covers the rest: choosing and changing the country (AC-04, AC-05, AC-13), switching the filter off and on (AC-07), the waiting count and refresh (AC-09), the collector's "Anywhere" reading (AC-10), the marked view (AC-11) and the access refusal (AC-12).
@@ -301,17 +309,17 @@ The deployment is unchanged: one Node.js process on `127.0.0.1:3000` serving the
 | Logging | Fastify's pino logger with child field `module=remote-filter`. Search's existing `search` log line gains `hidden` and `checked` counts and the country code. Statements are not logged one by one | `apps/server/src/main.ts` + here |
 | Access control | Unchanged: loopback bind, Host check, and state-changing requests accepted only same-origin with a JSON body; no CORS. Setting the country and switching the filter are JSON POSTs behind the global guard (AC-12) | collector [ADR-0007](../remote-boards-collector/adr/0007-allow-only-loopback-same-origin-requests-without-accounts.md), `core/access.ts` |
 | Error handling | Envelope `{ "error": { "code", "message" } }` via `AppError`. A name that matches no known country is refused with its own code and the message "No country matches that name", leaving the saved country unchanged (AC-05); an unknown look country in a search is refused the same way. Codes are fixed by `api` | `core/errors.ts` + here |
-| Reading a statement | Split on commas, semicolons, "and", "&", "/" and line breaks. Drop flags after reading them as their country, and drop the filler words. Match country names and aliases longest first, whole words only. Then regions, zones, exception words and soft words. Any word left over makes the statement "not recognised". "Anywhere" is set aside when another open listing states anything (AC-03). Markup is never interpreted: statements are plain text (search AC-09) | `remote-filter/domain/statement.ts`, `verdict.ts` |
+| Reading a statement | Split on commas, semicolons, "and", "&", "/" and line breaks. Drop flags after reading them as their country, and drop the filler words. A statement with nothing left after that (a bare "Remote") is "not recognised", never "not stated" (AC-01). "Anywhere" and "Anywhere in the World" are Worldwide only when they are the whole statement: beside countries or other parts they are dropped and only the rest is read (AC-10). Match country names and aliases longest first, whole words only. Then regions, zones, exception words and soft words. Any word left over makes the statement "not recognised". "Anywhere" is set aside when another open listing states anything (AC-03). Markup is never interpreted: statements are plain text (search AC-09) | `remote-filter/domain/statement.ts`, `verdict.ts` |
 | Filler words (spec AC-01) | `remote`, `only`, `based`, `fully`, `in`, `the`, `100%`, `-based` suffixes, brackets, dashes, slashes, `&`, `and`, `or`. Everything else unknown makes the statement not recognised | `remote-filter/domain/vocabulary.ts` |
 | Soft and exception wording | Soft (read as check, never hide): `preferred`, `ideally`, `nice to have`, `welcome`, `plus`. Exception (check, never fits, never hidden): `except`, `excluding`, `not`, `outside`. A cut-short list (`…`, `...`, `+N more`) is check unless its visible part names the country | `remote-filter/domain/vocabulary.ts` |
 | Zones (spec AC-01) | `UTC±N` and `GMT±N` with optional `:MM` or a fractional `.5`/`.75`, ranges (`UTC-1 to UTC+3`, `UTC-1 – UTC+3`); `CET`/`CEST`, `EET`/`EEST`, `WET`/`WEST`, `GMT`, `UTC`; US `ET`/`EST`/`EDT`, `CT`/`CST`/`CDT`, `MT`/`MST`/`MDT`, `PT`/`PST`/`PDT`. A zone fits when it covers one of the country's offsets on 15 January or 15 July of the year of the date asked. Other time wording ("European time zones", "USA timezones", "overlap with PST") is not recognised | `remote-filter/domain/vocabulary.ts` |
 | Short codes (spec AC-01) | `US`, `USA`, `U.S.`, `U.S.A.`, `UK`, `UAE` as countries; `EU` as a region. No other two-letter code is read ("CA", "IN" are not recognised) | `remote-filter/domain/vocabulary.ts` |
-| Regions | Worldwide: `Worldwide`, `Global`, `Anywhere`, `Anywhere in the World` (all countries). `Europe` (EU, EEA, UK, Switzerland, Western Balkans, Ukraine, Moldova, Belarus, microstates; not Russia or Turkey: hand list). `EU` (the 27 members). `EMEA` (Europe + Middle East + Africa, Turkey and Russia included). `LATAM` / `Latin America` (Mexico, Central and South America, Spanish- and Portuguese-speaking Caribbean). `Americas` (North, Central and South America, Caribbean). `North America` / `Northern America` (US, Canada, Mexico; Greenland, Bermuda). `APAC` / `Asia-Pacific` (East, South-East and South Asia, Oceania). Exact member codes live in the vocabulary file and are covered by the example-set test | `remote-filter/domain/vocabulary.ts`, ADR-0003 |
+| Regions | Worldwide: `Worldwide`, `Global`, and `Anywhere` / `Anywhere in the World` when alone (all countries). `Europe` (EU, EEA, UK, Switzerland, Western Balkans, Ukraine, Moldova, Belarus, microstates; not Russia or Turkey: hand list). `EU` (the 27 members). `EMEA` (Europe + Middle East + Africa, Turkey and Russia included). `LATAM` / `Latin America` (Mexico, Central and South America, Spanish- and Portuguese-speaking Caribbean). `Americas` (North, Central and South America, Caribbean). `North America` / `Northern America` (US, Canada, Mexico; Greenland, Bermuda). `APAC` / `Asia-Pacific` (East, South-East and South Asia, Oceania). Exact member codes live in the vocabulary file and are covered by the example-set test | `remote-filter/domain/vocabulary.ts`, ADR-0003 |
 | Aliases | Beyond the `Intl` English name: `United States of America`, `United Kingdom of Great Britain and Northern Ireland`, `Great Britain`, `Czech Republic`, `Hong Kong`, `Moldova (Republic of)`, `Türkiye`, `South Korea`, `Russia`, `Vietnam`, `Macau`, `Ivory Coast`, plus each WWR ISO-official name met in the example set. A name that is both a country and part of another (`Georgia`) is not recognised unless another part decides | `remote-filter/domain/vocabulary.ts` |
 | Untrusted source content | Location statements and reasons are rendered as React text only, the same as search AC-09 | search SAD §8 |
 | ID strategy | No new ids. The settings table has one row; countries are ISO alpha-2 codes | `core/id.ts` (unchanged) |
 | Time | The verdict takes the date from search's injected clock; offsets come from `Intl` for that year's 15 January and 15 July, so tests can run a winter and a summer date (spec §6 Seasonal stability) | `remote-filter/domain/verdict.ts` |
-| UI data access | TanStack Query: one query for settings and countries, mutations for the country and on/off. Any change invalidates the search query, which reloads from the top (ADR-0002). The look country is client state passed into the search query key | collector [ADR-0002](../remote-boards-collector/adr/0002-fetch-ui-data-with-tanstack-query-and-poll-run-progress.md) |
+| UI data access | TanStack Query: one query for settings and countries, mutations for the country and on/off. Any change invalidates the search query, which reloads from the top (ADR-0002). The settings query includes the active look; starting or ending a look is a mutation | collector [ADR-0002](../remote-boards-collector/adr/0002-fetch-ui-data-with-tanstack-query-and-poll-run-progress.md) |
 | UI styling | Semantic tokens only, mobile-first from 360 px. The country choice, look, back and off actions are each at least 44×44 px | `docs/design-system.md` |
 | Internationalisation | N/A: single language (English) UI; country names in English | — |
 | Events | N/A: modules call each other's `app` exports in-process; there is no event bus | project ADR-0002 |
@@ -335,17 +343,20 @@ ADR files live under `docs/features/remote-filter/adr/NNNN-<title>.md`.
   - Never a wrong hide on uncertainty: 0 postings hidden whose statement is unknown, unrecognised, contains an exception, or fits only by working hours.
   - Seasonal stability: the same verdict for every example on a winter date and a summer date.
 - **How verify:**
-  - A unit test over the example list in `remote-filter/domain`, run at two dates.
+  - A unit test over the example list in `remote-filter/domain`, run at two dates. Beyond the spec's examples, the list includes "USA, Anywhere" (not open: the countries are the statement, AC-10) and a bare "Remote" (check, not recognised, AC-01).
   - A property test over generated statements asserting no "not open" for those classes.
   - A unit test pinning the `Intl`-derived data for PL, US, GB and NZ (ADR-0003).
 
 **QG-2. The shorter list always explains itself**
-- **When:** the filter for Poland hides 38 of 140 matching postings; it hides all 12 of a search's matches; the collector adds 5 postings, 3 not open to Poland, while the list is shown; the owner switches the filter off; the owner looks at Germany and comes back.
+
+*The numbers below are the spec's AC-07 – AC-09 example cases, not spec §6 NFR targets.*
+
+- **When:** the filter for Poland hides 38 of 140 matching postings; it hides all 12 of a search's matches; the collector adds 5 postings, 3 not open to Poland, while the list is shown; the owner switches the filter off; the owner looks at Germany, reloads the page, and comes back.
 - **Then:**
   - "102 postings — 38 hidden, not open to Poland", and the off switch shows all 140 (AC-07).
   - The filter's empty message with "12 hidden" and the off action (AC-08).
   - "2 new postings waiting", and after refresh the new and hidden counts agree with the list (AC-09).
-  - The look names Germany, and "back" restores Poland and the owner's own on/off state (AC-06).
+  - The look names Germany, survives the reload, and "back" restores Poland and the owner's own on/off state (AC-06).
 - **How verify:**
   - Server integration tests over the search routes with a seeded collection and a fake clock (counts, waiting, off, look).
   - Web component tests of FilterBar and the empty-list message.
@@ -380,7 +391,6 @@ ADR files live under `docs/features/remote-filter/adr/NNNN-<title>.md`.
 
 **Accepted debt (acceptable in v1, plan to fix later):**
 - One home country. A second one is a one-off look only (spec §3).
-- A browser page reload ends a one-off look; it is not stored on the server.
 - Region membership and aliases are hand-kept (ADR-0003).
 - Every search re-reads statements; there is no cross-search cache (ADR-0002).
 
@@ -397,7 +407,7 @@ ADR files live under `docs/features/remote-filter/adr/NNNN-<title>.md`.
 | Location verdict | The remote filter's decision for one posting and one country: fits, check (with one reason), or not open (CONTEXT, AC-01 – AC-03). |
 | Check location mark | The mark on a shown posting whose location the filter cannot read with confidence, with one reason: mentions an exception, only working hours fit, location not recognised, or location not stated (AC-02). |
 | Hidden count | How many matching postings the filter left out as not open to the country (AC-07). *Not yet in CONTEXT — glossary follow-up.* |
-| One-off look | "Open to country X": the same rules for another country until "back" or a new visit, without changing the owner's country (AC-06). *Not yet in CONTEXT — glossary follow-up.* |
+| One-off look | "Open to country X": the same rules for another country until "back" or a new visit, without changing the owner's country; kept on the server, so a reload keeps it (AC-06). *Not yet in CONTEXT — glossary follow-up.* |
 | Open listing | For the verdict, a listing its source still offers, from an enabled source (AC-03). |
 | Mark | The owner's applied or skipped decision on a posting; marked postings live in the marked view, which the filter never touches (CONTEXT, AC-11). |
 | Snapshot | The ordered list of posting ids a search produced, kept in server memory; now only the shown postings, plus the country it was filtered for and the hidden count (search ADR-0003, ADR-0002). |
