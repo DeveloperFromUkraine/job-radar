@@ -117,6 +117,8 @@ The adversarial pass also surfaced: restrictions written only in the description
 
 > The look at Germany lasts until the owner takes the visible "back to Poland" action or a new visit starts (a visit as in search AC-14 — opening the main screen after more than 30 minutes without it); a new search, a refresh, or a trip to the marked view and back keeps it. Choosing a country to look at switches the filter on for that look, even if the owner had it off, and when the look ends the owner's own on/off state returns. During the look, AC-05, AC-07 and AC-08 apply with Germany in place of the owner's country ("38 hidden, not open to Germany").
 
+> Known UI deviation (review 2026-10-15, F-4): the main screen offers a look at another country, and a change of country, only while the filter is on (screens.md 01-c shows "Switch on" alone when it is off). The off→look and off→change paths are served and tested on the server, but the UI does not reach them: a look always starts, and so ends, with the filter on.
+
 ### AC-07 (US-05) — happy
 **Given** the filter for Poland hides 38 of 140 open postings that match the owner's skills
 **When** the list is shown
@@ -155,6 +157,8 @@ The adversarial pass also surfaced: restrictions written only in the description
 **Given** the owner's country is Poland
 **When** they change it to Portugal
 **Then** the list is filtered for Portugal at once, Portugal is remembered for the next opening, and the filter is switched on if the owner had it off
+
+> Known UI deviation (review 2026-10-15, F-4): the UI offers "Change" only while the filter is on, so the "switched on if the owner had it off" part holds on the server but is not reachable from the screen.
 
 ## 6. Non-functional requirements
 
