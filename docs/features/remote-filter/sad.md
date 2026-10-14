@@ -294,7 +294,222 @@ sequenceDiagram
     Note over Web,RF: a reload keeps the look, a new visit after more than 30 minutes away ends it
 ```
 
-Seeded here: the main path and the one-off look. `sequences` covers the rest: choosing and changing the country (AC-04, AC-05, AC-13), switching the filter off and on (AC-07), the waiting count and refresh (AC-09), the collector's "Anywhere" reading (AC-10), the marked view (AC-11) and the access refusal (AC-12).
+### Flow 3: the owner chooses a country, then changes it (US-03; AC-04, AC-05, AC-13)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant RF as service · remote-filter
+    participant Search as service · search
+    participant DB as data-store
+
+    Note over Owner,UI: Precondition: no country chosen yet (SCR-01)
+    Owner->>UI: opens the main screen
+    UI->>RF: reads settings and the country list
+    RF->>DB: reads the settings row
+    DB-->>RF: no country, no look
+    RF-->>UI: no country chosen, country list
+    UI->>Search: searches
+    Search->>RF: active filter for this visit
+    RF-->>Search: none
+    Search-->>UI: every matching open posting, no check marks, no hidden count
+    UI-->>Owner: every open posting with a prompt to choose a country
+    Owner->>UI: opens the country choice in place and types a name
+    UI->>RF: chooses the country by that name
+    RF->>RF: looks the name up among country names, aliases and flags
+    alt no country matches (Polnd, or a region such as Europe)
+        RF-->>UI: no country matches that name
+        UI-->>Owner: told no country matches, list and saved country unchanged
+    else Poland
+        RF->>DB: saves Poland as the owner's country and switches the filter on
+        Note over RF,DB: persists the settings row (country, filter on) - one row, read on every search
+        DB-->>RF: saved
+        RF-->>UI: Poland, filter on
+        UI->>Search: searches again
+        Search-->>UI: list filtered for Poland (as Flow 1)
+        UI-->>Owner: postings open to Poland, hidden count, check marks
+        Note over Owner,UI: changing it later to Portugal takes the same path, and switches the filter on if it was off (AC-13)
+    end
+    Owner->>UI: closes the app and later opens it again
+    UI->>RF: reads settings
+    RF->>DB: reads the settings row
+    DB-->>RF: Poland, filter on, after a restart too
+    RF-->>UI: Poland, filter on
+    UI-->>Owner: list filtered for Poland again
+    Note over Owner,UI: Postcondition: one saved country at most, a refused name never changes it
+```
+
+### Flow 4: the owner switches the filter off, and later on again (US-05; AC-07)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant RF as service · remote-filter
+    participant Search as service · search
+    participant DB as data-store
+
+    Note over Owner,UI: Precondition: filter on for Poland, 102 shown and 38 hidden of 140 matches
+    Owner->>UI: switches the location filter off
+    UI->>RF: switches the filter off
+    RF->>DB: saves the filter as off, country kept
+    Note over RF,DB: persists the settings row (filter off)
+    DB-->>RF: saved
+    RF-->>UI: Poland, filter off
+    UI->>Search: searches again
+    Search->>RF: active filter for this visit
+    RF-->>Search: off
+    Search->>Search: keeps every match, asks no verdict, hidden count none
+    Search-->>UI: first 50 of 140, no check reasons
+    UI-->>Owner: all 140 with no check or hidden distinction, says the filter is off, offers to switch it on
+    Owner->>UI: closes the app and later opens it again
+    UI->>RF: reads settings
+    RF-->>UI: Poland, filter off
+    UI-->>Owner: still off, still saying so
+    Owner->>UI: switches the filter on
+    UI->>RF: switches the filter on
+    RF->>DB: saves the filter as on
+    DB-->>RF: saved
+    RF-->>UI: Poland, filter on
+    UI->>Search: searches again
+    Search-->>UI: list filtered for Poland (as Flow 1)
+    UI-->>Owner: 102 postings, 38 hidden, not open to Poland
+    Note over Owner,UI: Postcondition: the on or off state survives restarts and changes only by the owner's action
+```
+
+### Flow 5: new postings arrive while the filtered list is shown (US-05; AC-09)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant Search as service · search
+    participant RF as service · remote-filter
+    participant Collector as service · collector
+
+    Note over Owner,UI: Precondition: list loaded with the filter on for Poland, then the collector added 5 postings, 3 not open to Poland
+    UI->>Search: how many new postings are waiting for this snapshot
+    Search->>Collector: matching open postings first collected after the snapshot loaded
+    Collector-->>Search: 5 postings with their listings
+    Search->>RF: verdicts of these postings for the snapshot's country
+    RF-->>Search: 2 fit or check, 3 not open
+    Search->>Search: counts unmarked postings the filter would show
+    Search-->>UI: 2 waiting
+    UI-->>Owner: 2 new postings waiting
+    Owner->>UI: refreshes
+    UI->>Search: searches again
+    Search-->>UI: new snapshot (as Flow 1), new count and hidden count among the same pass
+    UI-->>Owner: the 2 shown as new, the new and hidden counts agree with the list
+    opt owner switches the filter off in the same visit
+        UI->>Search: searches again with the filter off (as Flow 4)
+        Search->>Search: new snapshot with the same previous-visit start
+        Search-->>UI: all postings, the 3 hidden ones among them
+        UI-->>Owner: the 3 earlier hidden postings shown as new too
+    end
+    Note over Owner,UI: Postcondition: waiting, new and hidden counts always count against the same filter as the list
+```
+
+### Flow 6: a collection run meets an explicit Anywhere (US-06; AC-10)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Collector as service · collector
+    participant Sources as external-system
+    participant DB as data-store
+
+    Note over Collector: Trigger: scheduled collection run, Jobicy or We Work Remotely due
+    Collector->>Sources: reads listings
+    Sources-->>Collector: listings, some stating only Anywhere or Anywhere in the World
+    Collector->>Collector: keeps each statement as stated, Anywhere no longer turned into unknown
+    Note over Collector: idempotency: a listing is keyed by its source and source item id, so a repeated read updates the same listing
+    alt listing already held, its stored statement unknown
+        Collector->>DB: replaces unknown with the Anywhere statement
+        Note over Collector,DB: persists the listing's location restriction, not counted as an updated posting, not counted in source health
+    else listing already held, statement unchanged or changed otherwise
+        Collector->>DB: updates as before, a real change counts as an updated posting
+    else new listing
+        Collector->>DB: merge candidates in the 7-day window
+        DB-->>Collector: candidates with their listings' statements
+        Collector->>Collector: Anywhere counts as nothing stated, so it never conflicts with a candidate's statement
+        Collector->>DB: attaches to the matching posting or creates one
+        Note over Collector,DB: persists the listing and its posting
+    end
+    Collector->>DB: records the source's outcome
+    Note over Collector,DB: persists run counts, unknown-location count counts only listings stating nothing
+    Note over Collector,Sources: a failed fetch keeps the existing behaviour: failed outcome recorded, nothing closed, read again when next due (no dead-letter)
+    Note over Collector,DB: Postcondition: Anywhere is shown as stated and read by the filter as Worldwide, or set aside when another open listing states anything (Flow 1)
+```
+
+### Flow 7: the marked view and look-alikes with the filter on (US-01; AC-11)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Owner as user
+    participant UI as ui
+    participant Search as service · search
+    participant RF as service · remote-filter
+    participant Tracking as service · tracking
+
+    Note over Owner,UI: Precondition: an Acme posting marked applied, an open look-alike Acme posting stating USA, filter on for Poland
+    Owner->>UI: opens the main screen
+    UI->>Search: searches
+    Search->>RF: verdicts of the matching postings for Poland
+    RF-->>Search: the look-alike is not open
+    Search->>Search: leaves the look-alike out of the snapshot, counts it hidden
+    Search->>Tracking: look-alike hints for the shown page only
+    Tracking-->>Search: hints, none for the hidden look-alike
+    Search-->>UI: first 50, no earlier-mark hint for a hidden posting
+    UI-->>Owner: the look-alike hidden like any posting not open to Poland
+    Owner->>UI: turns on Show marked postings
+    UI->>Search: loads the marked view
+    Search->>Tracking: marked postings in mark order
+    Tracking-->>Search: marked posting ids
+    Note over Search,RF: the marked view never asks for a verdict
+    Search-->>UI: every marked posting whatever its location
+    UI-->>Owner: marked view unchanged by the filter
+    Note over Owner,UI: Postcondition: the filter narrows only the main list, never the marked view
+```
+
+**Coverage (spec §4 / §5 → flow).**
+
+| User story | Flows |
+|---|---|
+| US-01 Hide roles I can't take | Flow 1, Flow 7 |
+| US-02 See uncertain locations marked | Flow 1 |
+| US-03 Set my country once | Flow 3 |
+| US-04 Check another country | Flow 2 |
+| US-05 Know what the filter hides | Flow 1 (empty message), Flow 4, Flow 5 |
+| US-06 Count Anywhere as open to me | Flow 6 (collector), Flow 1 (read as Worldwide or set aside) |
+
+| AC | Shown in |
+|---|---|
+| AC-01 | Flow 1, verdict step and the postings-shown branch |
+| AC-02 | Flow 1, check with one reason |
+| AC-03 | Flow 1, best verdict among open listings from enabled sources, Anywhere set aside |
+| AC-04 | Flow 3, no-country start, Poland branch, reopen |
+| AC-05 | Flow 3, no-country-matches branch; Flow 2, the same branch for a look |
+| AC-06 | Flow 2, look start, back, reload and new-visit note |
+| AC-07 | Flow 4 |
+| AC-08 | Flow 1, nothing-shown branch |
+| AC-09 | Flow 5 |
+| AC-10 | Flow 6; Flow 1 for the reading |
+| AC-11 | Flow 7 |
+| AC-12 | N/A, not a remote-filter runtime flow: the global loopback bind, Host check and same-origin JSON guard reject the request before any route runs (collector ADR-0007, `core/access.ts`) |
+| AC-13 | Flow 3, the change-to-Portugal note |
+
+**Flags from `sequences` (for design / data-model; no ADR written).**
+- Participant labels differ. Flows 1 and 2 use module names; Flows 3–7 use generic roles qualified by the §5 module (`service · remote-filter`), as in applied-skipped. Flows 1 and 2 were left untouched.
+- Flow 7 needs `service · tracking`. The §5 container view leaves tracking out as unchanged; it is the existing tracking module, not a new participant.
+- Flow 6 has no dead-letter. Collection is in-process and runs on the schedule; a failed fetch records a failed outcome and is read again when next due (collector ADR-0003). This is existing collector behaviour, not a new decision.
+- Persist and read hints for `data-model`:
+  - One settings row (country, on/off, look country, look visit start) is read on every search and every waiting poll, and written only by the owner's actions (Flows 2–5).
+  - No new collector column. The listing's location restriction now also holds Anywhere statements, and the merge and change checks compare them as nothing stated (Flow 6).
 
 ## 7. Deployment view
 
