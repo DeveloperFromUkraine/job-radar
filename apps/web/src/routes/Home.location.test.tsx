@@ -91,6 +91,31 @@ describe("SCR-01 location bar", () => {
     await waitFor(() => expect(searches(calls)).toBe(2));
   });
 
+  it("a later filter change from the bar clears the empty message's old switch error (re-review N-2)", async () => {
+    const allHidden = contractExample<SearchResult>("runSearch", 200, "all_hidden");
+    const fail = { status: 500, body: { error: { code: "INTERNAL", message: "Something went wrong." } } };
+    mockApi({
+      ...base,
+      [SEARCH]: [
+        { body: allHidden },
+        { body: { ...filtered(), location_filter: { mode: "off", country: PL } } },
+        { body: allHidden },
+      ],
+      "POST /api/v1/remote-filter/filter": [
+        fail,
+        { body: { ...withPoland(), filter_on: false } },
+        { body: { ...withPoland(), filter_on: true } },
+      ],
+    });
+    renderWithProviders(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Switch filter off" }));
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("button", { name: "Switch off" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Switch on" }));
+    await screen.findByRole("button", { name: "Switch filter off" });
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("is hidden while the marked view is on, and back when it goes off (AC-11)", async () => {
     mockApi({
       ...base,
