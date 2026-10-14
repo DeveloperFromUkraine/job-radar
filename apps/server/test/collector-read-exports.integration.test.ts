@@ -1,7 +1,10 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { enabledSourceIds, isStatedAnywhere } from "../src/modules/collector/app/location.js";
 import { postingsByIds } from "../src/modules/collector/app/open-postings.js";
 import { retentionOutlook } from "../src/modules/collector/app/retention-outlook.js";
+import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
+import { updateState } from "../src/modules/collector/infra/repo/state.js";
 import { addPosting } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
@@ -93,6 +96,23 @@ describe("collector read-only exports for applied-skipped", () => {
 
     it("leaves unknown ids out", () => {
       expect(retentionOutlook(t.db, ["missing"], NOW).size).toBe(0);
+    });
+  });
+
+  describe("location exports for remote-filter (remote-filter AC-03, AC-10)", () => {
+    it("re-exports the explicit Anywhere rule", () => {
+      expect(isStatedAnywhere(" Anywhere in the World ")).toBe(true);
+      expect(isStatedAnywhere("USA")).toBe(false);
+    });
+
+    it("lists the sources enabled by the settings in force", () => {
+      expect(enabledSourceIds(t.db)).toContain("jobicy");
+      const settings = structuredClone(DEFAULT_SETTINGS);
+      settings.sources.remotive.enabled = false;
+      updateState(t.db, { lastValidSettings: JSON.stringify(settings), lastValidSettingsAt: NOW });
+      const enabled = enabledSourceIds(t.db);
+      expect(enabled).toContain("jobicy");
+      expect(enabled).not.toContain("remotive");
     });
   });
 });

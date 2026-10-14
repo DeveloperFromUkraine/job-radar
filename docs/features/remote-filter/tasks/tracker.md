@@ -9,7 +9,7 @@
 | T02 | [Build the country vocabulary from Intl plus the hand-kept alias, region, zone, filler and short-code tables](./t02-country-vocabulary.md) | domain | Volodymyr Kozlov | M | — | done |
 | T03 | [Read one location statement and decide one listing's verdict for a country and a date](./t03-statement-reader-and-listing-verdict.md) | domain | Volodymyr Kozlov | M | T02 | done |
 | T04 | [Combine listing verdicts into one posting verdict and pin the fixed example set at a winter and a summer date](./t04-posting-verdict-and-example-set.md) | domain | Volodymyr Kozlov | M | T03 | done |
-| T05 | [Keep an explicit "Anywhere" as stated in the collector, treat it as nothing stated for merge and change checks, and export it with the enabled sources](./t05-collector-keeps-anywhere.md) | domain | Volodymyr Kozlov | M | — | todo |
+| T05 | [Keep an explicit "Anywhere" as stated in the collector, treat it as nothing stated for merge and change checks, and export it with the enabled sources](./t05-collector-keeps-anywhere.md) | domain | Volodymyr Kozlov | M | — | done |
 | T06 | [Write the settings repo with the lazily created singleton row and its test fixture](./t06-settings-repo.md) | infra | Volodymyr Kozlov | S | T01 | todo |
 | T07 | [Implement the settings use cases: choose country, switch on/off, start or end a look, the country list, and the active filter for a visit](./t07-settings-use-cases.md) | app | Volodymyr Kozlov | M | T02, T06 | todo |
 | T08 | [Answer search's verdict question: verdicts for a set of postings and a country, from open listings of enabled sources, one parse per distinct statement](./t08-verdicts-for-postings.md) | app | Volodymyr Kozlov | S | T04, T05 | todo |
