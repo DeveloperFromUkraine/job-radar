@@ -75,6 +75,9 @@ describe("lookupCountry (AC-05)", () => {
     ["Ivory Coast", "CI"],
     ["Hong Kong", "HK"],
     ["Puerto Rico", "PR"],
+    ["Bosnia and Herzegovina", "BA"],
+    ["Bosnia & Herzegovina", "BA"],
+    ["Saint Lucia", "LC"],
     ["Georgia", "GE"],
   ])("finds %s", (name, code) => {
     expect(lookupCountry(name)?.code).toBe(code);

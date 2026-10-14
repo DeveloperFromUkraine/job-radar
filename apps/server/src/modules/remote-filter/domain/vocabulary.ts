@@ -172,7 +172,13 @@ const BY_CODE = new Map(COUNTRIES.map((c) => [c.code, c]));
 // Every name a country answers to (Intl name, preferred name, aliases, short codes), normalized → code.
 export const COUNTRY_NAMES = new Map<string, string>([
   ...COUNTRIES.map((c) => [normalize(c.name), c.code] as const),
-  ...COUNTRIES.map((c) => [normalize(intlNames.of(c.code) ?? c.name), c.code] as const),
+  // Intl writes "Bosnia & Herzegovina", "St. Lucia"; sources also write "and" and "Saint".
+  ...COUNTRIES.flatMap((c) => {
+    const intl = normalize(intlNames.of(c.code) ?? c.name);
+    return [intl, intl.replace(/ & /g, " and "), intl.replace(/\bst\. /g, "saint ")].map(
+      (n) => [n, c.code] as const,
+    );
+  }),
   ...Object.entries(ALIASES),
   ...SHORT_CODES,
 ]);
