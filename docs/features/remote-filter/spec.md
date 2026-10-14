@@ -80,19 +80,25 @@ The adversarial pass also surfaced: restrictions written only in the description
 **When** the owner opens the main screen
 **Then** the list shows the EMEA, Europe, Poland, flag-list, Worldwide and UTC-range postings, each with its location as the source stated it, and does not show the USA and LATAM postings
 
-> Fits: the stated location names the country (by name, common short name or flag), names a region that contains it, says Worldwide, or — when it names no country or region — gives time zones that cover one of the country's offsets during the year (Poland: UTC+1 in winter, UTC+2 in summer), so the verdict does not change with the season. Country names match only as whole names ("Oman" is not found in "Romania"); a name that is both a country and a part of another country (Georgia) counts as unreadable unless the rest of the statement decides. The region list and which countries each region contains are fixed in design and covered by the §6 example set.
+> Fits: the stated location names the country (by name, common short name or flag), names a region that contains it, says Worldwide (also "Global"), or — when it names no country or region — gives time zones that cover one of the country's offsets during the year (Poland: UTC+1 in winter, UTC+2 in summer), so the verdict does not change with the season. A country or region that fits wins over working hours that don't ("Europe, PST hours" fits): the hiring condition is met, the schedule is the owner's call.
+>
+> Not open: every part of the statement is read and none includes the country — named countries or regions that leave it out ("Remote (US only)", "US-based", "Canada, USA"), or time zones alone that cover neither of its offsets ("UTC-8 to UTC-5").
+>
+> Reading: a fixed list of filler words is ignored (remote, only, based, fully, in, the, brackets, dashes — the list is fixed in design); any other unknown word makes the whole statement "not recognised" ("USA, Helsinki"; a bare "Remote", which says nothing about where). Soft wording ("preferred", "ideally", "nice to have", "welcome") is never a reason to hide: such a statement is read as check. A list cut short ("…", "+3 more") is check unless its visible part already names the country. Time zones are read as UTC or GMT offsets and ranges, plus a fixed list of zone names (CET/CEST, EET, WET, GMT, the US ET/CT/MT/PT and their variants — fixed in design); other time wording ("European time zones", "overlap with PST") is not recognised. Country names are matched longest name first ("Papua New Guinea" is not Guinea, "New Mexico" is not Mexico, "Oman" is not found in "Romania"); two-letter codes are not read, except a short fixed list of unambiguous ones (US, USA, UK, UAE and the like — fixed in design), so "CA" or "IN" is not recognised; a name that is both a country and a part of another country (Georgia) is not recognised unless another part of the statement already decides. The region, filler-word, zone-name and short-code lists are covered by the §6 example set.
 
 ### AC-02 (US-02) — domain invariant
 **Given** the owner's country is Poland and open postings state nothing, "Helsinki", "Worldwide except Poland", and "United States, UTC-10 to UTC+14"
 **When** the owner opens the main screen
 **Then** all four stay in the list, each marked "check location" with the reason — location not stated / location not recognised / mentions an exception / only working hours fit — because a location the filter cannot read with confidence is never hidden
 
-> "Only working hours fit": the statement names countries or regions that leave the country out, but its time zones cover the country. An exception is any "except", "excluding", "not", "outside" wording; such a statement is never read as fits and never hidden.
+> "Only working hours fit": the statement names countries or regions that leave the country out, but its time zones cover the country. An exception is any "except", "excluding", "not", "outside" wording; such a statement is never read as fits and never hidden. When several reasons apply, the mark shows one, in this order: mentions an exception > only working hours fit > location not recognised > location not stated; every source's statement is shown beside it (search AC-07).
 
 ### AC-03 (US-02) — domain invariant
 **Given** a posting merged from two boards, one listing stating "USA" and the other stating nothing; another whose listings state "USA" and "Anywhere"; and a third whose listings came to state "EMEA" and "USA" after they were merged (a listing changed its statement later — collector AC-21, earlier merges are not re-decided)
 **When** the owner, in Poland, opens the main screen
 **Then** the first posting is shown marked "check location", the second is hidden ("Anywhere" is set aside when another listing of the same posting states something specific), and the third is shown as fitting; a posting is hidden only when every one of its open listings states a readable location that leaves the country out
+
+> Combining listings: the posting takes the best verdict among its open listings — fits over check over not open — so "EMEA" beside "Worldwide except Poland" fits. An open listing is one its source still offers, from an enabled source — the listings the owner can click through to (search AC-08); a listing closed at its own source, or from a disabled source, does not count. "Anywhere" is set aside whenever another open listing of the posting states anything at all (anything other than nothing or another "Anywhere"), and the verdict comes from the rest: "Anywhere" beside "Helsinki" or beside "Worldwide except Poland" is check.
 
 ### AC-04 (US-03) — happy
 **Given** the owner has never chosen a country
@@ -108,6 +114,8 @@ The adversarial pass also surfaced: restrictions written only in the description
 **Given** the owner's country is Poland
 **When** they choose to see postings open to Germany
 **Then** the list shows the postings that fit or need a check for Germany under the same rules, the screen says it is showing postings open to Germany, the owner's saved country stays Poland, and the next time the main screen is opened it filters for Poland again; an owner who has not chosen a country yet can still look at Germany this way, and afterwards is back to the unfiltered list with the prompt to choose (AC-04)
+
+> The look at Germany lasts until the owner takes the visible "back to Poland" action or a new visit starts (a visit as in search AC-14 — opening the main screen after more than 30 minutes without it); a new search, a refresh, or a trip to the marked view and back keeps it. Choosing a country to look at switches the filter on for that look, even if the owner had it off, and when the look ends the owner's own on/off state returns. During the look, AC-05, AC-07 and AC-08 apply with Germany in place of the owner's country ("38 hidden, not open to Germany").
 
 ### AC-07 (US-05) — happy
 **Given** the filter for Poland hides 38 of 140 open postings that match the owner's skills
@@ -129,7 +137,7 @@ The adversarial pass also surfaced: restrictions written only in the description
 ### AC-10 (US-06) — cross-context
 **Given** a source states only "Anywhere" or "Anywhere in the World" for a listing
 **When** the listing is collected
-**Then** the location restriction is kept as the source stated it ("Anywhere" is what the owner sees) and the filter reads it as Worldwide, so the posting fits for any country; for merging it still counts as stating nothing, so it never keeps two listings of the same role apart (collector AC-05); when the same source lists countries beside "Anywhere", the countries are the statement; a listing already held as unknown takes the new reading the next time its source offers it
+**Then** the location restriction is kept as the source stated it ("Anywhere" is what the owner sees) and the filter reads it as Worldwide, so the posting fits for any country; for merging it still counts as stating nothing, so it never keeps two listings of the same role apart (collector AC-05); when the same source lists countries beside "Anywhere", the countries are the statement; a listing already held as unknown takes the new reading the next time its source offers it, and that change is not counted as an updated posting or in source health, since the source changed nothing; when countries stand beside "Anywhere", the whole statement is kept and shown as stated, and the filter reads only the countries
 
 > This replaces the collector's earlier reading — the AC-22 note (Jobicy's "Anywhere" recorded as unknown, citing Jobicy's docs: "`Anywhere` when no region is specified"; review B11) and §8 Q1 (We Work Remotely's "Anywhere in the World" counted as nothing stated) — and narrows collector US-07's "never mistakes a missing restriction for 'work from anywhere'": a source that states nothing at all is still unknown (collector AC-22); only an explicit "Anywhere" is read as open. The residual risk — an employer who wrote "Anywhere" but restricts in the description — is accepted (§3).
 
@@ -142,6 +150,11 @@ The adversarial pass also surfaced: restrictions written only in the description
 **Given** a visitor can reach the owner's machine over the network, or the owner opens a web page from another site in the same browser
 **When** the visitor or that page tries to open the main screen, read or change the owner's country, the mode or the filter
 **Then** they cannot — as with search (search AC-17) the whole app is reachable only on the owner's own machine, and as with marks (applied-skipped AC-16) another site cannot change the owner's settings, so nobody else can hide postings from the owner
+
+### AC-13 (US-03) — happy
+**Given** the owner's country is Poland
+**When** they change it to Portugal
+**Then** the list is filtered for Portugal at once, Portugal is remembered for the next opening, and the filter is switched on if the owner had it off
 
 ## 6. Non-functional requirements
 
@@ -167,11 +180,12 @@ The adversarial pass also surfaced: restrictions written only in the description
 
 ## 7. Metrics / KPIs
 
-- **Wrongly hidden postings** — baseline: n/a (no filter today); target: 0 postings, over the first 14 days after shipping, that the owner finds on a board, that job-radar holds open and that are open to Poland, but that the filter hid. Measured by the owner logging each case.
+- **Wrongly hidden postings** — baseline: n/a (no filter today); target: 0 postings, over the first 14 days after shipping, that the owner finds on a board, that job-radar holds open and whose stated location is open to Poland, but that the filter hid. Postings open to Poland only by their description are not counted (§3 accepts that case) but are logged on a separate line, to inform §8 Q2. Measured by the owner logging each case.
 - **Location dead ends** — baseline: to be counted by the owner in the 7 days before shipping (postings opened from the list that turn out not open to Poland); target: at most 1 a week in weeks 2 and 3 after shipping among postings shown without a mark. Measured by the owner's daily one-line log.
-- **"Check" share** — baseline: 17% of open postings had no stated location on any listing on 2026-10-14 (27 of 161; 21 of 28 listings at We Work Remotely); target: ≤ 10% of the open postings shown with the filter on carry the "check location" mark, 7 days after shipping. Measured by counting the marked postings in the list.
+- **"Check" share** — baseline: no mark exists before this feature; the closest proxy is 17% of open postings with no stated location on any listing on 2026-10-14 (27 of 161; 21 of 28 listings at We Work Remotely); target: ≤ 10% of the unmarked open postings shown with the filter on for Poland and no skills entered carry the "check location" mark, 7 days after shipping. Measured by counting the marked postings in that list.
 
 ## 8. Open questions
 
 - [ ] Should source health flag a source when the share of its postings the filter hides jumps (a sign the source changed its location wording)? Default now: no — the hidden count on the main screen is the signal. — owner: Volodymyr Kozlov, due: 2026-10-31
 - [ ] Should "check" postings later be resolved from their description text when the match score reads descriptions? Default now: no — out of scope here (§3). — owner: Volodymyr Kozlov, due: 2026-10-31 (or when roadmap step 4 is specified, whichever comes first)
+- [ ] Which places are on the country list (territories such as Puerto Rico, Hong Kong, Kosovo) and which names, short names and flags each accepts, together with the region, filler-word, zone-name and short-code lists? Default now: the country chooser and the filter use one and the same list of names, so anything the owner can choose the filter can read. — owner: Volodymyr Kozlov (Tech Lead), due: before sdd:design completes
