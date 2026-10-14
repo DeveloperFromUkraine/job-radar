@@ -62,7 +62,8 @@ describe("SCR-01 main screen", () => {
 
     expect(field().disabled).toBe(true);
     expect(screen.getByRole("button", { name: "Search" }).hasAttribute("disabled")).toBe(true);
-    expect(screen.getAllByTestId("skeleton-row")).toHaveLength(3);
+    // Three list rows plus the location bar's one-line placeholder (remote-filter screens.md).
+    expect(screen.getAllByTestId("skeleton-row")).toHaveLength(4);
     expect(screen.queryByRole("link", { name: /source has a problem/i })).toBeNull();
   });
 

@@ -3,6 +3,8 @@ import { ApiError } from "../api/collector";
 import type { MarkedPage, MarkedResult, SearchResult } from "../api/search";
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
+import { LocationFilterBar } from "../features/remote-filter/LocationFilterBar";
+import { useFilterSwitch, useRemoteFilterSettings } from "../features/remote-filter/queries";
 import { MarkedList } from "../features/search/MarkedList";
 import {
   type SearchRequest,
@@ -76,6 +78,11 @@ export function Home() {
 
   const waiting = useWaitingCount(result?.snapshot_id); // errors stay silent (contract)
 
+  // remote-filter: any filter change runs the search again with the field's skills (ADR-0002).
+  const filterChanged = () => search(skills);
+  const settings = useRemoteFilterSettings();
+  const filterSwitch = useFilterSwitch(filterChanged);
+
   // Cards marked in this window leave the list and its counts; pages are never refetched (AC-12).
   const allShown = (pages ?? []).flatMap((p) => p.items);
   const postings = allShown.filter((p) => !marks.hiddenFromMain(p.id));
@@ -146,6 +153,7 @@ export function Home() {
               : undefined
         }
       />
+      {!markedView && <LocationFilterBar filter={result?.location_filter} onChange={filterChanged} />}
       <MarkedToggle
         on={markedView}
         disabled={loading || (markedView ? marked.isFetching : list.isFetching)}
@@ -220,6 +228,9 @@ export function Home() {
           moreError={moreFailed && !snapshotExpired ? list.error?.message : undefined}
           onShowMore={() => void list.fetchNextPage()}
           onShowMarked={showMarked}
+          ownCountry={settings.data?.country ?? null}
+          onSwitchFilterOff={() => filterSwitch.mutate("off")}
+          onBackFromLook={() => filterSwitch.mutate("back")}
           bannerFor={(p) => {
             const failure = marks.failed.get(p.id);
             return (

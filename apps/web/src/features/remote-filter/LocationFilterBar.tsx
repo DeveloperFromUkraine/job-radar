@@ -1,11 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { chooseCountry, type LocationFilter, setFilterOn, setLook } from "../../api/remoteFilter";
+import { chooseCountry, type LocationFilter, setLook } from "../../api/remoteFilter";
 import { Button } from "../../components/Button";
 import { InlineBanner } from "../../components/InlineBanner";
 import { SkeletonRow } from "../../components/SkeletonRow";
 import { CountryChoice } from "./CountryChoice";
-import { SETTINGS_KEY, useRemoteFilterSettings } from "./queries";
+import { SETTINGS_KEY, type Switch, useFilterSwitch, useRemoteFilterSettings } from "./queries";
 
 interface LocationFilterBarProps {
   /** The filter the list on screen was built with: the bar describes that list, never a pending setting. */
@@ -13,8 +13,6 @@ interface LocationFilterBarProps {
   /** After any confirmed change: run the search again from the top (ADR-0002). */
   onChange: () => void;
 }
-
-type Switch = "off" | "on" | "back";
 
 /** SCR-01 location bar (screens.md NEW: LocationFilterBar): the filter's state and its actions. */
 export function LocationFilterBar({ filter, onChange }: LocationFilterBarProps) {
@@ -25,11 +23,7 @@ export function LocationFilterBar({ filter, onChange }: LocationFilterBarProps) 
     void queryClient.invalidateQueries({ queryKey: SETTINGS_KEY });
     onChange();
   };
-  const switching = useMutation({
-    mutationFn: (action: Switch): Promise<unknown> =>
-      action === "back" ? setLook(null) : setFilterOn(action === "on"),
-    onSuccess: changed,
-  });
+  const switching = useFilterSwitch(onChange);
 
   if (settings.isError)
     return (

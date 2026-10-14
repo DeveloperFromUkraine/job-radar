@@ -3,6 +3,7 @@ import { SOURCE_NAMES } from "../../api/collector";
 import type { Listing, MarkedPosting, Posting } from "../../api/search";
 import { Badge } from "../../components/Badge";
 import { ago, shortDate } from "../../lib/time";
+import { LocationCheck } from "../remote-filter/LocationCheck";
 
 // Source text is untrusted: rendered only as React text, never as markup (AC-09).
 const sourceName = (id: string) =>
@@ -101,6 +102,7 @@ interface PostingCardProps {
 export function PostingCard({ posting, now = Date.now(), banner, actions }: PostingCardProps) {
   const marked = "mark_state" in posting ? posting : null;
   const hint = marked ? null : (posting as Posting).look_alike;
+  const check = marked ? null : (posting as Posting).location_check;
   return (
     <article
       id={`posting-${posting.id}`}
@@ -119,6 +121,11 @@ export function PostingCard({ posting, now = Date.now(), banner, actions }: Post
       <div className="md:col-start-2 md:row-start-1">
         <Time posting={posting} now={now} />
       </div>
+      {check && (
+        <div className="md:col-start-1">
+          <LocationCheck reason={check} />
+        </div>
+      )}
       {posting.matched_skills.length > 0 && (
         <ul className="flex flex-wrap gap-1 md:col-start-1">
           {posting.matched_skills.map((m) => (
