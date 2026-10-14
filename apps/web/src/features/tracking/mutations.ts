@@ -3,7 +3,7 @@
 // confirmed state is kept here. The main list hides a marked card, so Undo puts it back at its earlier
 // place (AC-03); the marked view shows the new state in place (AC-05, AC-06).
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ApiError } from "../../api/collector";
 import type { Mark, MarkState } from "../../api/search";
 import { setMark, undoMark } from "../../api/tracking";
@@ -36,6 +36,13 @@ export function useMarks(listKey: string | undefined) {
       return next;
     });
   const confirm = (state: MarkState) => setStates((m) => new Map(m).set(state.posting_id, state));
+  /** After Undo, focus goes back to the restored card (PostingCard's id). */
+  const [focusCard, setFocusCard] = useState<string | null>(null);
+  useEffect(() => {
+    if (focusCard === null) return;
+    document.getElementById(`posting-${focusCard}`)?.querySelector("button")?.focus();
+    setFocusCard(null);
+  }, [focusCard]);
   const [shownKey, setShownKey] = useState(listKey);
   if (shownKey !== listKey) {
     setShownKey(listKey);
@@ -93,6 +100,7 @@ export function useMarks(listKey: string | undefined) {
         onSuccess: (state) => {
           confirm(state);
           setNotice(null);
+          setFocusCard(postingId);
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "TRACKING_MARK_CHANGED_ELSEWHERE")

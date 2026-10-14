@@ -56,7 +56,7 @@ until then.
 | App shell | `apps/web/src/App.tsx` (`Shell`) | default | Page container: AppNav above `main` with phone padding `px-4`, content capped at `max-w-3xl`. |
 | AppNav | `apps/web/src/components/AppNav.tsx:7` | default, current page | Brand + Home / Source health links; 44px targets (remote-boards-collector). |
 | Button | `apps/web/src/components/Button.tsx:8` | default, disabled, pending (disabled + inline spinner) | Full width on phones, auto from `md:`. |
-| InlineBanner | `apps/web/src/components/InlineBanner.tsx:20` | error (alert, Retry), warning, info (status), with action (`action: { label, onClick }`, e.g. "Refresh") | Request failures and notices next to what they are about; API text rendered as text. `action` added by search-postings. |
+| InlineBanner | `apps/web/src/components/InlineBanner.tsx:20` | error (alert, Retry), warning, info (status), with action (`action: { label, onClick, disabled? }`, e.g. "Refresh") | Request failures and notices next to what they are about; API text rendered as text. `action` added by search-postings; `action.disabled` by applied-skipped (Undo while it saves). |
 | SkeletonRow | `apps/web/src/components/SkeletonRow.tsx:2` | loading | Card-shaped placeholder for list loading. |
 | Badge | `apps/web/src/components/Badge.tsx:12` | enabled, problem, notice, disabled, not_verified, new | Short status label on cards. Tone `new` (`bg-accent text-accent-contrast`) marks postings new since the previous visit (search-postings). |
 | SourceCard | `apps/web/src/features/source-health/SourceCard.tsx:6` | healthy, flagged, possibly changed, category notice, filling, disabled, not verified, never collected | One source's health on SCR-02 (remote-boards-collector); composes Badge. |

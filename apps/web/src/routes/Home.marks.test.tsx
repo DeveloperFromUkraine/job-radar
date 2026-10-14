@@ -181,6 +181,20 @@ describe("SCR-01 marking and Undo", () => {
     expect(screen.getByText("129 postings · 2 new")).toBeTruthy();
   });
 
+  it("focus follows the card: onto Undo after a mark, back onto the restored card after Undo", async () => {
+    await open({ [MARK(A)]: state(A, "applied", "c1"), [UNDO(A)]: state(A, null, "c2") });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    const undo = await within(await screen.findByTestId("undo-notice")).findByRole("button", {
+      name: "Undo",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(undo));
+
+    fireEvent.click(undo);
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Mark Role A applied" })),
+    );
+  });
+
   it("a search closes the notice (AC-03)", async () => {
     await open({ [MARK(A)]: state(A, "applied", "c1") });
     fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
@@ -249,6 +263,22 @@ describe("SCR-01 mark failures and nothing left (AC-13, AC-14, AC-15)", () => {
     ).toBeTruthy();
     expect(screen.getByRole("button", { name: "Show marked postings" })).toBeTruthy();
     expect(screen.queryByText(/Nothing matches/)).toBeNull();
+  });
+
+  it("a card that left as gone is not counted as marked in nothing left to review (AC-13, AC-15)", async () => {
+    const two = { ...found(), total: 2, new_count: 0, items: found().items.slice(1) as Posting[] };
+    mockApi({
+      [PROBLEMS]: base,
+      [VISIT]: returning,
+      [SEARCH]: { body: two },
+      [MARK(B)]: state(B, "skipped", "c1"),
+      [MARK(C)]: gone,
+    });
+    renderWithProviders(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Mark Role B skipped" }));
+    await waitFor(() => expect(titles()).toEqual(["Role C"]));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role C skipped" }));
+    expect(await screen.findByText("Nothing left to review. You've marked 1 matching posting.")).toBeTruthy();
   });
 
   it("marking the last posting on screen leaves nothing to review", async () => {

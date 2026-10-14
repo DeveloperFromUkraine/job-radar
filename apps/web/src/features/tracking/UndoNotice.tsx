@@ -27,16 +27,21 @@ export const noticeKey = (n: Notice) =>
 export function UndoNotice({ notice, onUndo, onClose, onShowMarked, undoPending = false }: UndoNoticeProps) {
   const close = useRef(onClose);
   close.current = onClose;
-  // A failed Undo stays until Retry succeeds or the usual triggers close it (screens.md save error).
-  const timed = !(notice.kind === "marked" && notice.error !== undefined);
+  // A failed Undo stays until Retry succeeds or the usual triggers close it (screens.md save error);
+  // an Undo in flight keeps it until the answer arrives (screens.md undo pending).
+  const timed = !(notice.kind === "marked" && notice.error !== undefined) && !undoPending;
   useEffect(() => {
     if (!timed) return;
     const timer = setTimeout(() => close.current(), UNDO_MS);
     return () => clearTimeout(timer);
   }, [timed]);
+  // Each notice is a new element (its key): focus moves to its action, since the card the owner
+  // acted on has just left the list or changed its buttons.
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => box.current?.querySelector("button")?.focus(), []);
 
   return (
-    <div data-testid="undo-notice" className="sticky bottom-0 py-2">
+    <div ref={box} data-testid="undo-notice" className="sticky bottom-0 py-2">
       {notice.kind === "marked" && notice.error !== undefined && (
         // A failed Undo: the notice keeps its place and offers Retry (AC-14).
         <InlineBanner tone="error" title="Couldn't undo your mark." onRetry={onUndo}>
@@ -47,7 +52,7 @@ export function UndoNotice({ notice, onUndo, onClose, onShowMarked, undoPending 
         <InlineBanner
           tone="info"
           title={notice.mark === null ? "Mark cleared" : TEXT[notice.mark]}
-          action={{ label: "Undo", onClick: undoPending ? () => {} : onUndo }}
+          action={{ label: "Undo", onClick: onUndo, disabled: undoPending }}
         />
       )}
       {notice.kind === "refused" && (

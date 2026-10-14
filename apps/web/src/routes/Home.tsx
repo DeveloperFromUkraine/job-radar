@@ -79,11 +79,13 @@ export function Home() {
   const allShown = (pages ?? []).flatMap((p) => p.items);
   const postings = allShown.filter((p) => !marks.hiddenFromMain(p.id));
   const hiddenNew = allShown.filter((p) => marks.hiddenFromMain(p.id) && p.is_new).length;
+  // Only marks count as marked; a card that left as gone (removed by clean-up) does not (AC-13).
+  const markedHere = allShown.filter((p) => (marks.states.get(p.id)?.mark ?? null) !== null).length;
   const counted = result && {
     ...result,
     total: result.total - (allShown.length - postings.length),
     new_count: result.new_count - hiddenNew,
-    marked_count: (result.marked_count ?? 0) + (allShown.length - postings.length),
+    marked_count: (result.marked_count ?? 0) + markedHere,
   };
 
   const code = list.error instanceof ApiError ? list.error.code : undefined;

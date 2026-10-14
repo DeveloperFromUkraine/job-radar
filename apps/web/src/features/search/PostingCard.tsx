@@ -95,7 +95,10 @@ export function PostingCard({ posting, now = Date.now(), banner, actions }: Post
   const marked = "mark_state" in posting ? posting : null;
   const hint = marked ? null : (posting as Posting).look_alike;
   return (
-    <article className="grid gap-1 break-words rounded-card border border-border p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-x-4">
+    <article
+      id={`posting-${posting.id}`}
+      className="grid gap-1 break-words rounded-card border border-border p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-x-4"
+    >
       <div className="flex min-w-0 items-start justify-between gap-2 md:col-start-1">
         <h3 className="min-w-0 font-medium">{posting.title}</h3>
         {marked ? (
