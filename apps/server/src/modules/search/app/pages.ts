@@ -34,5 +34,5 @@ export function nextPage(deps: SearchDeps, snapshots: SnapshotStore, snapshotId:
     const f = current.get(id);
     return f ? [f] : [];
   });
-  return { items: presentPage(deps, found, snapshot.previousVisitStartedAt), ...page };
+  return { items: presentPage(deps, found, snapshot.previousVisitStartedAt, snapshot.checks), ...page };
 }

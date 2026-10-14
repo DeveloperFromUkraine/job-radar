@@ -1,5 +1,6 @@
-// OpenPosting → the API's Posting (contracts/openapi.yaml). Descriptions are never sent; a link only
-// for an open listing with an http(s) URL (AC-08, AC-09).
+// OpenPosting → the API's Posting (docs/features/remote-filter/contracts/openapi.yaml, which adds
+// location_check in presentPage). Descriptions are never sent; a link only for an open listing with an
+// http(s) URL (AC-08, AC-09).
 import type { OpenPosting } from "../../collector/app/open-postings.js";
 import type { LookAlike } from "../../tracking/app/queries.js";
 import { safeUrl } from "../domain/links.js";

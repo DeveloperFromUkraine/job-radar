@@ -1,5 +1,6 @@
 // In-memory result snapshots (ADR-0003): at most 20, least recently used evicted first, 2 h idle expiry.
 import { newId } from "../../../core/id.js";
+import type { LocationCheck } from "../../remote-filter/app/verdicts.js";
 
 export interface Snapshot {
   id: string;
@@ -7,9 +8,14 @@ export interface Snapshot {
   loadedAt: number;
   /** The previous-visit start the new marks were decided against. */
   previousVisitStartedAt: number | null;
-  /** Posting ids in list order. */
+  /** Posting ids in list order: the shown ones only, marked ones included (remote-filter sad §5). */
   ids: string[];
   newCount: number;
+  /** The country the list was filtered for; null when the filter is off or none (remote-filter AC-09). */
+  filterCountry?: string | null;
+  hiddenCount?: number;
+  /** Each shown posting's "check location" reason, decided when the snapshot was built. */
+  checks?: ReadonlyMap<string, LocationCheck>;
   /** A marked-view snapshot (applied-skipped AC-05); paged only by its own route. */
   marked?: true;
 }

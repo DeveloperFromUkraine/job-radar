@@ -14,7 +14,7 @@
 | T07 | [Implement the settings use cases: choose country, switch on/off, start or end a look, the country list, and the active filter for a visit](./t07-settings-use-cases.md) | app | Volodymyr Kozlov | M | T02, T06 | done |
 | T08 | [Answer search's verdict question: verdicts for a set of postings and a country, from open listings of enabled sources, one parse per distinct statement](./t08-verdicts-for-postings.md) | app | Volodymyr Kozlov | S | T04, T05 | done |
 | T09 | [Expose remote-filter's four routes behind the access guard and register the plugin in app.ts](./t09-remote-filter-routes.md) | ports | Volodymyr Kozlov | S | T07 | done |
-| T10 | [Make search's main list location-aware: active filter, verdicts before the snapshot, hidden/total/new counts, check reasons and the waiting count](./t10-search-location-aware.md) | app | Volodymyr Kozlov | M | T07, T08 | todo |
+| T10 | [Make search's main list location-aware: active filter, verdicts before the snapshot, hidden/total/new counts, check reasons and the waiting count](./t10-search-location-aware.md) | app | Volodymyr Kozlov | M | T07, T08 | done |
 | T11 | [Add the web remote-filter client, the LocationFilterBar and the CountryChoice on SCR-01](./t11-web-location-bar-and-country-choice.md) | ui | Volodymyr Kozlov | M | — | todo |
 | T12 | [Wire the filter into the main list: re-search on change, hidden count in the summary, the check-location mark, the filter's empty message and the marked view](./t12-web-main-list-with-filter.md) | ui | Volodymyr Kozlov | M | T11 | todo |
 | T13 | [Prove "Anywhere" end to end from collection to verdict, and search speed with the filter on](./t13-end-to-end-and-speed.md) | tests | Volodymyr Kozlov | S | T05, T09, T10 | todo |
