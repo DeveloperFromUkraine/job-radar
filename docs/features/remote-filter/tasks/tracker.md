@@ -22,5 +22,7 @@
 | T15 | [Review fix F-1: non-Latin words and emoji count as unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | — | done |
 | T16 | [Review fix F-2: bare zone name equal to the judged country is unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T15 | done |
 | T17 | [Review fix F-3: empty-message switch shows pending and error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | — | done |
+| T18 | [Re-review fix N-1: other symbols count as unknown words](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T15 | done |
+| T19 | [Re-review fix N-2: a filter change clears the old switch error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T17 | done |
 
-**Total:** 17 tasks, ~6.25 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 19 tasks, ~6.75 person-days (S ≈ ¼ day, M ≈ ½ day).

@@ -104,8 +104,9 @@ function read(statement: string): Reading {
       }
       return " , ";
     });
-  // Any letter or emoji left over is a word (Польша, 🌍), never a separator: unknown → check (review F-1).
-  for (const w of rest.split(/[^\p{L}\p{N}%\p{Extended_Pictographic}]+/u)) {
+  // Only spaces, punctuation and a few list joiners separate words. Any letter, emoji or other symbol left
+  // over (Польша, 🌍, "~", "→") is a word, unknown → check (review F-1, re-review N-1).
+  for (const w of rest.split(/(?:[^\p{L}\p{N}%\p{S}]|[+<>=|^])+/u)) {
     if (!w || FILLER_WORDS.has(w)) continue;
     if (EXCEPTION_WORDS.has(w)) r.exception = true;
     else r.unknown = true;

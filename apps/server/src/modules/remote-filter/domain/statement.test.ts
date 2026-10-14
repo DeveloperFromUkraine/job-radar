@@ -86,6 +86,14 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["ET", "ET", check("not_recognised")],
   ["PT", "PL", NOT_OPEN],
   ["PST", "PT", NOT_OPEN],
+  // Re-review N-1: a symbol outside the known joiners is an unknown word, never a separator
+  ["UTC-1 ~ UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 ～ UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 → UTC+3", "PL", check("not_recognised")],
+  ["USA ♁", "PL", check("not_recognised")],
+  ["USA 🇵", "PL", check("not_recognised")],
+  ["US + Canada", "PL", NOT_OPEN],
+  ["US & Canada", "PL", NOT_OPEN],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {

@@ -145,6 +145,8 @@ describe("never a wrong hide on uncertainty (spec §6 property)", () => {
     "CA",
     "Польша",
     "🌍",
+    "~",
+    "♁",
   ];
   const EXCEPTIONS = ["except Poland", "excluding Germany", "not USA", "outside the EU"];
   const HOURS = ["UTC+1", "UTC-1 to UTC+3", "CET", "GMT+2", "UTC-10 to UTC+14"];

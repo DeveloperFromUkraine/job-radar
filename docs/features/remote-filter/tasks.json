@@ -343,6 +343,41 @@
         "apps/web/src/routes/Home.location.test.tsx"
       ],
       "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T18",
+      "title": "Re-review fix N-1: any symbol outside the known joiners (~, →, ♁, a lone regional indicator) is an unknown word, not a separator",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 ~ UTC+3\", \"～\", \"→\", \"USA ♁\" and \"USA 🇵\" for PL as check / not_recognised (fails without the fix); \"US + Canada\" and \"US & Canada\" still not_open; the never-a-wrong-hide property includes \"~\" and \"♁\"",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T19",
+      "title": "Re-review fix N-2: any confirmed filter change clears the empty message's old switch error",
+      "layer": "ui",
+      "deps": [
+        "T17"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location test pins it (fails without the fix): a failed Switch filter off, then the bar's Switch off and Switch on, leaves no stale alert in the next empty message",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
     }
   ]
 }
