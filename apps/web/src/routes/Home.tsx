@@ -231,6 +231,16 @@ export function Home() {
           ownCountry={settings.data?.country ?? null}
           onSwitchFilterOff={() => filterSwitch.mutate("off")}
           onBackFromLook={() => filterSwitch.mutate("back")}
+          switching={filterSwitch.isPending}
+          switchError={
+            filterSwitch.isError && (
+              <InlineBanner
+                tone="error"
+                title={filterSwitch.error.message}
+                onRetry={() => filterSwitch.mutate(filterSwitch.variables)}
+              />
+            )
+          }
           bannerFor={(p) => {
             const failure = marks.failed.get(p.id);
             return (

@@ -71,6 +71,26 @@ describe("SCR-01 location bar", () => {
     expect(calls).toContainEqual({ method: "POST", path: "/api/v1/remote-filter/filter" });
   });
 
+  it("the empty message's switch shows the switch error with Retry (review F-3)", async () => {
+    const allHidden = contractExample<SearchResult>("runSearch", 200, "all_hidden");
+    const fail = { status: 500, body: { error: { code: "INTERNAL", message: "Something went wrong." } } };
+    const { calls } = mockApi({
+      ...base,
+      [SEARCH]: [
+        { body: allHidden },
+        { body: { ...filtered(), location_filter: { mode: "off", country: PL } } },
+      ],
+      "POST /api/v1/remote-filter/filter": [fail, { body: { ...withPoland(), filter_on: false } }],
+    });
+    renderWithProviders(<App />);
+    const button = await screen.findByRole("button", { name: "Switch filter off" });
+    fireEvent.click(button);
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong.");
+    expect(searches(calls)).toBe(1);
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(searches(calls)).toBe(2));
+  });
+
   it("is hidden while the marked view is on, and back when it goes off (AC-11)", async () => {
     mockApi({
       ...base,

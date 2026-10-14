@@ -21,6 +21,6 @@
 | T14 | [Add the hidden count and one-off look to CONTEXT.md, amend the collector spec's "Anywhere" reading, and point applied-skipped's contract at this one](./t14-glossary-collector-spec-and-contract-pointers.md) | docs | Volodymyr Kozlov | S | — | done |
 | T15 | [Review fix F-1: non-Latin words and emoji count as unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | — | done |
 | T16 | [Review fix F-2: bare zone name equal to the judged country is unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T15 | done |
-| T17 | [Review fix F-3: empty-message switch shows pending and error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | — | todo |
+| T17 | [Review fix F-3: empty-message switch shows pending and error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | — | done |
 
 **Total:** 17 tasks, ~6.25 person-days (S ≈ ¼ day, M ≈ ½ day).

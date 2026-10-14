@@ -32,6 +32,9 @@ interface SearchListProps {
   /** The filter's empty message actions (remote-filter AC-08). */
   onSwitchFilterOff?: () => void;
   onBackFromLook?: () => void;
+  /** Those actions' request in flight, and its failure with Retry (screens SCR-01 switching / switch error). */
+  switching?: boolean;
+  switchError?: ReactNode;
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
@@ -54,6 +57,8 @@ export function SearchList({
   ownCountry = null,
   onSwitchFilterOff,
   onBackFromLook,
+  switching = false,
+  switchError,
 }: SearchListProps) {
   const feed = result.skills.length === 0;
   const clear = (
@@ -83,13 +88,16 @@ export function SearchList({
         <p>
           No posting open to {filterCountry} matches. The location filter hid {result.hidden_count}.
         </p>
+        {switchError}
         <div className="flex flex-wrap gap-2">
           {look ? (
-            <Button onClick={onBackFromLook}>
+            <Button onClick={onBackFromLook} pending={switching}>
               {ownCountry ? `Back to ${ownCountry.name}` : "Back to all postings"}
             </Button>
           ) : (
-            <Button onClick={onSwitchFilterOff}>Switch filter off</Button>
+            <Button onClick={onSwitchFilterOff} pending={switching}>
+              Switch filter off
+            </Button>
           )}
           {!feed && clear}
         </div>

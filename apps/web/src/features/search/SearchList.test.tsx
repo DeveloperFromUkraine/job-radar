@@ -96,6 +96,22 @@ describe("SearchList with the location filter (remote-filter SCR-01)", () => {
     expect(h.onClearSkills).toHaveBeenCalled();
   });
 
+  it("the filter's message action shows its pending state and error (review F-3)", () => {
+    list(
+      {
+        ...found(),
+        total: 0,
+        new_count: 0,
+        hidden_count: 12,
+        items: [],
+        location_filter: { mode: "own", country: PL },
+      },
+      { switching: true, switchError: <p role="alert">Something went wrong.</p> },
+    );
+    expect(screen.getByRole("button", { name: "Switch filter off" }).getAttribute("aria-busy")).toBe("true");
+    expect(screen.getByRole("alert").textContent).toBe("Something went wrong.");
+  });
+
   it("the filter's message wins over nothing left to review whenever something was hidden (AC-08 note)", () => {
     list({
       ...found(),
