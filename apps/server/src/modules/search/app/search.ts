@@ -6,8 +6,8 @@ import { compareNewestFirst } from "../domain/order.js";
 import { parseSkills } from "../domain/skills.js";
 import { isNew } from "../domain/visit.js";
 import { readState, saveLastSkills } from "../infra/repo.js";
-import { type Collection, collectionOf, type SearchDeps } from "./deps.js";
-import { PAGE_SIZE, pageInfo, presentPosting } from "./present.js";
+import { type Collection, collectionOf, type MarkReader, marksOf, type SearchDeps } from "./deps.js";
+import { presentPosting, walkUnmarked } from "./present.js";
 import type { SnapshotStore } from "./snapshots.js";
 
 export const COLLECTION_UNAVAILABLE = "Job-radar could not read its postings just now. Try again.";
@@ -21,6 +21,27 @@ export function readCollection<T>(read: (c: Collection) => T, deps: SearchDeps):
   }
 }
 
+/** Reads marks, or answers 503: a list built without them could show decided postings (api-sync F-4). */
+export function readMarks<T>(read: (m: MarkReader) => T, deps: SearchDeps): T {
+  try {
+    return read(marksOf(deps));
+  } catch {
+    throw new AppError("SEARCH_COLLECTION_UNAVAILABLE", COLLECTION_UNAVAILABLE, 503);
+  }
+}
+
+/** The page's postings as the API's Posting, each with its look-alike hint (AC-10, AC-11). */
+export function presentPage(
+  deps: SearchDeps,
+  page: readonly { posting: OpenPosting; matched: MatchedSkill[] }[],
+  previousVisitStartedAt: number | null,
+) {
+  const hints = readMarks((m) => m.hintsFor(page.map((f) => f.posting)), deps);
+  return page.map((f) =>
+    presentPosting(f.posting, f.matched, previousVisitStartedAt, hints.get(f.posting.id) ?? null),
+  );
+}
+
 /**
  * The skills each posting matches, on its open listings only. Unmatched postings are dropped unless
  * `keepUnmatched` (the feed, or a next page of a snapshot that already chose its postings).
@@ -29,12 +50,13 @@ export function matchPostings(
   skills: string[],
   postings: OpenPosting[],
   keepUnmatched = skills.length === 0,
+  everyListing = false, // the marked view: a closed posting has no open listing (api-sync-report F-1)
 ) {
   const matcher = compileMatcher(skills);
   const result: { posting: OpenPosting; matched: MatchedSkill[] }[] = [];
   for (const posting of postings) {
     const texts = posting.listings
-      .filter((l) => l.status === "open")
+      .filter((l) => everyListing || l.status === "open")
       .map((l) => ({ title: l.title ?? "", description: l.description ?? "" }));
     const matched = matcher.match(texts);
     if (keepUnmatched || matched.length > 0) result.push({ posting, matched });
@@ -53,7 +75,10 @@ export function runSearch(deps: SearchDeps, snapshots: SnapshotStore, skillsText
   const loadedAt = deps.now();
   const open = readCollection((c) => c.open(), deps);
   const found = matchPostings(skills, open).sort((a, b) => compareNewestFirst(a.posting, b.posting));
-  const newCount = found.filter((f) => isNew(f.posting.firstFoundAt, previousVisitStartedAt)).length;
+  // The snapshot keeps marked matches, so a posting cleared later returns in its place (ADR-0002).
+  const marked = readMarks((m) => m.markedIds(), deps);
+  const unmarked = found.filter((f) => !marked.has(f.posting.id));
+  const newCount = unmarked.filter((f) => isNew(f.posting.firstFoundAt, previousVisitStartedAt)).length;
   const snapshot = snapshots.create({
     skills,
     loadedAt,
@@ -61,6 +86,8 @@ export function runSearch(deps: SearchDeps, snapshots: SnapshotStore, skillsText
     ids: found.map((f) => f.posting.id),
     newCount,
   });
+  const { picked, ...page } = walkUnmarked(snapshot.ids, 0, marked);
+  const byId = new Map(found.map((f) => [f.posting.id, f]));
 
   deps.log?.info(
     {
@@ -74,10 +101,15 @@ export function runSearch(deps: SearchDeps, snapshots: SnapshotStore, skillsText
   return {
     snapshot_id: snapshot.id,
     skills,
-    total: found.length,
+    total: unmarked.length,
     new_count: newCount,
+    marked_count: found.length - unmarked.length,
     collection_empty: open.length === 0,
-    items: found.slice(0, PAGE_SIZE).map((f) => presentPosting(f.posting, f.matched, previousVisitStartedAt)),
-    ...pageInfo(0, found.length),
+    items: presentPage(
+      deps,
+      picked.map((id) => byId.get(id) as (typeof found)[number]),
+      previousVisitStartedAt,
+    ),
+    ...page,
   };
 }

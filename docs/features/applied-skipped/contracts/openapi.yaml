@@ -1,0 +1,869 @@
+openapi: 3.1.0
+
+info:
+  title: job-radar Tracking API (applied-skipped)
+  version: 0.1.0
+  description: |
+    The main list now serves as the owner's daily feed, but nothing records what they have already
+    dealt with. Postings they applied to or decided against stay between the unread ones, so they
+    re-read them on every visit and risk applying twice (spec §1). This API lets the owner mark a
+    posting applied or skipped, which takes it out of the main list. It also undoes a mark at once
+    and lists the marked postings, closed ones included, so the owner can change or clear a mark
+    later. A separate posting that looks like a marked one carries a hint and is never hidden.
+
+    Scope of this document:
+    - **tracking** (new): set / change / clear a mark, and undo (ADR-0001, ADR-0003).
+    - **search** (changed): `runSearch`, `getNextPage` and `getWaitingCount` restated with their
+      mark-aware behaviour (ADR-0002, ADR-0004), plus the new marked view (`runMarkedView`,
+      `getNextMarkedPage`). These restatements supersede the matching operations in
+      `docs/features/search-postings/contracts/openapi.yaml`; `openVisit` is unchanged and not
+      repeated here.
+
+    Access (collector ADR-0007), unchanged: no accounts, loopback only, loopback `Host` headers only,
+    a state-changing request is refused when `Sec-Fetch-Site` is `cross-site`, and a JSON body is
+    required. No CORS headers are sent. Every operation is a JSON POST (sad.md §8). The 403
+    responses are what AC-16 rests on.
+    Errors use the repo's single envelope `{ "error": { "code", "message" } }` (core/errors.ts).
+    Times are ISO 8601 UTC strings, converted from the stored epoch milliseconds. Source text
+    (titles, companies) is untrusted plain text, and the web app renders it only as text
+    (search AC-09).
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+
+# No authentication scheme: access is limited by the network boundary (collector ADR-0007), not by credentials.
+security: []
+
+tags:
+  - name: tracking
+    description: The owner's applied and skipped marks
+  - name: search
+    description: Main list and marked view, aware of marks
+
+paths:
+  /api/v1/tracking/marks/{posting_id}:
+    post:
+      tags: [tracking]
+      summary: Mark a posting applied or skipped, change its mark, or clear it
+      description: |
+        Sets the posting's mark to `mark` (sad.md §6 flows 1 and 4). `null` clears it. In one
+        synchronous statement, the current state moves into the previous state, the new state gets
+        a new change id, and the time applied was lost is recorded when the change drops applied
+        (ADR-0003, AC-07). A posting has at most one mark, so a change replaces the old mark and its
+        date (AC-06). Only this posting's row is written; the company's other postings are untouched
+        (AC-02).
+
+        Setting the state the posting already has (for example Applied from a stale card in a second
+        window) writes nothing. It returns 200 with the current state and change id, so the original
+        mark date is kept (api-sync-report F-3). Clearing a posting that was never marked is the same
+        no-op.
+
+        The web removes the card, or updates it in place in the marked view, only after this returns
+        200, never optimistically (AC-14). It shows the "Marked applied" / "Marked skipped" notice
+        with Undo for 8 s, holding the returned `change_id` (AC-01, AC-02, AC-03). The confirm step
+        before losing applied protection (AC-07) is web-only and is shown when the card's
+        `at_risk` is true. The server does not require a confirmation flag.
+      operationId: setMark
+      parameters:
+        - $ref: "#/components/parameters/PostingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetMarkRequest" }
+            examples:
+              applied:
+                summary: Mark applied (AC-01)
+                value: { mark: applied }
+              skipped:
+                summary: Mark skipped (AC-02)
+                value: { mark: skipped }
+              clear:
+                summary: Clear the mark (AC-06)
+                value: { mark: null }
+      responses:
+        "200":
+          description: The posting's state after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkState" }
+              examples:
+                applied:
+                  summary: Newly marked applied
+                  value:
+                    posting_id: 01926a00-0000-7000-8000-0000000000b1
+                    mark: applied
+                    marked_at: "2026-10-07T09:15:00Z"
+                    change_id: 01926b10-0000-7000-8000-0000000000c1
+                    at_risk: false
+                    removed_after: null
+                cleared_closed:
+                  summary: A closed posting cleared in the marked view (AC-07)
+                  value:
+                    posting_id: 01926a00-0000-7000-8000-0000000000b3
+                    mark: null
+                    marked_at: "2026-10-07T09:20:00Z"
+                    change_id: 01926b10-0000-7000-8000-0000000000c2
+                    at_risk: true
+                    removed_after: "2026-10-08"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PostingNotFound" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/MarksUnavailable" }
+
+  /api/v1/tracking/marks/{posting_id}/undo:
+    post:
+      tags: [tracking]
+      summary: Undo the latest mark change, only if nothing changed it since
+      description: |
+        Restores the previous state exactly (AC-03): unmarked, or the previous mark with that mark's
+        original date and its applied-lost time. Undoing a posting's first mark deletes its row.
+        The guard is one `UPDATE … WHERE posting_id = ? AND change_id = ?` (data-model). If no row
+        changes, the mark was changed or cleared since, from any window and even back to the same
+        mark, so nothing is reverted and the answer is 409 (AC-04). A successful undo is itself a
+        change and returns a new `change_id`. The web puts the card back at its earlier place in the
+        pages already shown, restores the count, and keeps the "new" flag it had (AC-03).
+
+        A retry after a 503 is safe, because nothing was written. A retry after a 200 whose response
+        was lost answers 409, because the change id was replaced. The web then points to the marked
+        postings, which show the true state.
+      operationId: undoMark
+      parameters:
+        - $ref: "#/components/parameters/PostingId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UndoRequest" }
+            example: { change_id: 01926b10-0000-7000-8000-0000000000c1 }
+      responses:
+        "200":
+          description: The restored state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkState" }
+              examples:
+                back_to_unmarked:
+                  summary: Undo of a first mark — the posting is unmarked again
+                  value:
+                    posting_id: 01926a00-0000-7000-8000-0000000000b1
+                    mark: null
+                    marked_at: null
+                    change_id: null
+                    at_risk: false
+                    removed_after: null
+                back_to_previous:
+                  summary: Undo of a change — the previous mark with its original date
+                  value:
+                    posting_id: 01926a00-0000-7000-8000-0000000000b4
+                    mark: applied
+                    marked_at: "2026-10-03T14:00:00Z"
+                    change_id: 01926b10-0000-7000-8000-0000000000c4
+                    at_risk: true
+                    removed_after: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/PostingNotFound" }
+        "409":
+          description: |
+            The mark changed elsewhere since this change (AC-04). Nothing was reverted. The web says
+            so and points to the marked postings, where the current mark is shown.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              example:
+                error:
+                  code: TRACKING_MARK_CHANGED_ELSEWHERE
+                  message: "This mark was changed elsewhere, so it was not undone. See the marked postings for its current mark."
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/MarksUnavailable" }
+
+  /api/v1/search/snapshots:
+    post:
+      tags: [search]
+      summary: Run a skills search (or the feed) and return its first 50 unmarked postings
+      description: |
+        As in search-postings: the skills are parsed and checked, saved as the last skills, every
+        open posting is matched, ordered newest first, and kept as a snapshot. What changes (ADR-0002):
+        - The snapshot keeps every matching open posting, **marked ones included**, so a posting
+          cleared later can return in its place (AC-12).
+        - The first page walks the snapshot, skips currently marked ids, and stops at 50 unmarked
+          postings.
+        - `total` and `new_count` count unmarked matches only (AC-01, AC-12). `marked_count` counts
+          the matching open postings that are marked.
+        - Each item carries a `look_alike` hint or null (ADR-0004, AC-10, AC-11).
+
+        The "nothing left to review" state (AC-13) is 200 with `total: 0` and `marked_count > 0`.
+        When `marked_count` is 0, search AC-11's two messages apply unchanged (`collection_empty`).
+        A 503 also covers marks that cannot be read: a list built without them could show decided
+        postings (api-sync-report F-4).
+      operationId: runSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            example: { skills: "Go, TypeScript" }
+      responses:
+        "200":
+          description: The snapshot's first page of unmarked postings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResult" }
+              examples:
+                found_with_hint:
+                  summary: 128 unmarked, 2 new, 7 marked; one look-alike (AC-10)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a1
+                    skills: [Go, TypeScript]
+                    total: 128
+                    new_count: 2
+                    marked_count: 7
+                    collection_empty: false
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000b5
+                        title: Senior Backend Engineer
+                        company: ACME
+                        published_at: "2026-10-06T08:00:00Z"
+                        first_seen_at: "2026-10-06T09:10:00Z"
+                        is_new: true
+                        matched_skills:
+                          - { skill: Go, in_title: false }
+                        listings:
+                          - source_id: jobicy
+                            status: open
+                            url: https://jobs.example.test/jobicy/123
+                            location_restriction: Worldwide
+                        look_alike:
+                          mark: applied
+                          marked_at: "2026-10-03T14:00:00Z"
+                          company: Acme Inc
+                    has_next: true
+                    next_cursor: "57"
+                nothing_left:
+                  summary: Every matching open posting is marked (AC-13)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a2
+                    skills: [Haskell]
+                    total: 0
+                    new_count: 0
+                    marked_count: 3
+                    collection_empty: false
+                    items: []
+                    has_next: false
+                    next_cursor: null
+        "400": { $ref: "#/components/responses/InvalidSkills" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 unmarked postings of a snapshot
+      description: |
+        Marks are checked as each page loads (ADR-0002, AC-12). The page reads the currently marked
+        ids, walks the snapshot from the cursor, skips marked ids, and stops at 50 unmarked postings.
+        The cursor is the snapshot position after the last id read. A posting marked since loading
+        is therefore left out, a posting cleared since appears in its publication-time position, and
+        no unmarked posting is skipped. Postings closed since loading are still left out
+        (search-postings). The web never re-fetches the pages already shown, so cards marked in
+        another window stay on screen until refresh or search.
+      operationId: getNextPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "57" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostingPage" }
+              example:
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000b2
+                    title: Full-stack Developer (Node.js)
+                    company: Example Co
+                    published_at: null
+                    first_seen_at: "2026-10-01T12:00:00Z"
+                    is_new: false
+                    matched_skills:
+                      - { skill: TypeScript, in_title: false }
+                    listings:
+                      - source_id: remotive
+                        status: open
+                        url: https://jobs.example.test/remotive/77
+                        location_restriction: null
+                    look_alike: null
+                has_next: true
+                next_cursor: "109"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/waiting:
+    post:
+      tags: [search]
+      summary: How many unmarked matching postings were collected after the snapshot loaded
+      description: |
+        Unchanged from search-postings except that postings marked at the time of the poll are not
+        counted (AC-12, sad.md §6 flow 5). A failed poll (410, 503) is still silent.
+      operationId: getWaitingCount
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+            example: {}
+      responses:
+        "200":
+          description: Waiting count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WaitingCount" }
+              example: { waiting_count: 4 }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/marked-snapshots:
+    post:
+      tags: [search]
+      summary: Open the marked postings and return the first 50
+      description: |
+        "Show marked postings" (AC-05, sad.md §6 flow 3). The view holds marked postings, open or
+        closed, plus closed postings whose mark was cleared and that clean-up has not removed yet.
+        It is ordered most recently changed first (`marked_at` descending, ties by id). The skills
+        are parsed and checked as in `runSearch` and narrow the view the same way. A closed posting
+        has no open listing, so here a skill matches the text of **every** listing, open or closed
+        (api-sync-report F-1). Unlike `runSearch`, this call does **not** save the skills as the last
+        skills (F-7).
+
+        The order and the pages are fixed in a new marked snapshot (same store, limits and expiry as
+        search ADR-0003). A card whose mark changes stays in place until the view is reloaded, and
+        later pages never repeat or skip a posting. The web shows the switch off on every visit.
+      operationId: runMarkedView
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            example: { skills: "Go" }
+      responses:
+        "200":
+          description: The marked view's first page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkedResult" }
+              example:
+                snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a4
+                skills: [Go]
+                marked_count: 12
+                cleared_count: 1
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000b4
+                    title: Sr. Backend Engineer (Go) – Remote
+                    company: Acme Inc
+                    status: closed
+                    published_at: "2026-09-25T08:00:00Z"
+                    first_seen_at: "2026-09-25T10:00:00Z"
+                    matched_skills:
+                      - { skill: Go, in_title: true }
+                    listings:
+                      - source_id: himalayas
+                        status: closed
+                        url: null
+                        location_restriction: Europe
+                    mark_state:
+                      posting_id: 01926a00-0000-7000-8000-0000000000b4
+                      mark: applied
+                      marked_at: "2026-10-03T14:00:00Z"
+                      change_id: 01926b10-0000-7000-8000-0000000000c3
+                      at_risk: false
+                      removed_after: null
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/InvalidSkills" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/marked-snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 postings of a marked snapshot
+      description: |
+        Slices the next 50 ids of the marked snapshot in its fixed order (AC-05). Each item's
+        `mark_state` is read fresh, so a posting changed or cleared since loading shows its current
+        state in place. A posting removed by clean-up since loading is left out.
+      operationId: getNextMarkedPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "50" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkedPage" }
+              example:
+                items: []
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+components:
+  parameters:
+    PostingId:
+      name: posting_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: collector_postings.id (UUIDv7); tracking_marks.posting_id
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: The id the snapshot's first call returned (UUIDv7, in memory only)
+
+  responses:
+    ValidationError:
+      description: The body or a path parameter does not match the schema
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: VALIDATION_ERROR, message: "body/mark must be equal to one of the allowed values" }
+    InvalidSkills:
+      description: |
+        The skills fail the check (search AC-05), so nothing ran. A body that does not match the
+        schema gets `VALIDATION_ERROR`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_INVALID_SKILLS, message: "24 skills entered; search takes at most 20." }
+    Forbidden:
+      description: The Host header is not loopback, or the request is cross-site (collector ADR-0007, AC-16)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            host:
+              value:
+                error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+            cross_site:
+              value:
+                error: { code: CROSS_SITE_REQUEST, message: "Cross-site requests are not accepted." }
+    UnsupportedMediaType:
+      description: The request has no JSON body (collector ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
+    PostingNotFound:
+      description: |
+        No such posting: clean-up removed it after the list loaded, or the id was never a posting
+        (AC-15, spec §6.1 forged reference). Nothing was recorded; the write failed on the
+        tracking_marks → collector_postings reference, or the posting was not found before the undo.
+        The web says the posting is no longer in job-radar and removes its card.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: TRACKING_POSTING_NOT_FOUND, message: "This posting is no longer in job-radar." }
+    MarksUnavailable:
+      description: |
+        Marks cannot be saved right now (AC-14). Nothing was written. The web keeps the screen in
+        its earlier state and shows a plain-language message with Retry.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: TRACKING_MARKS_UNAVAILABLE, message: "Job-radar could not save your mark just now. Try again." }
+    SnapshotExpired:
+      description: |
+        Unknown or expired snapshot (search ADR-0003: restart, 2 h idle, or the 20-snapshot cap).
+        The web reloads the view from the start and says so.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_SNAPSHOT_EXPIRED, message: "This list has expired; it was reloaded from the newest." }
+    CollectionUnavailable:
+      description: |
+        The postings or the marks cannot be read (search AC-12; F-4 for marks). The web shows a
+        plain-language message with Retry and keeps the last list visible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_COLLECTION_UNAVAILABLE, message: "Job-radar could not read its postings just now. Try again." }
+    Internal:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: INTERNAL, message: "Internal server error" }
+
+  schemas:
+    # Repo envelope (apps/server/src/core/errors.ts) — deviation from the flat {code, message, details?} default.
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Z][A-Z0-9_]*$"
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (TRACKING_..., SEARCH_...)
+            message:
+              type: string
+
+    EmptyRequest:
+      type: object
+      additionalProperties: false
+      description: No fields. The JSON body is required by the access guard (collector ADR-0007)
+
+    Timestamp:
+      type: string
+      format: date-time
+      description: ISO 8601 UTC, converted from a stored epoch-milliseconds column
+
+    Mark:
+      type: string
+      enum: [applied, skipped]
+      description: tracking_marks.mark (checked in tracking/domain, not by the DB)
+
+    SetMarkRequest:
+      type: object
+      required: [mark]
+      additionalProperties: false
+      properties:
+        mark:
+          oneOf:
+            - $ref: "#/components/schemas/Mark"
+            - type: "null"
+          description: The new mark; null clears it
+
+    UndoRequest:
+      type: object
+      required: [change_id]
+      additionalProperties: false
+      properties:
+        change_id:
+          type: string
+          format: uuid
+          description: The `change_id` the change being undone returned (tracking_marks.change_id)
+
+    MarkState:
+      type: object
+      required: [posting_id, mark, marked_at, change_id, at_risk, removed_after]
+      additionalProperties: false
+      description: A posting's current mark state, as tracking_marks holds it plus two computed fields
+      properties:
+        posting_id:
+          type: string
+          format: uuid
+          description: tracking_marks.posting_id
+        mark:
+          oneOf:
+            - $ref: "#/components/schemas/Mark"
+            - type: "null"
+          description: tracking_marks.mark; null = cleared, or no row (never marked, or a first mark undone)
+        marked_at:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+          description: tracking_marks.marked_at, when the current state was set (the mark's date, AC-05); null when there is no row
+        change_id:
+          type: [string, "null"]
+          format: uuid
+          description: tracking_marks.change_id, the id to send to undoMark; null when there is no row
+        at_risk:
+          type: boolean
+          description: |
+            The posting is past the collector's 60-day rule (collector/app/retention-outlook.ts), so
+            clean-up would remove it without the applied mark. The web shows the AC-07 warning
+            before clearing an applied posting with this flag, or changing it to skipped.
+        removed_after:
+          type: [string, "null"]
+          format: date
+          description: |
+            For a cleared closed posting, the last calendar day (owner's time zone) before clean-up
+            removes it. That is the later of the grace-day end (tracking_marks.applied_lost_at,
+            AC-07) and the retention date (the day before the counted age passes 60 days, never
+            before today). Shown as "Cleared, removed after <date>" (AC-05). Null otherwise, and
+            null while every source of the posting stays disabled (its age is frozen, so there is
+            no removal date; the web shows just "Cleared").
+
+    LookAlike:
+      type: object
+      required: [mark, marked_at, company]
+      additionalProperties: false
+      description: |
+        The marked posting this unmarked posting looks like (ADR-0004, AC-10). An applied match wins,
+        otherwise the most recent skip. A cleared posting never matches. The look-alike stays in the
+        list and its counts and inherits nothing (AC-11).
+      properties:
+        mark: { $ref: "#/components/schemas/Mark" }
+        marked_at:
+          $ref: "#/components/schemas/Timestamp"
+          description: The matched posting's tracking_marks.marked_at ("on 3 Oct")
+        company:
+          type: string
+          description: The matched posting's collector_postings.company; plain text
+
+    SearchRequest:
+      type: object
+      required: [skills]
+      additionalProperties: false
+      properties:
+        skills:
+          type: string
+          description: The skills field exactly as typed, comma-separated (search AC-05). Empty = no skills.
+
+    PageRequest:
+      type: object
+      required: [cursor]
+      additionalProperties: false
+      properties:
+        cursor: { $ref: "#/components/schemas/Cursor" }
+
+    Cursor:
+      type: string
+      pattern: "^[0-9]{1,6}$"
+      description: Opaque to the web; the snapshot position after the last id read, from the previous page's `next_cursor`
+
+    Skill:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: One skill as the owner spelled it, trimmed (search AC-05)
+
+    MatchedSkill:
+      type: object
+      required: [skill, in_title]
+      additionalProperties: false
+      properties:
+        skill: { $ref: "#/components/schemas/Skill" }
+        in_title:
+          type: boolean
+          description: True when a matched listing's title has it (open listings in the main list, every listing in the marked view)
+
+    Listing:
+      type: object
+      required: [source_id, status, url, location_restriction]
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          pattern: "^[a-z0-9_]+$"
+          description: collector_listings.source_id
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_listings.status
+        url:
+          type: [string, "null"]
+          format: uri
+          description: collector_listings.url, only when the listing is open and the URL is http(s) (search AC-08, AC-09; AC-05 here)
+        location_restriction:
+          type: [string, "null"]
+          description: collector_listings.location_restriction; null = unknown
+
+    Posting:
+      type: object
+      required: [id, title, company, published_at, first_seen_at, is_new, matched_skills, listings, look_alike]
+      additionalProperties: false
+      description: A main-list posting, always unmarked; search-postings' Posting plus `look_alike`
+      properties:
+        id: { type: string, format: uuid, description: collector_postings.id }
+        title: { type: string, description: collector_postings.title; plain text }
+        company: { type: string, description: collector_postings.company; plain text }
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: Effective publication time, collector_postings.published_at capped at first_found_at (search AC-03)
+        first_seen_at:
+          $ref: "#/components/schemas/Timestamp"
+          description: collector_postings.first_found_at
+        is_new:
+          type: boolean
+          description: first_found_at later than the previous visit's start (search AC-14). Clearing a mark never makes a posting new (AC-06)
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+        look_alike:
+          oneOf:
+            - $ref: "#/components/schemas/LookAlike"
+            - type: "null"
+          description: The hint (AC-10), or null when no marked posting matches
+
+    MarkedPosting:
+      type: object
+      required: [id, title, company, status, published_at, first_seen_at, matched_skills, listings, mark_state]
+      additionalProperties: false
+      description: A marked-view posting, open or closed (AC-05)
+      properties:
+        id: { type: string, format: uuid, description: collector_postings.id }
+        title: { type: string, description: collector_postings.title; plain text }
+        company: { type: string, description: collector_postings.company; plain text }
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_postings.status; closed → labelled "Closed" (AC-05)
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: As Posting.published_at
+        first_seen_at:
+          $ref: "#/components/schemas/Timestamp"
+          description: collector_postings.first_found_at
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+          description: Every source named; links only for listings still open (AC-05)
+        mark_state: { $ref: "#/components/schemas/MarkState" }
+
+    PostingPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Posting" }
+          description: Unmarked postings in snapshot order; fewer than 50 when the snapshot ran out or postings closed since loading
+        has_next:
+          type: boolean
+          description: An unmarked id remains in the snapshot after `next_cursor`, as of this page
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+
+    SearchResult:
+      type: object
+      required: [snapshot_id, skills, total, new_count, marked_count, collection_empty, items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        snapshot_id: { type: string, format: uuid }
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+        total:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings (AC-01, AC-12); the web lowers it as the owner marks
+        new_count:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings that are new (AC-12)
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Matching open postings that are marked — "N marked" in the nothing-left-to-review state (AC-13)
+        collection_empty:
+          type: boolean
+          description: No open posting at all (search AC-11)
+        items: { $ref: "#/components/schemas/PostingPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/PostingPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/PostingPage/properties/next_cursor" }
+
+    MarkedPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/MarkedPosting" }
+          description: In the marked snapshot's fixed order; postings removed since loading are left out
+        has_next: { type: boolean }
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+
+    MarkedResult:
+      type: object
+      required: [snapshot_id, skills, marked_count, cleared_count, items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        snapshot_id: { type: string, format: uuid }
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Marked postings in the view, after the skills (AC-05)
+        cleared_count:
+          type: integer
+          minimum: 0
+          description: Cleared closed postings in the view — "and N cleared" (AC-05)
+        items: { $ref: "#/components/schemas/MarkedPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/MarkedPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/MarkedPage/properties/next_cursor" }
+
+    WaitingCount:
+      type: object
+      required: [waiting_count]
+      additionalProperties: false
+      properties:
+        waiting_count:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings first collected after the snapshot loaded (AC-12)

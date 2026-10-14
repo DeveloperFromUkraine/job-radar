@@ -46,6 +46,18 @@ export function countedAgeMs(
   return now - start - paused;
 }
 
+/** Each of the posting's sources' disabled periods, from the stored rows (one list per source). */
+export function periodsPerSource(
+  sourceIds: readonly string[],
+  rows: readonly { sourceId: string; disabledFrom: number; disabledUntil: number | null }[],
+): Period[][] {
+  return sourceIds.map((sourceId) =>
+    rows
+      .filter((d) => d.sourceId === sourceId)
+      .map((d) => ({ from: d.disabledFrom, until: d.disabledUntil })),
+  );
+}
+
 export function isPastRetention(countedAge: number): boolean {
   return countedAge > RETENTION_MS;
 }

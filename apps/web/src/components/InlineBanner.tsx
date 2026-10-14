@@ -13,7 +13,7 @@ interface InlineBannerProps {
   children?: ReactNode;
   onRetry?: () => void;
   /** Another action in the Retry slot, e.g. "Refresh" on the waiting notice. */
-  action?: { label: string; onClick: () => void };
+  action?: { label: string; onClick: () => void; disabled?: boolean };
 }
 
 /** Inline, next to what it is about — errors as alerts with Retry, notices as status (design-system). */
@@ -40,7 +40,8 @@ export function InlineBanner({ tone, title, children, onRetry, action }: InlineB
         <button
           type="button"
           onClick={action.onClick}
-          className="min-h-11 rounded border border-border px-3 text-text"
+          disabled={action.disabled}
+          className="min-h-11 rounded border border-border px-3 text-text disabled:opacity-60"
         >
           {action.label}
         </button>

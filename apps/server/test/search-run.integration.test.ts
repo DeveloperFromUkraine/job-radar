@@ -97,6 +97,7 @@ describe("runSearch", () => {
         throw new Error("SQLITE_BUSY");
       },
       byIds: () => [],
+      byIdsWithClosed: () => [],
     };
     const err = caught(() => search("React, Go"));
     expect([err.statusCode, err.code, err.message]).toEqual([

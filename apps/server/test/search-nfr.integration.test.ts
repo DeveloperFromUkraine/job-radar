@@ -1,8 +1,10 @@
+import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { seedOpenPostings } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
+import { seedMarks } from "./helpers/tracking-fixtures.js";
 
 // spec §6 NFRs: ≤ 1 s p95 for a search and for show more, 10,000 open postings, up to 20 skills.
 // SKIP_PERF=1 skips it on a machine too slow to measure; the thresholds are never loosened.
@@ -18,11 +20,12 @@ const p95 = (ms: number[]) => [...ms].sort((a, b) => a - b)[Math.ceil(ms.length 
 describe.skipIf(process.env.SKIP_PERF)("search latency at 10,000 open postings", () => {
   let t: TempDb;
   let app: FastifyInstance;
+  let ids: string[];
 
   beforeAll(async () => {
     t = createTempDb();
     // Every 8th posting mentions React in its title: 1,250 results, 25 pages.
-    seedOpenPostings(t.db, 10_000, (i) => ({
+    ids = seedOpenPostings(t.db, 10_000, (i) => ({
       title: i % 8 === 0 ? "Senior React Engineer" : "Account Manager",
       description: DESCRIPTION,
     }));
@@ -58,4 +61,73 @@ describe.skipIf(process.env.SKIP_PERF)("search latency at 10,000 open postings",
     expect(p95(searches)).toBeLessThanOrEqual(1_000);
     expect(p95(pages)).toBeLessThanOrEqual(1_000);
   }, 120_000);
+
+  // applied-skipped spec §6: the same targets with 5,000 marked postings. Every other React posting
+  // is marked (625), so each page walks past marked ids; the other 4,375 marks are non-matching.
+  it("holds the same targets with 5,000 marked postings (applied-skipped §6)", async () => {
+    const react = ids.filter((_, i) => i % 8 === 0);
+    const others = ids.filter((_, i) => i % 8 !== 0);
+    seedMarks(t.db, [...react.filter((_, i) => i % 2 === 0), ...others.slice(0, 4_375)], { mark: "skipped" });
+
+    const searches: number[] = [];
+    const pages: number[] = [];
+    for (let i = 0; i < 50; i++) {
+      let started = performance.now();
+      const res = await post("/api/v1/search/snapshots", { skills: SKILLS });
+      searches.push(performance.now() - started);
+      const body = res.json();
+      expect(body).toMatchObject({ total: 625, marked_count: 625, has_next: true });
+      started = performance.now();
+      const page = await post(`/api/v1/search/snapshots/${body.snapshot_id}/pages`, {
+        cursor: String(50 * (1 + (i % 12))),
+      });
+      pages.push(performance.now() - started);
+      expect(page.json().items).toHaveLength(50);
+    }
+    expect(p95(searches)).toBeLessThanOrEqual(1_000);
+    expect(p95(pages)).toBeLessThanOrEqual(1_000);
+  }, 180_000);
+});
+
+// applied-skipped spec §6 Marked view: ≤ 1 s p95 to show the first 50 marked postings, with 5,000
+// marked postings and up to 20 skills; p95 over 50 loads. A third of them closed.
+describe.skipIf(process.env.SKIP_PERF)("marked view latency at 5,000 marked postings", () => {
+  let t: TempDb;
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    t = createTempDb();
+    seedOpenPostings(t.db, 10_000, () => ({ title: "Account Manager", description: DESCRIPTION }));
+    const marked = seedOpenPostings(t.db, 5_000, (i) => ({
+      title: i % 8 === 0 ? "Senior React Engineer" : "Account Manager",
+      description: DESCRIPTION,
+    }));
+    seedMarks(t.db, marked, { mark: "skipped" });
+    t.db.run(sql`update collector_postings set status = 'closed'
+      where id in (select posting_id from tracking_marks where rowid % 3 = 0)`);
+    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    await app.ready();
+  }, 120_000);
+
+  afterAll(async () => {
+    await app?.close();
+    t?.cleanup();
+  });
+
+  it("shows the first 50 marked postings in ≤ 1 s p95 over 50 loads, with 20 skills", async () => {
+    const loads: number[] = [];
+    for (let i = 0; i < 50; i++) {
+      const started = performance.now();
+      const res = await app.inject({
+        method: "POST",
+        url: "/api/v1/search/marked-snapshots",
+        headers: { host: "127.0.0.1:3000" },
+        payload: { skills: SKILLS },
+      });
+      loads.push(performance.now() - started);
+      expect(res.json()).toMatchObject({ marked_count: 625 });
+      expect(res.json().items).toHaveLength(50);
+    }
+    expect(p95(loads)).toBeLessThanOrEqual(1_000);
+  }, 180_000);
 });

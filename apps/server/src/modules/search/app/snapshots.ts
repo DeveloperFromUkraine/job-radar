@@ -10,6 +10,8 @@ export interface Snapshot {
   /** Posting ids in list order. */
   ids: string[];
   newCount: number;
+  /** A marked-view snapshot (applied-skipped AC-05); paged only by its own route. */
+  marked?: true;
 }
 
 export const MAX_SNAPSHOTS = 20;
