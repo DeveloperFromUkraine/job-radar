@@ -521,6 +521,30 @@
         "docs/features/applied-skipped/screens.md"
       ],
       "file": "docs/features/applied-skipped/_review/review-2026-10-14.md"
+    },
+    {
+      "id": "T25",
+      "title": "Re-review 2 fixes R16 + R17: the marked view reads its own states, reset per marked snapshot; the focus test starts from a focused card button",
+      "layer": "ui",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-05",
+        "AC-07",
+        "AC-12"
+      ],
+      "dod": "Home test pins R16 (fails without the fix): mark A, Undo refused 409, Show marked postings with A skipped on the server, the card reads Skipped; main-list hiding still pinned by the R13 test; the focus-after-mark test focuses the card button before clicking",
+      "files_hint": [
+        "apps/web/src/features/tracking/mutations.ts",
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/MarkedList.tsx",
+        "apps/web/src/routes/Home.marks.test.tsx"
+      ],
+      "file": "docs/features/applied-skipped/_review/review-2026-10-14-r2.md"
     }
   ]
 }
