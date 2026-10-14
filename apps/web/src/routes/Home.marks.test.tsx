@@ -44,6 +44,16 @@ const refused = {
   },
 };
 
+const unavailable = {
+  status: 503,
+  body: {
+    error: {
+      code: "TRACKING_MARKS_UNAVAILABLE",
+      message: "Job-radar could not save your mark just now. Try again.",
+    },
+  },
+};
+
 const titles = () => screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent);
 const notice = () => screen.queryByTestId("undo-notice");
 
@@ -124,6 +134,8 @@ describe("SCR-01 marking and Undo", () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
     await waitFor(() => expect(notice()).not.toBeNull());
+    // waitFor resolves on the DOM change, before React runs the notice's effect that starts the 8 s.
+    await act(() => new Promise((r) => setTimeout(r, 0)));
     act(() => vi.advanceTimersByTime(7_900));
     expect(notice()).not.toBeNull();
     act(() => vi.advanceTimersByTime(200));
@@ -148,6 +160,27 @@ describe("SCR-01 marking and Undo", () => {
     expect(fetchMock.mock.calls.filter(([p]) => String(p).endsWith("/undo"))).toHaveLength(1);
   });
 
+  it("two cards marked back to back both leave, each on its own answer (AC-01)", async () => {
+    await open({ [MARK(A)]: state(A, "applied", "c1"), [MARK(B)]: state(B, "skipped", "c2") });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role B skipped" })); // before A's answer
+    await waitFor(() => expect(titles()).toEqual(["Role C"]));
+    expect(screen.getByText("128 postings · 2 new")).toBeTruthy();
+  });
+
+  it("a new search that fails keeps cards marked in this window out of the list on screen (AC-12)", async () => {
+    await open({
+      [SEARCH]: [{ body: found() }, unavailable],
+      [MARK(A)]: state(A, "applied", "c1"),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
+    await waitFor(() => expect(titles()).toEqual(["Role B", "Role C"]));
+    fireEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByText("Couldn't load postings.")).toBeTruthy();
+    expect(titles()).toEqual(["Role B", "Role C"]);
+    expect(screen.getByText("129 postings · 2 new")).toBeTruthy();
+  });
+
   it("a search closes the notice (AC-03)", async () => {
     await open({ [MARK(A)]: state(A, "applied", "c1") });
     fireEvent.click(screen.getByRole("button", { name: "Mark Role A applied" }));
@@ -157,15 +190,6 @@ describe("SCR-01 marking and Undo", () => {
   });
 });
 
-const unavailable = {
-  status: 503,
-  body: {
-    error: {
-      code: "TRACKING_MARKS_UNAVAILABLE",
-      message: "Job-radar could not save your mark just now. Try again.",
-    },
-  },
-};
 const gone = {
   status: 404,
   body: { error: { code: "TRACKING_POSTING_NOT_FOUND", message: "This posting is no longer in job-radar." } },

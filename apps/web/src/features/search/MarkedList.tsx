@@ -79,7 +79,7 @@ export function MarkedList({
                     <MarkActions
                       title={p.title}
                       mark={state.mark}
-                      pending={marks.pending?.postingId === p.id ? marks.pending.choice : undefined}
+                      pending={marks.pendingFor(p.id)}
                       onChoose={choose}
                       confirm={
                         asking

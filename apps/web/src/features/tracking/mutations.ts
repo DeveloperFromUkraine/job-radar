@@ -1,4 +1,4 @@
-// Marks on SCR-01 (applied-skipped sad §4): TanStack mutations; a card changes only after the server
+// Marks on SCR-01 (applied-skipped sad §4): a card changes only after the server
 // confirms the save (AC-14), never optimistically. Pages are never refetched: each card's latest
 // confirmed state is kept here. The main list hides a marked card, so Undo puts it back at its earlier
 // place (AC-03); the marked view shows the new state in place (AC-05, AC-06).
@@ -17,12 +17,15 @@ export type Notice =
 
 const isGone = (err: unknown) => err instanceof ApiError && err.code === "TRACKING_POSTING_NOT_FOUND";
 
-export function useMarks() {
+/** `listKey`: the snapshot on screen. Cards carry their own states, so this window's states reset only
+ * when a new list arrives — never while a kept list is still on screen (AC-12). */
+export function useMarks(listKey: string | undefined) {
   const [states, setStates] = useState<ReadonlyMap<string, MarkState>>(new Map());
   /** Removed by clean-up since the list loaded (AC-15): the card leaves. */
   const [gone, setGone] = useState<ReadonlySet<string>>(new Set());
   const [notice, setNotice] = useState<Notice | null>(null);
-  const [pending, setPending] = useState<{ postingId: string; choice: Choice } | null>(null);
+  /** Per card: the choice whose save is in flight. Each call handles its own answer (AC-01, AC-14). */
+  const [pending, setPending] = useState<ReadonlyMap<string, Choice>>(new Map());
   /** Per card: a save that failed, with the choice Retry repeats (AC-14). */
   const [failed, setFailed] = useState<ReadonlyMap<string, { message: string; choice: Choice }>>(new Map());
   const setFailure = (postingId: string, failure?: { message: string; choice: Choice }) =>
@@ -33,26 +36,37 @@ export function useMarks() {
       return next;
     });
   const confirm = (state: MarkState) => setStates((m) => new Map(m).set(state.posting_id, state));
-  const marking = useMutation({
-    mutationFn: ({ postingId, choice }: { postingId: string; choice: Choice }) => setMark(postingId, choice),
-  });
+  const [shownKey, setShownKey] = useState(listKey);
+  if (shownKey !== listKey) {
+    setShownKey(listKey);
+    setStates(new Map());
+    setGone(new Set());
+    setFailed(new Map());
+    setPending(new Map());
+  }
   const undoing = useMutation({
     mutationFn: ({ postingId, changeId }: { postingId: string; changeId: string }) =>
       undoMark(postingId, changeId),
   });
 
+  // A plain call per click, not one shared mutation: a second card marked before the first answers
+  // must not drop the first card's answer.
   const mark = (postingId: string, choice: Choice) => {
-    setPending({ postingId, choice });
-    marking.mutate(
-      { postingId, choice },
-      {
-        onSuccess: (state) => {
+    setPending((p) => new Map(p).set(postingId, choice));
+    setMark(postingId, choice)
+      .then(
+        (state) => {
           setFailure(postingId);
           confirm(state);
-          // A new notice replaces the old one: Undo covers only the latest change (AC-03).
-          setNotice({ kind: "marked", postingId, mark: state.mark, changeId: state.change_id as string });
+          // A new notice replaces the old one: Undo covers only the latest change (AC-03). No row
+          // (clearing a mark another window already undid) means nothing to undo, so no notice.
+          setNotice(
+            state.change_id === null
+              ? null
+              : { kind: "marked", postingId, mark: state.mark, changeId: state.change_id },
+          );
         },
-        onError: (err) => {
+        (err: Error) => {
           if (isGone(err)) {
             // Removed by clean-up since the list loaded: it leaves, nothing recorded (AC-15).
             setFailure(postingId);
@@ -60,9 +74,14 @@ export function useMarks() {
             setNotice({ kind: "gone" });
           } else setFailure(postingId, { message: err.message, choice });
         },
-        onSettled: () => setPending(null),
-      },
-    );
+      )
+      .finally(() =>
+        setPending((p) => {
+          const next = new Map(p);
+          next.delete(postingId);
+          return next;
+        }),
+      );
   };
 
   const undo = () => {
@@ -95,17 +114,11 @@ export function useMarks() {
       gone.has(postingId) || (states.get(postingId)?.mark ?? null) !== null,
     failed,
     notice,
-    pending,
+    pendingFor: (postingId: string) => pending.get(postingId),
     undoPending: undoing.isPending,
     mark,
     undo,
+    /** Also on a search or the switch, before the new list arrives (AC-03). */
     closeNotice: () => setNotice(null),
-    /** A new list: its cards carry their own states, and the notice closes (AC-03). */
-    reset: () => {
-      setStates(new Map());
-      setGone(new Set());
-      setFailed(new Map());
-      setNotice(null);
-    },
   };
 }

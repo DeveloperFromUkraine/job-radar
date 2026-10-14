@@ -36,7 +36,6 @@ export function Home() {
     setRequest({ skills: remembered, run: 0 });
   }, [visit.data, request]);
 
-  const marks = useMarks();
   // "Show marked postings" (AC-05): off on every visit; on, it is its own snapshot with the field's skills.
   const [markedRequest, setMarkedRequest] = useState<SearchRequest | null>(null);
   const markedView = markedRequest !== null;
@@ -46,20 +45,20 @@ export function Home() {
   const [markedExpired, setMarkedExpired] = useState(false);
   const openMarked = (text: string) => {
     setMarkedExpired(false);
-    marks.reset(); // closes the notice (AC-03)
+    marks.closeNotice(); // AC-03
     setMarkedRequest({ skills: text, run: ++runs.current });
   };
   const search = (text: string) => {
     setExpired(false);
     if (markedView) return openMarked(text); // the switch stays on (screens.md owner decision)
-    marks.reset();
+    marks.closeNotice();
     setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
   };
   const showMarked = () => openMarked(skills);
   const switchMarked = (on: boolean) => {
     if (on) return showMarked();
     setMarkedRequest(null);
-    marks.reset();
+    marks.closeNotice();
     setExpired(false);
     setRequest((r) => ({ skills, run: (r?.run ?? 0) + 1 })); // the unmarked list again
   };
@@ -69,6 +68,10 @@ export function Home() {
   if (list.data) shown.current = list.data;
   const pages = shown.current?.pages;
   const result = pages?.[0] as SearchResult | undefined;
+  const markedPages = marked.data?.pages as (MarkedResult | MarkedPage)[] | undefined;
+  const markedResult = markedPages?.[0] as MarkedResult | undefined;
+  // Marks in this window last until the list on screen is replaced by a new snapshot (AC-12).
+  const marks = useMarks(markedView ? markedResult?.snapshot_id : result?.snapshot_id);
 
   const waiting = useWaitingCount(result?.snapshot_id); // errors stay silent (contract)
 
@@ -97,8 +100,6 @@ export function Home() {
     setExpired(true);
   }, [snapshotExpired, request]);
 
-  const markedPages = marked.data?.pages as (MarkedResult | MarkedPage)[] | undefined;
-  const markedResult = markedPages?.[0] as MarkedResult | undefined;
   const markedCode = marked.error instanceof ApiError ? marked.error.code : undefined;
   const markedMoreFailed = marked.isFetchNextPageError;
   const markedInvalid = !markedMoreFailed && markedCode === "SEARCH_INVALID_SKILLS";
@@ -234,7 +235,7 @@ export function Home() {
             <MarkActions
               title={p.title}
               mark={null}
-              pending={marks.pending?.postingId === p.id ? marks.pending.choice : undefined}
+              pending={marks.pendingFor(p.id)}
               onChoose={(choice) => marks.mark(p.id, choice)}
             />
           )}

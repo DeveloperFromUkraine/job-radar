@@ -82,6 +82,15 @@ describe("SCR-01 marked view", () => {
     expect(within(notice() as HTMLElement).getByText("Mark cleared")).toBeTruthy();
   });
 
+  it("a clear with nothing left to undo (no mark row) updates the card and offers no Undo (AC-03)", async () => {
+    await openMarked({
+      [MARK]: state({ mark: null, marked_at: null, change_id: null, removed_after: null }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: `Clear the mark on ${TITLE}` }));
+    expect(await within(card()).findByText("Not marked")).toBeTruthy();
+    expect(notice()).toBeNull();
+  });
+
   it("asks before an at-risk applied posting loses its mark; Cancel sends nothing (AC-07)", async () => {
     const atRisk = view();
     (atRisk.items[0] as MarkedPosting).mark_state.at_risk = true;
