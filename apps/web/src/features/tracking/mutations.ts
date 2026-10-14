@@ -61,6 +61,7 @@ export function useMarks(listKey: string | undefined, viewKey: string | undefine
   if (shownViewKey !== viewKey) {
     setShownViewKey(viewKey);
     setViewStates(new Map());
+    setFailed(new Map()); // a Retry would repeat a choice made against the old list's mark (AC-14)
   }
   const undoing = useMutation({
     mutationFn: ({ postingId, changeId }: { postingId: string; changeId: string }) =>

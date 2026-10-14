@@ -128,6 +128,16 @@ describe("SCR-01 marked view", () => {
     expect(notice()).toBeNull();
   });
 
+  it("a reloaded marked view drops an old save-error banner: Retry would repeat a stale choice (AC-14)", async () => {
+    const { fetchMock } = await openMarked({ [MARK]: unavailable });
+    fireEvent.click(await screen.findByRole("button", { name: `Mark ${TITLE} skipped` }));
+    expect(await within(card()).findByRole("alert")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Search" })); // the switch stays on: the view reloads
+    await waitFor(() => expect(bodies(fetchMock, "/api/v1/search/marked-snapshots")).toHaveLength(2));
+    expect(await within(await screen.findByRole("article")).findByText("Applied on 3 Oct")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("posting gone on a clear: the card leaves the view with the gone notice and no Undo (AC-15)", async () => {
     await openMarked({ [MARK]: gone });
     fireEvent.click(await screen.findByRole("button", { name: `Clear the mark on ${TITLE}` }));
