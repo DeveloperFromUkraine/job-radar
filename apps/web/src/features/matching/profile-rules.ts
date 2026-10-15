@@ -14,11 +14,14 @@ const LINK =
   /\b(?:https?:\/\/[^\s,;·]+|www\.[^\s,;·]+|(?:linkedin\.com|github\.com|gitlab\.com|x\.com|twitter\.com)\/[^\s,;·]+)/i;
 const PHONE =
   /(?:\+\d{1,3}[\s.-]?(?:\(\d+\)[\s.-]?)?\d{2,4}(?:[\s.-]\d{2,4}){1,4})|\b\d{3}[\s.-]\d{3}[\s.-]\d{3,4}\b/;
+const ADDRESS =
+  /\b\d{1,5}[A-Za-z]?\s+(?:[A-Z][\p{L}'-]+\s+){1,3}(?:Street|St\.|Avenue|Ave\.|Road|Rd\.|Lane|Boulevard|Blvd\.|Way|Drive|Square)|\b(?:ul\.|ulica|al\.|aleja)\s+[\p{L}'-]+(?:\s+[\p{L}'-]+)?\s+\d{1,5}[A-Za-z]?(?:\/\d+)?/u;
 
 function contactKind(text: string): string | null {
   if (EMAIL.test(text)) return "the email address";
   if (LINK.test(text)) return "the web address";
   if (PHONE.test(text)) return "the phone number";
+  if (ADDRESS.test(text)) return "the address";
   return null;
 }
 

@@ -316,6 +316,40 @@
       },
       "field": "skills",
       "message": "Skills: remove the email address; a profile holds no contact details."
+    },
+    {
+      "name": "a street address as a skill",
+      "change": {
+        "skills": [
+          {
+            "name": "TypeScript",
+            "core": true
+          },
+          {
+            "name": "12 Baker Street",
+            "core": false
+          }
+        ]
+      },
+      "field": "skills",
+      "message": "Skills: remove the address; a profile holds no contact details."
+    },
+    {
+      "name": "a Polish street address as a skill",
+      "change": {
+        "skills": [
+          {
+            "name": "TypeScript",
+            "core": true
+          },
+          {
+            "name": "ul. Marszalkowska 10",
+            "core": false
+          }
+        ]
+      },
+      "field": "skills",
+      "message": "Skills: remove the address; a profile holds no contact details."
     }
   ]
 }
