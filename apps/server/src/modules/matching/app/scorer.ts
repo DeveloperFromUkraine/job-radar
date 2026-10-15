@@ -70,7 +70,10 @@ export function createScorer(
       // the queue now, so a large posting that left the list does not hold back smaller ones (review R23).
       if (!settings.profile || !capState(deps).fitsSmallest) return;
       const posting = next();
-      if (!posting) return;
+      if (!posting) {
+        deps.capRefused = undefined; // the refused posting left the list: nothing waits on the cap (review R35)
+        return;
+      }
       const result = await scoreOne(deps, posting, settings.profile, settings.profileVersion, stopped.signal);
       if (result.kind === "cap_reached") return;
       if (result.kind === "provider_problem") {

@@ -161,6 +161,18 @@ describe("the scorer's queue (flow 1, AC-13, AC-21)", () => {
     expect(getScoringHealth(deps, () => list).capReached).toBe(false);
   });
 
+  it("cap reached clears once the refused posting leaves and nothing is queued (AC-12, R35)", async () => {
+    seedProfile(t.db, { capUsdMicros: 100_000 }); // $0.10: above the no-input bound, below any request
+    list = addPostings(1);
+    const s = scorer();
+    await s.pass();
+    expect(getScoringHealth(deps, () => list).capReached).toBe(true);
+
+    list = []; // the owner marks it
+    await s.pass();
+    expect(getScoringHealth(deps, () => list).capReached).toBe(false);
+  });
+
   it("does nothing without a profile", async () => {
     list = addPostings(2);
     await scorer().pass();
