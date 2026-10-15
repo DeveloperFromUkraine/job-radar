@@ -160,31 +160,103 @@ C4Container
 
 ## 6. Runtime view
 
-<!-- 🎯 Why: the RUNTIME FLOW of 1–2 critical scenarios — who talks to whom, when, in what order.
-     Without §6, §5 is just boxes with no life.
-     📋 Write: a Mermaid sequenceDiagram. Participants are names from §5 (don't invent new ones).
-     Messages are semantic («saves a draft»), NO HTTP verbs / paths / status codes — endpoint-level
-     sequences arrive at the `api` stage.
-     📌 e.g. «author → web: composes draft → web → content API: save». Seed the primary flow(s) here;
-     the `sequences` stage then covers every §5 AC (no cap). Never N/A for M+; XS/S keeps ≥1 happy-path flow. -->
+Participants are the §5 containers, with the server shown by module. Messages are semantic; endpoint-level detail arrives at the `api` stage. The `sequences` stage covers the remaining ACs (profile edit, cap change, stale scores, marked view).
 
-**Critical flow 1: <flow name>**
+**Critical flow 1: background scoring of one posting** (AC-01, AC-06, AC-12 – AC-14, AC-18; ADR-0003, ADR-0004, ADR-0006, ADR-0008)
 
 ```mermaid
 sequenceDiagram
-    actor Actor
-    participant Web
-    participant Service
-    participant Store
-    Actor->>Web: <action>
-    Web->>Service: <call>
-    Service->>Store: <write>
-    Store-->>Service: ok
-    Service-->>Web: result
-    Web-->>Actor: confirmation
+    participant Scorer as Matching scorer
+    participant Search
+    participant Collector
+    participant DB as Local database
+    participant Claude as Claude API
+
+    Scorer->>Search: owner's list now (after a collection run, a list change or a profile change)
+    Search-->>Scorer: posting ids in the list
+    Scorer->>DB: scores and fingerprints for those ids
+    Scorer->>Collector: posting texts for ids without a current score
+    Scorer->>Scorer: pick next - no score first, then stale, newest first
+    Scorer->>DB: reserve largest possible cost if spent + reserved + cost fits the cap
+    alt cap would be exceeded
+        DB-->>Scorer: refused
+        Scorer->>Scorer: stop until next month or a raised cap - postings show cap reached
+    else reserved
+        Scorer->>Claude: instructions + profile (cached) + posting text as a data block, fixed output schema
+        alt usable answer
+            Claude-->>Scorer: four parts, note, quoted claims, usage
+            Scorer->>Scorer: validate, compute total with fixed weights
+            Scorer->>DB: store score with text fingerprint and profile version, settle cost from usage
+        else unusable answer or refusal
+            Claude-->>Scorer: answer that fails validation
+            Scorer->>DB: settle cost, add a strike - third strike marks could not be scored
+        else provider unreachable, rate-limited or key refused
+            Claude-->>Scorer: error
+            Scorer->>DB: keep reservation as spent if charged, record the problem for scoring health
+            Scorer->>Scorer: posting stays pending, retry in at most 15 minutes or after a restart with a key
+        end
+    end
 ```
 
-**Critical flow 2: <e.g. async event propagation>** — <if applicable, otherwise N/A>.
+**Critical flow 2: loading the list in best-match order** (AC-02, AC-11, AC-15; ADR-0004)
+
+```mermaid
+sequenceDiagram
+    actor Owner
+    participant Web as Web SPA
+    participant Search
+    participant Matching
+    participant DB as Local database
+
+    Owner->>Web: opens the main screen, order set to best match first
+    Web->>Search: run search with skills and the kept order
+    Search->>DB: open postings, marks, location verdicts as today
+    Search->>Matching: scores for the matching postings through the score reader
+    Matching->>DB: current scores and fingerprints
+    Matching-->>Search: per posting - score, parts, note, claims and state (scored, earlier version, pending, cap reached, could not be scored, no profile)
+    Search->>Search: order - postings with no score newest first, then scores high to low, ties newest first
+    Search->>Search: fix order and scores in the snapshot, same total and counts as newest first
+    Search-->>Web: first 50 with their scores and states
+    Web-->>Owner: cards with score and note, or why there is none
+    Owner->>Web: asks for more
+    Web->>Search: next page of the same snapshot
+    Search-->>Web: next 50 in the fixed order, none repeated or skipped
+```
+
+**Critical flow 3: drafting the profile from a CV** (AC-07 – AC-09, AC-20; ADR-0006, ADR-0007)
+
+```mermaid
+sequenceDiagram
+    actor Owner
+    participant Web as Web SPA
+    participant Matching
+    participant DB as Local database
+    participant Claude as Claude API
+
+    Owner->>Web: chooses a CV file on the profile screen
+    alt first time anything would leave the machine
+        Web-->>Owner: data notice - what is sent and to whom
+        Owner->>Web: agrees
+        Web->>Matching: record agreement
+        Matching->>DB: notice agreed at
+    end
+    Web->>Matching: CV file as encoded text in a JSON body
+    Matching->>Matching: check kind and size, extract text locally
+    alt no text, unsupported, empty or over 5 MB
+        Matching-->>Web: what is wrong and which files work - nothing sent
+    else text extracted
+        Matching->>Matching: remove emails, phone numbers, addresses and links, list what was removed
+        Matching->>DB: reserve largest possible cost
+        Matching->>Claude: cleaned CV text, fixed profile schema
+        Claude-->>Matching: draft profile, usage
+        Matching->>Matching: validate, map to fixed lists, mark not mapped, drop the CV text
+        Matching->>DB: settle cost
+        Matching-->>Web: draft beside the current profile, removed details
+        Owner->>Web: confirms
+        Web->>Matching: save profile
+        Matching->>DB: replace profile, bump profile version - all scores become stale
+    end
+```
 
 ## 7. Deployment view
 
