@@ -86,6 +86,21 @@ describe("SCR-03 CV upload and draft review", () => {
     expect(beside.closest("details")).toBeNull();
     expect(beside.textContent).toContain("TypeScript (core)");
     expect(beside.className).toContain("md:block");
+    // On phones it sits below the draft's fields, above its buttons (wireframe 03-d, review R30).
+    const follows = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(screen.getByText("Engagement forms"), details as Node)).toBe(true);
+    expect(follows(details as Node, screen.getByRole("button", { name: "Use this profile" }))).toBe(true);
+    expect(beside.parentElement?.className).toContain("md:grid-cols-");
+  });
+
+  it("a first draft, with no current profile, takes the full width (review R29)", async () => {
+    open({ [SETTINGS]: { body: { ...withProfile(), profile: null } }, [DRAFT]: { body: draft() } });
+    await choose(pdf());
+    await screen.findByRole("heading", { name: "Draft from your CV" });
+    expect(screen.queryByText("Show current profile")).toBeNull();
+    const form = screen.getByRole("button", { name: "Use this profile" }).closest("form");
+    expect(form?.parentElement?.className).not.toContain("md:grid-cols-");
   });
 
   it("the data notice for a first upload shows under the upload, not at the end of the form (AC-20, review R17)", async () => {

@@ -78,19 +78,25 @@ export function DraftReview({
           </li>
         ))}
       </ul>
-      {draft.current && (
-        <details className="rounded-card border border-border p-3 text-sm md:hidden">
-          <summary className="min-h-11 cursor-pointer content-center">Show current profile</summary>
-          <p>{summary(draft.current)}</p>
-        </details>
-      )}
-      <div className="grid gap-4 md:grid-cols-[1fr_16rem] md:items-start">
+      {/* Two columns only beside a current profile (review R29). */}
+      <div className={`grid gap-4 ${draft.current ? "md:grid-cols-[1fr_16rem] md:items-start" : ""}`}>
         <ProfileForm
           initial={draft.draft}
           tags={tags}
           onSave={onUse}
           saving={saving}
-          banner={banner}
+          banner={
+            <>
+              {/* On phones, below the fields and above the buttons (wireframe 03-d, review R30). */}
+              {draft.current && (
+                <details className="rounded-card border border-border p-3 text-sm md:hidden">
+                  <summary className="min-h-11 cursor-pointer content-center">Show current profile</summary>
+                  <p>{summary(draft.current)}</p>
+                </details>
+              )}
+              {banner}
+            </>
+          }
           footer={footer}
           submitLabel="Use this profile"
           secondary={
