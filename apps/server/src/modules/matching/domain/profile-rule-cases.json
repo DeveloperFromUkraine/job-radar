@@ -1,0 +1,115 @@
+{
+  "_comment": "AC-16 rule table shared by matching/domain/profile.test.ts and the web form's rules test (api-sync-report F-1). Each case changes the valid base profile and names the field that must be refused, or none.",
+  "base": {
+    "skills": [
+      { "name": "TypeScript", "core": true },
+      { "name": "React", "core": true },
+      { "name": "Node", "core": false }
+    ],
+    "years": 8,
+    "seniority": "senior",
+    "roleTypes": ["backend", "fullstack"],
+    "minSalary": { "amount": 6000, "currency": "EUR", "period": "month" },
+    "engagementForms": ["b2b"]
+  },
+  "cases": [
+    { "name": "the AC-01 profile is valid", "change": {}, "field": null },
+    {
+      "name": "no core skill",
+      "change": { "skills": [{ "name": "React", "core": false }] },
+      "field": "skills"
+    },
+    { "name": "no skills at all", "change": { "skills": [] }, "field": "skills" },
+    {
+      "name": "a skill of 51 characters",
+      "change": {
+        "skills": [{ "name": "TypeScriptTypeScriptTypeScriptTypeScriptTypeScript1", "core": true }]
+      },
+      "field": "skills"
+    },
+    {
+      "name": "a skill of exactly 50 characters",
+      "change": {
+        "skills": [{ "name": "TypeScriptTypeScriptTypeScriptTypeScriptTypeScript", "core": true }]
+      },
+      "field": null
+    },
+    {
+      "name": "an empty skill name",
+      "change": { "skills": [{ "name": "TypeScript", "core": true }, { "name": "  ", "core": false }] },
+      "field": "skills"
+    },
+    {
+      "name": "an email address as a skill",
+      "change": {
+        "skills": [
+          { "name": "TypeScript", "core": true },
+          { "name": "user-0001@example.test", "core": false }
+        ]
+      },
+      "field": "skills"
+    },
+    {
+      "name": "a phone number as a skill",
+      "change": {
+        "skills": [{ "name": "TypeScript", "core": true }, { "name": "+48 000 000 000", "core": false }]
+      },
+      "field": "skills"
+    },
+    {
+      "name": "a web address as a skill",
+      "change": {
+        "skills": [
+          { "name": "TypeScript", "core": true },
+          { "name": "https://example.test/u/0001", "core": false }
+        ]
+      },
+      "field": "skills"
+    },
+    {
+      "name": "Node.js is a skill, not a web address",
+      "change": { "skills": [{ "name": "Node.js", "core": true }, { "name": "ASP.NET", "core": false }] },
+      "field": null
+    },
+    { "name": "years above 60", "change": { "years": 61 }, "field": "years" },
+    { "name": "negative years", "change": { "years": -1 }, "field": "years" },
+    { "name": "years left empty", "change": { "years": null }, "field": null },
+    {
+      "name": "a negative minimum salary",
+      "change": { "minSalary": { "amount": -1, "currency": "EUR", "period": "month" } },
+      "field": "minSalary"
+    },
+    {
+      "name": "a non-numeric minimum salary",
+      "change": { "minSalary": { "amount": "six thousand", "currency": "EUR", "period": "month" } },
+      "field": "minSalary"
+    },
+    {
+      "name": "a salary without a currency",
+      "change": { "minSalary": { "amount": 6000, "currency": "", "period": "month" } },
+      "field": "minSalary"
+    },
+    {
+      "name": "a salary without a period",
+      "change": { "minSalary": { "amount": 6000, "currency": "EUR", "period": "" } },
+      "field": "minSalary"
+    },
+    {
+      "name": "a lowercase currency",
+      "change": { "minSalary": { "amount": 6000, "currency": "eur", "period": "month" } },
+      "field": "minSalary"
+    },
+    { "name": "no minimum salary", "change": { "minSalary": null }, "field": null },
+    { "name": "an unknown seniority", "change": { "seniority": "rockstar" }, "field": "seniority" },
+    {
+      "name": "an unknown role type",
+      "change": { "roleTypes": ["backend", "wizard"] },
+      "field": "roleTypes"
+    },
+    {
+      "name": "an unknown engagement form",
+      "change": { "engagementForms": ["freelance"] },
+      "field": "engagementForms"
+    }
+  ]
+}
