@@ -16,6 +16,8 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 import { seedMarks } from "./helpers/tracking-fixtures.js";
 
 const contract = loadContract("applied-skipped");
+// The marked view as restated by match-score (each posting carries its last score).
+const scoredContract = loadContract("match-score");
 
 describe("marked view (AC-05, AC-06)", () => {
   let t: TempDb;
@@ -138,14 +140,14 @@ describe("marked view routes (contract)", () => {
   it("runMarkedView and getNextMarkedPage answer the contract shapes; 400, 410 as specified", async () => {
     const view = await post("/api/v1/search/marked-snapshots", { skills: "Go" });
     expect(view.statusCode).toBe(200);
-    contract.expectContract("runMarkedView", 200, view.json());
+    scoredContract.expectContract("runMarkedView", 200, view.json());
     expect(view.json().items[0].id).toBe(posting);
 
     const page = await post(`/api/v1/search/marked-snapshots/${view.json().snapshot_id}/pages`, {
       cursor: "50",
     });
     expect(page.statusCode).toBe(200);
-    contract.expectContract("getNextMarkedPage", 200, page.json());
+    scoredContract.expectContract("getNextMarkedPage", 200, page.json());
 
     const invalid = await post("/api/v1/search/marked-snapshots", {
       skills: Array.from({ length: 21 }, (_, i) => `s${i}`).join(","),

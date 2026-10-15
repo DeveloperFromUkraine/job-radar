@@ -7,8 +7,8 @@ import type { MatchedSkill } from "../domain/match.js";
 import { parseSkills } from "../domain/skills.js";
 import type { SearchDeps } from "./deps.js";
 import { knownSnapshot } from "./pages.js";
-import { presentPosting, walkUnmarked } from "./present.js";
-import { matchPostings, readCollection, readMarks } from "./search.js";
+import { presentMatch, presentPosting, walkUnmarked } from "./present.js";
+import { matchPostings, readCollection, readMarks, readScores } from "./search.js";
 import type { SnapshotStore } from "./snapshots.js";
 
 const NONE = new Set<string>();
@@ -18,12 +18,20 @@ function presentMarked(
   found: readonly { posting: OpenPosting; matched: MatchedSkill[] }[],
 ) {
   const states = readMarks((m) => m.markStatesFor(found.map((f) => f.posting)), deps);
+  const { matches } = readScores(
+    deps,
+    found.map((f) => f.posting),
+  );
   return found.map(({ posting, matched }) => {
     const { is_new: _, look_alike: __, ...rest } = presentPosting(posting, matched, null);
+    // The last score it had, with its stale mark (match-score AC-13 note). Marked postings are never
+    // scored, so a posting without a score shows none, never "pending".
+    const match = matches?.get(posting.id);
     return {
       ...rest,
       status: posting.status,
       mark_state: states.get(posting.id) as NonNullable<ReturnType<typeof states.get>>,
+      match: match?.state === "scored" ? presentMatch(match) : null,
     };
   });
 }

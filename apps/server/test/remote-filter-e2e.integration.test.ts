@@ -18,7 +18,6 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 // AC-10 and AC-11 end to end: real source readers, merge and routes; only the boards are fake.
 // runSearch as restated by match-score (it supersedes remote-filter's).
 const contract = loadContract("match-score");
-const marksContract = loadContract("applied-skipped");
 const T0 = Date.UTC(2026, 9, 14, 8);
 const headers = { host: "127.0.0.1:3000" };
 
@@ -127,7 +126,7 @@ describe("remote-filter end to end", () => {
     }
 
     const marked = (await post("/api/v1/search/marked-snapshots", { skills: "" })).json();
-    marksContract.expectContract("runMarkedView", 200, marked);
+    contract.expectContract("runMarkedView", 200, marked); // as restated by match-score
     expect(titleOf(marked)).toEqual(["Go Engineer"]);
   });
 });

@@ -121,25 +121,22 @@ export function matchPostings(
   return result;
 }
 
-export function runSearch(
+/**
+ * The owner's list as search builds it: open postings matching `skills`, newest first, with the location
+ * verdicts of the visit's filter and the marks. `runSearch` keeps marked ones in its snapshot; the owner's
+ * list (`ownerList`) leaves them out. One definition, so matching scores exactly what is listed (ADR-0004).
+ */
+export function selectList(
   deps: SearchDeps,
-  snapshots: SnapshotStore,
-  skillsText: string,
-  chosenOrder?: ListOrder,
+  skills: string[],
+  visitStartedAt: number | null,
+  loadedAt: number,
 ) {
-  const started = performance.now();
-  const parsed = parseSkills(skillsText);
-  if (!parsed.ok) throw new AppError("SEARCH_INVALID_SKILLS", parsed.message);
-  const { skills } = parsed;
-  saveLastSkills(deps.db, skills); // before the read: a failed read still remembers them (flow 3)
-  if (chosenOrder) saveListOrder(deps.db, chosenOrder); // kept for the next opening (match-score AC-11)
-  const { previousVisitStartedAt, visitStartedAt, listOrder } = readState(deps.db);
   // The filter of this visit: the owner's own, a one-off look, off, or none (remote-filter AC-04 – AC-07).
   const filter = readLocation((l) => l.activeFilter(visitStartedAt ?? 0), deps);
   const filterCountry =
     filter.mode === "own" || filter.mode === "look" ? (filter.country?.code ?? null) : null;
 
-  const loadedAt = deps.now();
   const open = readCollection((c) => c.open(), deps);
   const found = matchPostings(skills, open).sort((a, b) => compareNewestFirst(a.posting, b.posting));
   // Verdicts for every match, marked ones too, before the snapshot (remote-filter ADR-0002).
@@ -157,9 +154,31 @@ export function runSearch(
   const hidden = (id: string) => verdicts.get(id)?.kind === "not_open";
   const checks = new Map<string, LocationCheck>();
   for (const [id, v] of verdicts) if (v.kind === "check") checks.set(id, v.reason);
-
-  // The snapshot keeps marked matches, so a posting cleared later returns in its place (ADR-0002).
   const marked = readMarks((m) => m.markedIds(), deps);
+  return { filter, filterCountry, open, found, hidden, checks, marked };
+}
+
+export function runSearch(
+  deps: SearchDeps,
+  snapshots: SnapshotStore,
+  skillsText: string,
+  chosenOrder?: ListOrder,
+) {
+  const started = performance.now();
+  const parsed = parseSkills(skillsText);
+  if (!parsed.ok) throw new AppError("SEARCH_INVALID_SKILLS", parsed.message);
+  const { skills } = parsed;
+  saveLastSkills(deps.db, skills); // before the read: a failed read still remembers them (flow 3)
+  if (chosenOrder) saveListOrder(deps.db, chosenOrder); // kept for the next opening (match-score AC-11)
+  const { previousVisitStartedAt, visitStartedAt, listOrder } = readState(deps.db);
+  const loadedAt = deps.now();
+  const { filter, filterCountry, open, found, hidden, checks, marked } = selectList(
+    deps,
+    skills,
+    visitStartedAt,
+    loadedAt,
+  );
+  // The snapshot keeps marked matches, so a posting cleared later returns in its place (ADR-0002).
   const shown = found.filter((f) => !hidden(f.posting.id));
   const unmarked = shown.filter((f) => !marked.has(f.posting.id));
   const markedCount = found.filter((f) => marked.has(f.posting.id)).length;
