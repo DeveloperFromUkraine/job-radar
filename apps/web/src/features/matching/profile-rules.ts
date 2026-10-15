@@ -28,14 +28,17 @@ export function validateProfile(p: Profile): FieldError[] {
   const errors: FieldError[] = [];
   const fail = (field: ProfileField, message: string) => errors.push({ field, message });
 
+  // The server's order: names, length and count before the contact check (review R22, R32).
   const skills = p.skills ?? [];
-  const contact = skills.map((s) => (typeof s.name === "string" ? contactKind(s.name) : null)).find(Boolean);
-  if (contact) fail("skills", `Skills: remove ${contact}; a profile holds no contact details.`);
-  else if (skills.some((s) => typeof s.name !== "string" || s.name.trim() === ""))
+  const sized =
+    skills.length <= 50 && skills.every((s) => typeof s.name === "string" && s.name.trim().length <= 50);
+  const contact = sized ? skills.map((s) => contactKind(s.name.trim())).find(Boolean) : null;
+  if (skills.some((s) => typeof s.name !== "string" || s.name.trim() === ""))
     fail("skills", "Skills: give every skill a name or remove it.");
   else if (skills.some((s) => s.name.trim().length > 50))
     fail("skills", "Skills: use up to 50 characters per skill.");
   else if (skills.length > 50) fail("skills", "Skills: list up to 50 skills.");
+  else if (contact) fail("skills", `Skills: remove ${contact}; a profile holds no contact details.`);
   else if (!skills.some((s) => s.core === true)) fail("skills", "Skills: mark at least one skill as core.");
 
   if (p.years !== null && (!Number.isInteger(p.years) || p.years < 0 || p.years > 60))
@@ -44,8 +47,12 @@ export function validateProfile(p: Profile): FieldError[] {
     fail("seniority", `Seniority: choose one of ${SENIORITIES.join(", ")}.`);
   if (!Array.isArray(p.role_types) || p.role_types.some((r) => !isOneOf(ROLE_TYPES, r)))
     fail("role_types", "Role types: choose only from the listed role types.");
+  else if (new Set(p.role_types).size !== p.role_types.length)
+    fail("role_types", "Role types: choose each role type once.");
   if (!Array.isArray(p.engagement_forms) || p.engagement_forms.some((f) => !isOneOf(ENGAGEMENT_FORMS, f)))
     fail("engagement_forms", "Engagement forms: choose only employment, B2B or contract/freelance.");
+  else if (new Set(p.engagement_forms).size !== p.engagement_forms.length)
+    fail("engagement_forms", "Engagement forms: choose each form once.");
 
   const s = p.min_salary;
   if (s !== null) {

@@ -28,7 +28,10 @@ describe("validateProfile on the web (AC-16, F-1)", () => {
     it(c.name, () => {
       const errors = validateProfile(toApi({ ...table.base, ...c.change }));
       if (c.field === null) expect(errors).toEqual([]);
-      else expect(errors.map((e) => e.field)).toContain(FIELD[c.field]);
+      else {
+        expect(errors.map((e) => e.field)).toContain(FIELD[c.field]);
+        if ("message" in c) expect(errors.find((e) => e.field === FIELD[c.field])?.message).toBe(c.message);
+      }
     });
   }
 
