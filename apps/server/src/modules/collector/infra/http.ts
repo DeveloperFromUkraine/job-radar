@@ -52,10 +52,10 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     recordRead(db, source.id, now);
 
     const abort = new AbortController();
+    const timeout = AbortSignal.timeout(timeoutMs);
     let tooLarge = false;
-    const timer = setTimeout(() => abort.abort(), timeoutMs);
     try {
-      const signal = options.signal ? AbortSignal.any([abort.signal, options.signal]) : abort.signal;
+      const signal = AbortSignal.any([abort.signal, timeout, ...(options.signal ? [options.signal] : [])]);
       const res = await fetch(url, {
         headers: { "user-agent": USER_AGENT, accept },
         signal,
@@ -83,10 +83,8 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     } catch (err) {
       if (options.signal?.aborted) throw new CollectorStopping();
       if (tooLarge) return fail("too_large", `over ${maxBytes} bytes`);
-      if (abort.signal.aborted) return fail("timed_out", `no answer within ${timeoutMs} ms`);
+      if (timeout.aborted) return fail("timed_out", `no answer within ${timeoutMs} ms`);
       return fail("unreachable", (err as Error).message);
-    } finally {
-      clearTimeout(timer);
     }
   }
 

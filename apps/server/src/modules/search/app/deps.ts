@@ -1,3 +1,4 @@
+import { machineTimeZone } from "../../../core/config.js";
 import type { Db } from "../../../core/db.js";
 import { type OpenPosting, openPostings, postingsByIds } from "../../collector/app/open-postings.js";
 import { type ActiveFilter, activeFilter } from "../../remote-filter/app/settings.js";
@@ -62,8 +63,7 @@ export function collectionOf(deps: SearchDeps): Collection {
 
 export function marksOf(deps: SearchDeps): MarkReader {
   if (deps.marks) return deps.marks;
-  // The machine's zone: the one clean-up and tracking's grace day use (removed_after dates).
-  const tracking = { db: deps.db, now: deps.now, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+  const tracking = { db: deps.db, now: deps.now, timeZone: machineTimeZone() };
   return {
     markedIds: () => markedIds(tracking),
     hintsFor: (postings) => hintsFor(tracking, postings),
