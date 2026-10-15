@@ -356,13 +356,19 @@ Each quality goal from §1 expanded into a full scenario; numbers from spec §6 
 
 ## 12. Glossary
 
-<!-- 🎯 Why: ⭐ the DOMAIN GLOSSARY that ends arguments a year later («checkpoint — weekly or
-     biweekly? quarter — calendar or fiscal?»).
-     📋 Write: a term / meaning table. Business + technical terms mixed.
-     📌 e.g. «Lesson | a unit inside a course made of blocks (text, video)». -->
-
 | Term | Meaning |
 |---|---|
-| <e.g. domain object A> | <its meaning in this domain> |
-| <e.g. domain object B> | <its meaning> |
-| <e.g. domain invariant name> | <the rule, in plain language> |
+| Owner | The one person who runs job-radar on their own machine (CONTEXT). |
+| Visitor | Anyone who can reach the machine over a network but is not the owner (CONTEXT). |
+| Match score | How well one posting fits the owner's profile: 0–100 with parts for skills, seniority, role type and terms, plus a fit note; orders the list, never hides; a posting without one shows why (CONTEXT). |
+| Profile | The owner's short, editable description of what they look for, used only to score; never holds a name or contact detail (CONTEXT). |
+| Scoring cap | The most job-radar may spend on scoring and drafting in one calendar month of the owner's time zone; $0 pauses scoring (CONTEXT). |
+| Scoring health | Scoring's owner-visible state beside source health: last success, spend against the cap, pending, could not be scored, current problem (CONTEXT). |
+| Skill | A word the owner types to narrow the list; decides which postings are in it (CONTEXT). NOT the profile's skills, which only score. |
+| Location verdict | The remote filter's fits / check / not open decision; a score never changes it (CONTEXT, spec AC-05). |
+| Updated posting | A posting whose text, location, link or listings changed (CONTEXT); a change to the scored text makes its score stale. |
+| Fit note | The at-most-40-word plain-text note on a score: why it fits and what is missing; claims from the posting appear as "the posting says…". |
+| Stale score | A score made against an earlier version of the posting's scored text or of the profile (text fingerprint or profile version differs); shown with its mark until replaced. |
+| Strike | One unusable answer for a posting; three in a row make it "could not be scored" until the posting or profile changes (spec AC-18). |
+| Reservation | A spend-ledger row holding an attempt's largest possible cost before it starts; settled to the real cost from usage, or kept if no answer came (ADR-0006). |
+| Owner's list | Unmarked open postings that match the typed skills and are shown by the remote filter — what search lists and what matching scores (ADR-0004). |
