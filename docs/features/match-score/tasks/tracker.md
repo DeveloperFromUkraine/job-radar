@@ -33,6 +33,6 @@
 | T26 | Review fix R15: a corrupt zip, a docx with no document part and an inflate bomb are refused as unsupported | test | Volodymyr Kozlov | S | T25 | done |
 | T27 | Review fix R9: the domain owns profile validation, so every profile error answers MATCHING_INVALID_PROFILE with the field message | ports | Volodymyr Kozlov | S | T26 | done |
 | T28 | Review fixes R6, R16: no problem marker for cap_reached; the cap field shows the saved cap | ui | Volodymyr Kozlov | S | T27 | done |
-| T29 | Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload | ui | Volodymyr Kozlov | S | T28 | todo |
+| T29 | Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload | ui | Volodymyr Kozlov | S | T28 | done |
 
 **Total:** 29 tasks, ~22 person-days (T23–T29 from review 2026-10-15).

@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import type { CvDraft, MatchingSettings } from "../api/matching";
@@ -64,13 +64,16 @@ describe("SCR-03 CV upload and draft review", () => {
     expect(
       screen.getByText("Removed before anything was sent: your name, email, phone, 1 link."),
     ).toBeTruthy();
-    expect(screen.getByText("Skills: from your CV")).toBeTruthy();
-    expect(screen.getByText("Minimum salary: not found in your CV")).toBeTruthy();
+    // Each field carries its own tag (screens.md SCR-03 "draft ready", review R5).
+    const near = (label: string) => within(screen.getByText(label).parentElement as HTMLElement);
+    expect(near("Skills").getByText("from your CV")).toBeTruthy();
+    expect(near("Minimum salary (gross)").getByText("not found in your CV")).toBeTruthy();
+    expect(near("Years of experience").getByText(/from your CV|not found in your CV/)).toBeTruthy();
     expect(screen.getByText("Role types — not mapped: Solutions Architect")).toBeTruthy();
     expect(screen.getByLabelText("Skill 3")).toMatchObject({ value: "GraphQL" }); // correctable before use
   });
 
-  it("shows the current profile beside the draft, collapsed on phones", async () => {
+  it("shows the current profile beside the draft from md, collapsed on phones (review R5)", async () => {
     open({
       [SETTINGS]: { body: withProfile() },
       [DRAFT]: { body: { ...draft(), current: withProfile().profile } },
@@ -78,6 +81,23 @@ describe("SCR-03 CV upload and draft review", () => {
     await choose(pdf());
     const details = (await screen.findByText("Show current profile")).closest("details");
     expect(details?.textContent).toContain("TypeScript (core)");
+    expect(details?.className).toContain("md:hidden");
+    const beside = screen.getByRole("complementary", { name: "Current profile" });
+    expect(beside.closest("details")).toBeNull();
+    expect(beside.textContent).toContain("TypeScript (core)");
+    expect(beside.className).toContain("md:block");
+  });
+
+  it("the data notice for a first upload shows under the upload, not at the end of the form (AC-20, review R17)", async () => {
+    open({ [SETTINGS]: { body: firstOpen() } });
+    await choose(pdf());
+    const agree = await screen.findByRole("button", { name: "Agree and continue" });
+    expect(agree.closest("form")).toBeNull();
+    const upload = screen.getByLabelText("Upload your CV");
+    expect(upload.compareDocumentPosition(agree) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      agree.compareDocumentPosition(screen.getByLabelText("Skill 1")) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("Use this profile saves the (corrected) draft; Discard keeps the current profile", async () => {

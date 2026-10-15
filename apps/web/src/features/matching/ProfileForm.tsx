@@ -98,6 +98,8 @@ interface ProfileFormProps {
   submitLabel?: string;
   /** Beside the submit button, e.g. Discard. */
   secondary?: ReactNode;
+  /** Next to each field's name, e.g. DraftReview's "from your CV" tags (screens.md SCR-03). */
+  tags?: Partial<Record<keyof Profile, ReactNode>>;
 }
 
 export function ProfileForm({
@@ -108,6 +110,7 @@ export function ProfileForm({
   banner,
   submitLabel = "Save",
   secondary,
+  tags = {},
 }: ProfileFormProps) {
   const id = useId();
   const [form, setForm] = useState<FormState>(() => fromProfile(initial));
@@ -135,7 +138,9 @@ export function ProfileForm({
       }}
     >
       <fieldset className="flex flex-col gap-2">
-        <legend className="font-medium">Skills</legend>
+        <legend className="font-medium">
+          <span>Skills</span> {tags.skills}
+        </legend>
         {form.skills.map((s, i) => {
           const n = i + 1;
           return (
@@ -196,9 +201,12 @@ export function ProfileForm({
       </fieldset>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-years`} className="font-medium">
-          Years of experience
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor={`${id}-years`} className="font-medium">
+            Years of experience
+          </label>
+          {tags.years}
+        </div>
         <input
           id={`${id}-years`}
           type="text"
@@ -212,9 +220,12 @@ export function ProfileForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label htmlFor={`${id}-seniority`} className="font-medium">
-          Seniority
-        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <label htmlFor={`${id}-seniority`} className="font-medium">
+            Seniority
+          </label>
+          {tags.seniority}
+        </div>
         <select
           id={`${id}-seniority`}
           value={form.seniority}
@@ -233,7 +244,9 @@ export function ProfileForm({
       </div>
 
       <fieldset className="flex flex-col gap-1">
-        <legend className="font-medium">Role types</legend>
+        <legend className="font-medium">
+          <span>Role types</span> {tags.role_types}
+        </legend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {ROLE_TYPES.map((r) => (
             <label key={r} className={choice}>
@@ -251,7 +264,9 @@ export function ProfileForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-1">
-        <legend className="font-medium">Minimum salary (gross)</legend>
+        <legend className="font-medium">
+          <span>Minimum salary (gross)</span> {tags.min_salary}
+        </legend>
         <div className="flex flex-wrap gap-2">
           <label htmlFor={`${id}-amount`} className="sr-only">
             Minimum salary amount
@@ -302,7 +317,9 @@ export function ProfileForm({
       </fieldset>
 
       <fieldset className="flex flex-col gap-1">
-        <legend className="font-medium">Engagement forms</legend>
+        <legend className="font-medium">
+          <span>Engagement forms</span> {tags.engagement_forms}
+        </legend>
         <div className="flex flex-wrap gap-x-4 gap-y-2">
           {ENGAGEMENT_FORMS.map((f) => (
             <label key={f} className={choice}>

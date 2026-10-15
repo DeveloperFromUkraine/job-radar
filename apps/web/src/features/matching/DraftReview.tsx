@@ -3,6 +3,7 @@
 // The draft is corrected in ProfileForm's fields before it is used.
 import type { ReactNode } from "react";
 import type { CvDraft, Profile } from "../../api/matching";
+import { Badge } from "../../components/Badge";
 import { InlineBanner } from "../../components/InlineBanner";
 import { ProfileForm } from "./ProfileForm";
 
@@ -58,17 +59,19 @@ export function DraftReview({
   footer?: ReactNode;
 }) {
   const removed = removedSummary(draft.removed);
+  const tags = Object.fromEntries(
+    (Object.keys(FIELD_LABELS) as (keyof Profile)[]).map((f) => [
+      f,
+      <Badge key={f} tone="notice">
+        {draft.field_sources[f] === "from_cv" ? "from your CV" : "not found in your CV"}
+      </Badge>,
+    ]),
+  );
   return (
     <div className="flex flex-col gap-3">
       <h2 className="font-medium">Draft from your CV</h2>
       {removed && <InlineBanner tone="info" title={removed} />}
       <ul className="flex flex-col gap-1 text-sm">
-        {(Object.keys(FIELD_LABELS) as (keyof Profile)[]).map((f) => (
-          <li key={f}>
-            {FIELD_LABELS[f]}:{" "}
-            {draft.field_sources[f] === "from_cv" ? "from your CV" : "not found in your CV"}
-          </li>
-        ))}
         {draft.not_mapped.map((n) => (
           <li key={`${n.field}-${n.value}`}>
             {FIELD_LABELS[n.field]} — not mapped: {n.value}
@@ -76,28 +79,40 @@ export function DraftReview({
         ))}
       </ul>
       {draft.current && (
-        <details className="rounded-card border border-border p-3 text-sm">
+        <details className="rounded-card border border-border p-3 text-sm md:hidden">
           <summary className="min-h-11 cursor-pointer content-center">Show current profile</summary>
           <p>{summary(draft.current)}</p>
         </details>
       )}
-      <ProfileForm
-        initial={draft.draft}
-        onSave={onUse}
-        saving={saving}
-        banner={banner}
-        footer={footer}
-        submitLabel="Use this profile"
-        secondary={
-          <button
-            type="button"
-            onClick={onDiscard}
-            className="min-h-11 rounded-card border border-border px-4 text-text"
+      <div className="grid gap-4 md:grid-cols-[1fr_16rem] md:items-start">
+        <ProfileForm
+          initial={draft.draft}
+          tags={tags}
+          onSave={onUse}
+          saving={saving}
+          banner={banner}
+          footer={footer}
+          submitLabel="Use this profile"
+          secondary={
+            <button
+              type="button"
+              onClick={onDiscard}
+              className="min-h-11 rounded-card border border-border px-4 text-text"
+            >
+              Discard
+            </button>
+          }
+        />
+        {draft.current && (
+          <aside
+            aria-label="Current profile"
+            className="hidden rounded-card border border-border p-3 text-sm md:block"
           >
-            Discard
-          </button>
-        }
-      />
+            <h3 className="font-medium">Current profile</h3>
+            <p>{summary(draft.current)}</p>
+          </aside>
+        )}
+      </div>
     </div>
   );
 }

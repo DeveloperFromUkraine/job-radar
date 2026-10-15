@@ -175,6 +175,8 @@ export function Profile() {
         ) : (
           <>
             <CvUpload onFile={upload} pending={cv.isPending} error={cvRefusal ?? undefined} />
+            {/* The notice shows in place of the action that triggered it (screens.md SCR-03, review R17). */}
+            {waiting?.kind === "cv" && footer}
             {cvBanner}
             {!data.profile && <p className="text-sm text-text-muted">— or fill it in —</p>}
             <ProfileForm
@@ -183,7 +185,7 @@ export function Profile() {
               onSave={submit}
               saving={save.isPending}
               banner={saveBanner}
-              footer={footer}
+              footer={waiting?.kind === "profile" ? footer : undefined}
             />
           </>
         )}
