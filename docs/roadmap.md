@@ -1,6 +1,6 @@
 ---
 status: living
-updated_at: "2026-10-14"
+updated_at: "2026-10-16"
 ---
 
 # Roadmap — job-radar
@@ -30,6 +30,8 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
 | 10 | Collect postings from LinkedIn's public guest job pages — no login, no account, low request volume, remote filter; an optional source whose failure never breaks collection | idea-brief.md §7 Recommendation | S | idea |
 | 11 | Collect postings from Polish IT job boards (Just Join IT, No Fluff Jobs, theprotocol.it, Pracuj.pl, Bulldogjob) through the same source contract → see [Not yet specified](#not-yet-specified) | idea-brief.md §1 Raw idea, [`spec §3 Non-goals`](features/remote-boards-collector/spec.md) | fog | idea |
+| 12 | Realness score — rank stale or suspicious postings lower from signals the collector already keeps: age since first found, the same role found again (repost), no salary stated; a live check against the company's careers page joins once ATS boards exist (step 9) | [OfferRun Job Radar comparison 2026-10-16](https://offer-run.com/job-radar) | S | idea |
+| 13 | Reasons on the card — each posting ranked lower says why ("no salary listed", "reposted", "first found 60 days ago", "not on the company's careers site"), beside the fit note | [OfferRun Job Radar comparison 2026-10-16](https://offer-run.com/job-radar) | S | idea |
 
 ## Not yet specified
 
@@ -83,6 +85,11 @@ flowchart LR
   s2 -->|another source for the same collector| s10["10 · LinkedIn public pages"]
   s5 -->|both edit the collector; 10 lands after| s10
   s2 -->|same source contract and collector| s11["11 · Polish IT boards (fog)"]
+  s3 -->|realness ranks the search results| s12["12 · Realness score"]
+  s4 -->|both order the list; 12 lands after| s12
+  s9 -.->|the careers-page check needs ATS boards| s12
+  s12 -->|the card shows realness signals| s13["13 · Reasons on the card"]
+  s4 -->|reasons sit beside the fit note| s13
 ```
 
 ## Execution path
@@ -93,9 +100,10 @@ flowchart LR
 | 2 | 2 | `collector/` (new) | 3 |
 | 3 | 3 ∥ 11 | 3: `search/` (new) · 11: Polish board adapters in `collector/infra/sources/` (new) — disjoint modules | 4, 5, 6, 10 |
 | 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new), plus the Jobicy and We Work Remotely readers and the merge rule's treatment of "Anywhere" in `collector/` · 6: `tracking/` (new), plus `search/app/` paging and counts and read-only `collector/app/` exports · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — not fully disjoint: 6 changes search's paging, so land it before 4 and 5 touch the list (applied-skipped sad §11); 5 also edits `collector/`, so 10 lands after 5 (remote-filter spec §1) | 7 |
-| 5 | 7 | `alerts/` (new) | — |
+| 5 | 7 ∥ 12 | 7: `alerts/` (new) · 12: `realness/` (new), plus search's list order — disjoint modules; 7 only reads search's results, 12 only changes their order, so they never edit the same files | 13 |
+| 6 | 13 | `web/` cards (MatchSummary area) | — |
 
-Step 11 holds its wave-3 slot only once the Access to Polish job boards area is reconnoitred and it trades `fog` for a size; its recon (D4, D5) runs now, in parallel with step 2. Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.
+Step 11 holds its wave-3 slot only once the Access to Polish job boards area is reconnoitred and it trades `fog` for a size; its recon (D4, D5) runs now, in parallel with step 2. Step 12 ships without the careers-page check; that check is added once step 9 lands (the dashed edge). Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.
 
 ## Shipped
 
