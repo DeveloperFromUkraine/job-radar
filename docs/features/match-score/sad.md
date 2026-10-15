@@ -19,7 +19,7 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) �
 
 **Top-3 quality goals (1-liners; full scenarios in §10):**
 
-1. **A score never costs the owner a posting.** 0 postings left out of the list or its counts because of their score; every posting without a score says why (pending, cap reached, could not be scored, no profile yet).
+1. **A score never costs the owner a posting.** 0 postings left out of the list or its counts because of their score; every posting without a score says why (pending, not scored — provider or key problem, cap reached, could not be scored, no profile yet).
 2. **Spending stays within the owner's cap.** The month's scoring and profile drafting never exceed the scoring cap (default $5); 0 attempts started after the cap is reached.
 3. **Personal data leaves only as agreed.** 0 scorings carry a name, email, phone number, address or profile link; nothing is sent off the machine before the owner's one-time agreement.
 4. **The list stays fast and scores arrive fresh.** ≤ 1 s p95 to the first 50 postings shown, with 10,000 open postings, scores and a profile, in either order; a posting entering the owner's list is scored within 15 minutes p95 while the cap is not reached and the provider answers.
@@ -111,7 +111,7 @@ Each tactical decision in later sections traces to one of these seeds. Tactical 
 
 ## 5. Building block view
 
-Layered, as every module in the repo (project ADR 0002): `domain/` holds pure rules with no I/O, `app/` the use cases and the exports other modules may call, `infra/` the tables, the Claude client and the CV reader, `ports/` the routes. `matching` reads postings through `collector/app/` and the owner's list through a new `search/app/` export; search reads scores through a `ScoreReader` that `app.ts` wires in (ADR-0004). Scoring health is matching's own; the web shows the main-screen problem marker when either the collector's problems or matching's scoring health report a problem, so the collector is unchanged.
+Layered, as every module in the repo (project ADR 0002): `domain/` holds pure rules with no I/O, `app/` the use cases and the exports other modules may call, `infra/` the tables, the Claude client and the CV reader, `ports/` the routes. `matching` reads postings through `collector/app/` and the owner's list through a new `search/app/` export; search reads scores through a `ScoreReader` that `app.ts` wires in (ADR-0004). The scorer finds its work by polling: every 60 s (the collector scheduler's interval) it reads the owner's list and the score fingerprints and picks the next posting, and matching wakes it at once after a profile save, a cap change or a new search — no collector event is needed. Scoring health is matching's own; the web shows the main-screen problem marker when either the collector's problems or matching's scoring health report a problem, so the collector is unchanged.
 
 **Internal decomposition:**
 
@@ -172,7 +172,7 @@ sequenceDiagram
     participant DB as Local database
     participant Claude as Claude API
 
-    Scorer->>Search: owner's list now (after a collection run, a list change or a profile change)
+    Note over Scorer: wakes every 60 s, and at once after a profile save, a cap change or a new search
     Search-->>Scorer: posting ids in the list
     Scorer->>DB: scores and fingerprints for those ids
     Scorer->>Collector: posting texts for ids without a current score
@@ -192,8 +192,8 @@ sequenceDiagram
             Scorer->>DB: settle cost, add a strike - third strike marks could not be scored
         else provider unreachable, rate-limited or key refused
             Claude-->>Scorer: error
-            Scorer->>DB: keep reservation as spent if charged, record the problem for scoring health
-            Scorer->>Scorer: posting stays pending, retry in at most 15 minutes or after a restart with a key
+            Scorer->>DB: keep the reservation as spent (no answer), record the problem for scoring health
+            Scorer->>Scorer: posting shows not scored with the reason, retry in at most 15 minutes or after a restart with a key
         end
     end
 ```
@@ -213,7 +213,7 @@ sequenceDiagram
     Search->>DB: open postings, marks, location verdicts as today
     Search->>Matching: scores for the matching postings through the score reader
     Matching->>DB: current scores and fingerprints
-    Matching-->>Search: per posting - score, parts, note, claims and state (scored, earlier version, pending, cap reached, could not be scored, no profile)
+    Matching-->>Search: per posting - score, parts, note, claims and state (scored, earlier version, pending, not scored - provider or key problem, cap reached, could not be scored, no profile)
     Search->>Search: order - postings with no score newest first, then scores high to low, ties newest first
     Search->>Search: fix order and scores in the snapshot, same total and counts as newest first
     Search-->>Web: first 50 with their scores and states
@@ -241,7 +241,8 @@ sequenceDiagram
         Matching->>DB: notice agreed at
     end
     Web->>Matching: CV file as encoded text in a JSON body
-    Matching->>Matching: check kind and size, extract text locally
+    Note over Web: checks kind and 5 MB size before sending - over size shows the AC-08 message at once
+    Matching->>Matching: check kind and size again, extract text locally
     alt no text, unsupported, empty or over 5 MB
         Matching-->>Web: what is wrong and which files work - nothing sent
     else text extracted
@@ -260,12 +261,12 @@ sequenceDiagram
 
 ## 7. Deployment view
 
-No new deployment unit: the `matching` module and its background scorer run in the existing server process on the owner's machine, started on the server's ready hook and stopped through an abort signal on close, as the collector is (ADR-0001, ADR-0003). One new migration adds the three matching tables and the order field on `search_state`; it runs with the existing `db:migrate`, which backs up the database first. New configuration, read once at start: the provider key from the `ANTHROPIC_API_KEY` environment variable (the SDK's standard source; never in the repository, never shown or logged), the model id and the price table (defaults for `claude-opus-5-5`: $4 input, $20 output, $0.20 cache read per million tokens), and the scorer's concurrency (default 1). Without a key the feature runs in its AC-14 state ("not scored", reason shown); nothing else breaks. Deployment checklist gains: set the key, and set a spending limit in the provider account as the backstop for a leaked key (spec §6.1).
+No new deployment unit: the `matching` module and its background scorer run in the existing server process on the owner's machine, started on the server's ready hook and stopped through an abort signal on close, as the collector is (ADR-0001, ADR-0003). One new migration adds the three matching tables and the order field on `search_state`; it runs with the existing `db:migrate`, which backs up the database first. New configuration, read once at start: the provider key from the `ANTHROPIC_API_KEY` environment variable (the SDK's standard source; never in the repository, never shown or logged), the model id and the price table (defaults for `claude-opus-5-5`: $4 input, $20 output, $0.20 cache read per million tokens, plus the cache-write price from the provider's price list, checked in `implement`), and the scorer's concurrency (default 1). Without a key the feature runs in its AC-14 state ("not scored", reason shown); nothing else breaks. Deployment checklist gains: set the key, and set a spending limit in the provider account as the backstop for a leaked key (spec §6.1).
 
 **Monitoring:**
 - Scoring health on SCR-02 is the monitor: last success, spend this month against the cap, pending count and the oldest pending age, could-not-be-scored count, current problem; a problem raises the main-screen marker (AC-14).
 - Server logs, structured, `module=matching`: one line per attempt with posting id, outcome, tokens and cost — never CV text, profile, prompt bodies or the key (§8).
-- Alert by the marker: provider problem or key problem while postings are pending; oldest pending older than 15 minutes while the cap is not reached.
+- Alert by the marker, exactly as CONTEXT defines scoring health: provider unreachable, key refused or missing, or cap reached. The oldest pending age is shown as a figure in scoring health, not as a marker trigger.
 
 **Scaling thresholds:**
 - One attempt at a time keeps the 15-minute freshness target up to about 200 new postings an hour entering the list (a scoring takes seconds); above that, raise the scorer's concurrency to 2–3.
@@ -276,7 +277,7 @@ No new deployment unit: the `matching` module and its background scorer run in t
 | Concept | Convention | Where defined |
 |---|---|---|
 | Access | Loopback only, same-origin, JSON body on every state-changing request; applies unchanged to profile, CV draft, cap and notice actions (AC-17) | `core/access.ts`, collector ADR-0007 |
-| CV upload transport | The file travels base64-encoded inside a JSON body; that one route raises its body limit to 7 MB (5 MB file plus encoding); no multipart, so the JSON rule above stays the CSRF guard | here |
+| CV upload transport | The file travels base64-encoded inside a JSON body; that one route raises its body limit to 7 MB (5 MB file plus encoding); the web checks kind and size before sending, and a body-too-large error on that route is answered with the AC-08 message ("what is wrong and which kinds of file work"), not the generic one; no multipart, so the JSON rule above stays the CSRF guard | here |
 | Error handling | Expected failures throw `AppError(code, message, status)`; one envelope `{ "error": { "code", "message" } }` | `core/errors.ts`, `CLAUDE.md` |
 | Provider errors | Classified by the SDK's typed errors: rate limit, overloaded, connection and timeout → provider problem (pending, retried, AC-14); authentication or permission → key problem (retried after a restart); validation failure or `refusal` stop reason → unusable answer, a strike (AC-18). The SDK's own retries are off (`maxRetries: 0`), so every attempt passes through a spend reservation (ADR-0006) | here |
 | Logging | Structured, `module=matching`; never log CV text, profile fields, prompt or answer bodies, or the key; log posting id, outcome, tokens, cost | here, Fastify logger |
@@ -314,7 +315,7 @@ Each quality goal from §1 expanded into a full scenario; numbers from spec §6 
 
 **QG-1. A score never costs the owner a posting**
 - **When:** the owner's list is built with scores present, low scores included, in either order.
-- **Then:** "0 postings left out of the list or its counts because of their score" (spec §6 Never a hide by score); every posting without a score carries its reason (pending, cap reached, could not be scored; no profile once for the list).
+- **Then:** "0 postings left out of the list or its counts because of their score" (spec §6 Never a hide by score); every posting without a score carries its reason (pending, not scored — provider or key problem, cap reached, could not be scored; no profile once for the list).
 - **How verify:** property test in `apps/server/test/`: for generated collections and score sets, the list with and without scores holds the same postings and the same total, hidden, "new" and marked counts; a stand-in `ScoreReader` returns every score state.
 
 **QG-2. Spending stays within the owner's cap**

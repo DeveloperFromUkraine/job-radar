@@ -26,11 +26,11 @@ The match score needs a profile, a background scorer, spend accounting, CV readi
 ## Considered options
 
 1. **backend-service + web-frontend.** A new `matching` module in the server process, with its background scorer inside it; the existing React SPA gains a `/profile` route and card, list and source-health additions.
-2. **backend-service + web-frontend + a separate worker process** for scoring.
+2. **Extend the search module** with the profile, scoring and spend accounting, since the score belongs to the list.
 
 ## Decision outcome
 
-**Chosen:** Option 1. A separate worker would share the SQLite file across two processes (a risk of busy-database errors) and break the one-connection rule, for a volume of tens of postings a day. The UI keeps the existing architecture — React SPA, react-router, TanStack Query, the design-system components and tokens — with one new route; no UI-architecture change is needed, so it is an inline note in §4, not a separate decision.
+**Chosen:** Option 1. Profile, spend ledger, CV reading and an outside provider are foreign to search, which only builds and pages the list; putting them there would break project ADR 0002 (one module per roadmap capability) and make search depend on a paid outside call. Search instead reads scores through an injected reader (ADR-0004). The UI keeps the existing architecture — React SPA, react-router, TanStack Query, the design-system components and tokens — with one new route; no UI-architecture change is needed, so it is an inline note in §4, not a separate decision.
 
 ## Consequences
 
@@ -42,7 +42,7 @@ The match score needs a profile, a background scorer, spend accounting, CV readi
 - A slow or failing provider call shares the event loop with the list; calls are asynchronous, so they wait without blocking, but the scorer must never do heavy synchronous work.
 
 **Neutral**
-- Moving scoring to a worker later is possible: the scorer talks to the rest only through `matching/app/`.
+- Running scoring in a separate worker process was not an option under §2 (one SQLite connection shared by every module); if ever needed, the scorer talks to the rest only through `matching/app/`, so it can move.
 
 ## Links
 

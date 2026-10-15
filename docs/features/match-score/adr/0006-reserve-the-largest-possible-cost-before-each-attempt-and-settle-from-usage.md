@@ -20,7 +20,7 @@ The month's scoring and profile drafting must never exceed the scoring cap, coun
 ## Decision drivers
 
 - Spec NFR Spending: never exceed the cap; 0 attempts after it is reached.
-- Spec AC-14 note: an attempt that ends without an answer counts at its largest possible cost.
+- Spec AC-12 note: an attempt that ends without an answer counts at its largest possible cost — its input and output limits at the stored price.
 - §2: one SQLite connection, synchronous transactions on one event loop.
 
 ## Considered options
@@ -30,7 +30,7 @@ The month's scoring and profile drafting must never exceed the scoring cap, coun
 
 ## Decision outcome
 
-**Chosen:** Option 1. The check and the reservation happen in one synchronous transaction on the only connection, so two attempts cannot both pass the check. The ledger survives restarts and feeds scoring health (spend this month, failures) and the spending KPI. The largest possible cost is the request's input estimate plus its output limit at the stored price.
+**Chosen:** Option 1. The check and the reservation happen in one synchronous transaction on the only connection, so two attempts cannot both pass the check. The ledger survives restarts and feeds scoring health (spend this month, failures) and the spending KPI. The largest possible cost is an upper bound, not an estimate: the request's input bounded from its size in characters (counted as one token per character, which no tokenizer exceeds), priced at the cache-write rate, plus its output limit at the output rate. Settlement prices every usage figure the answer reports — uncached input, cache writes, cache reads and output.
 
 ## Consequences
 
