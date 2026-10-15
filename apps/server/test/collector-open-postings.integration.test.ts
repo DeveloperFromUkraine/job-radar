@@ -55,6 +55,7 @@ describe("collector open-postings export", () => {
     expect(result.map((p) => p.id)).toEqual(["p-reopened"]);
     expect(result[0]).toEqual({
       id: "p-reopened",
+      status: "open",
       title: "Title p-reopened",
       company: "Example Co",
       publishedAt: 5,

@@ -1,9 +1,13 @@
 import { keepPreviousData, useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import {
+  getNextMarkedPage,
   getNextPage,
   getWaitingCount,
+  type MarkedPage,
+  type MarkedResult,
   openVisit,
   type PostingPage,
+  runMarkedView,
   runSearch,
   type SearchResult,
 } from "../../api/search";
@@ -46,6 +50,37 @@ export function useSearchList(req: SearchRequest | null) {
     placeholderData: keepPreviousData, // the list on screen stays while a new search runs
     staleTime: Number.POSITIVE_INFINITY,
     gcTime: 0, // coming back to the screen runs a fresh search, never a cached list (AC-13)
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    retry: false,
+  });
+}
+
+/**
+ * applied-skipped AC-05: the marked view, its own snapshot. Pages are appended and never refetched,
+ * so a card whose mark changes keeps its place until the view loads again.
+ */
+export function useMarkedList(req: SearchRequest | null) {
+  return useInfiniteQuery<
+    MarkedResult | MarkedPage,
+    Error,
+    { pages: (MarkedResult | MarkedPage)[] },
+    (string | number)[],
+    Cursor
+  >({
+    queryKey: ["search", "marked", req?.skills ?? "", req?.run ?? 0],
+    enabled: req !== null,
+    initialPageParam: null,
+    queryFn: ({ pageParam }) =>
+      pageParam
+        ? getNextMarkedPage(pageParam.snapshotId, pageParam.cursor)
+        : runMarkedView(req?.skills ?? ""),
+    getNextPageParam: (last, pages) => {
+      const first = pages[0] as MarkedResult;
+      return last.next_cursor ? { snapshotId: first.snapshot_id, cursor: last.next_cursor } : undefined;
+    },
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: 0, // the switch is off on every visit; turning it on loads a fresh view
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
     retry: false,

@@ -9,7 +9,7 @@ ticket: "roadmap step 2 — remote-boards-collector"
 
 # 0006 — Keep owner marks behind a port the collector consults before removal
 
-- **Status:** Accepted
+- **Status:** Accepted — partly superseded by [applied-skipped ADR-0003](../../applied-skipped/adr/0003-keep-one-mark-row-per-posting-with-its-previous-state-deleted-with-the-posting.md) (2026-10-07): the mark row cascades on posting delete instead of restricting it, and the port narrows from "marked" to "protected" (`ProtectedPostings.protectedAmong`: applied, or within the grace day). The port and "nothing removed when the port fails" stay.
 - **Date:** 2026-10-02
 - **Deciders:** Volodymyr Kozlov, with Claude during the design pass
 

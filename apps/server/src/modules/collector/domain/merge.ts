@@ -54,11 +54,11 @@ const words = (text: string) =>
     .trim()
     .replace(/\s+/g, " ");
 
-function normalizeTitle(title: string): string {
+export function normalizeTitle(title: string): string {
   return words(title.replace(REMOTE_RE, " "));
 }
 
-function normalizeCompany(company: string): string {
+export function normalizeCompany(company: string): string {
   let name = words(company);
   let changed = true;
   while (changed) {

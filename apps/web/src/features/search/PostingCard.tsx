@@ -1,5 +1,6 @@
+import type { ReactNode } from "react";
 import { SOURCE_NAMES } from "../../api/collector";
-import type { Listing, Posting } from "../../api/search";
+import type { Listing, MarkedPosting, Posting } from "../../api/search";
 import { Badge } from "../../components/Badge";
 import { ago, shortDate } from "../../lib/time";
 
@@ -7,7 +8,7 @@ import { ago, shortDate } from "../../lib/time";
 const sourceName = (id: string) =>
   (SOURCE_NAMES as Record<string, { name: string } | undefined>)[id]?.name ?? id;
 
-function Time({ posting, now }: { posting: Posting; now: number }) {
+function Time({ posting, now }: { posting: Posting | MarkedPosting; now: number }) {
   const at = posting.published_at;
   if (at === null) {
     return (
@@ -57,16 +58,64 @@ function Source({ listing }: { listing: Listing }) {
   );
 }
 
-/** SCR-01 posting (screens.md NEW: PostingCard). Only the source names are links. Phones stack the
- * parts in wireframe order; from md: time and sources move to a second column. */
-export function PostingCard({ posting, now = Date.now() }: { posting: Posting; now?: number }) {
+// A date-only value (removed_after) is read at noon, so no time zone moves it to another day.
+const day = (date: string) => shortDate(date.length === 10 ? `${date}T12:00:00` : date);
+
+// Cleared and closed: a row with no mark. removed_after is null while the age is frozen (contract).
+const clearedClosed = (posting: MarkedPosting) =>
+  posting.status === "closed" && posting.mark_state.mark === null && posting.mark_state.marked_at !== null;
+
+function markLine(posting: MarkedPosting): string {
+  const state = posting.mark_state;
+  if (state.mark === null) {
+    if (!clearedClosed(posting)) return "Not marked";
+    return state.removed_after ? `Cleared · removed after ${day(state.removed_after)}` : "Cleared";
+  }
+  return `${state.mark === "applied" ? "Applied" : "Skipped"} on ${day(state.marked_at as string)}`;
+}
+
+function MarkBadges({ posting }: { posting: MarkedPosting }) {
+  const { mark } = posting.mark_state;
   return (
-    <article className="grid gap-1 break-words rounded-card border border-border p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-x-4">
+    <span className="flex shrink-0 gap-1">
+      {mark === "applied" && <Badge tone="notice">Applied</Badge>}
+      {mark === "skipped" && <Badge tone="disabled">Skipped</Badge>}
+      {clearedClosed(posting) && <Badge tone="disabled">Cleared</Badge>}
+      {posting.status === "closed" && <Badge tone="disabled">Closed</Badge>}
+    </span>
+  );
+}
+
+interface PostingCardProps {
+  posting: Posting | MarkedPosting;
+  now?: number;
+  /** A banner about this card (a failed save), above the actions. */
+  banner?: ReactNode;
+  /** MarkActions, at the bottom of the card, full width on phones. */
+  actions?: ReactNode;
+}
+
+/** SCR-01 posting (screens.md NEW: PostingCard; applied-skipped: look-alike line, marked variant,
+ * actions slot). Only the source names are links. Phones stack the parts in wireframe order; from md:
+ * time and sources move to a second column. */
+export function PostingCard({ posting, now = Date.now(), banner, actions }: PostingCardProps) {
+  const marked = "mark_state" in posting ? posting : null;
+  const hint = marked ? null : (posting as Posting).look_alike;
+  return (
+    <article
+      id={`posting-${posting.id}`}
+      className="grid gap-1 break-words rounded-card border border-border p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-x-4"
+    >
       <div className="flex min-w-0 items-start justify-between gap-2 md:col-start-1">
         <h3 className="min-w-0 font-medium">{posting.title}</h3>
-        {posting.is_new && <Badge tone="new">New</Badge>}
+        {marked ? (
+          <MarkBadges posting={marked} />
+        ) : (
+          (posting as Posting).is_new && <Badge tone="new">New</Badge>
+        )}
       </div>
       <p className="text-text-muted md:col-start-1">{posting.company}</p>
+      {marked && <p className="text-sm md:col-start-1">{markLine(marked)}</p>}
       <div className="md:col-start-2 md:row-start-1">
         <Time posting={posting} now={now} />
       </div>
@@ -86,6 +135,14 @@ export function PostingCard({ posting, now = Date.now() }: { posting: Posting; n
           <Source key={i} listing={l} />
         ))}
       </ul>
+      {hint && (
+        <p className="text-sm text-text-muted md:col-start-1">
+          You {hint.mark === "applied" ? "applied to" : "skipped"} a similar posting at {hint.company} on{" "}
+          {day(hint.marked_at)}
+        </p>
+      )}
+      {banner && <div className="md:col-span-2">{banner}</div>}
+      {actions && <div className="mt-2 md:col-span-2">{actions}</div>}
     </article>
   );
 }

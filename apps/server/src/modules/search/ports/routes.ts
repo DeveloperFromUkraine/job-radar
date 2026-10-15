@@ -2,6 +2,7 @@
 // all are JSON POSTs; access rules (collector ADR-0007) apply app-wide in core/.
 import type { FastifyPluginAsync } from "fastify";
 import type { SearchDeps } from "../app/deps.js";
+import { nextMarkedPage, runMarkedView } from "../app/marked.js";
 import { nextPage } from "../app/pages.js";
 import { runSearch } from "../app/search.js";
 import type { SnapshotStore } from "../app/snapshots.js";
@@ -63,6 +64,38 @@ export function searchRoutes(deps: SearchDeps, snapshots: SnapshotStore): Fastif
       "/api/v1/search/snapshots/:snapshot_id/waiting",
       { schema: { params: snapshotParams, body: empty } },
       async (request) => waitingCount(deps, snapshots, request.params.snapshot_id),
+    );
+
+    // applied-skipped AC-05: the marked view, a second snapshot mode.
+    app.post<{ Body: { skills: string } }>(
+      "/api/v1/search/marked-snapshots",
+      {
+        schema: {
+          body: {
+            type: "object",
+            required: ["skills"],
+            additionalProperties: false,
+            properties: { skills: { type: "string" } },
+          },
+        },
+      },
+      async (request) => runMarkedView(deps, snapshots, request.body.skills),
+    );
+
+    app.post<SnapshotRoute & { Body: { cursor: string } }>(
+      "/api/v1/search/marked-snapshots/:snapshot_id/pages",
+      {
+        schema: {
+          params: snapshotParams,
+          body: {
+            type: "object",
+            required: ["cursor"],
+            additionalProperties: false,
+            properties: { cursor: { type: "string", pattern: "^[0-9]{1,6}$" } },
+          },
+        },
+      },
+      async (request) => nextMarkedPage(deps, snapshots, request.params.snapshot_id, request.body.cursor),
     );
   };
 }

@@ -1,6 +1,7 @@
 // OpenPosting → the API's Posting (contracts/openapi.yaml). Descriptions are never sent; a link only
 // for an open listing with an http(s) URL (AC-08, AC-09).
 import type { OpenPosting } from "../../collector/app/open-postings.js";
+import type { LookAlike } from "../../tracking/app/queries.js";
 import { safeUrl } from "../domain/links.js";
 import type { MatchedSkill } from "../domain/match.js";
 import { effectiveTime } from "../domain/order.js";
@@ -12,6 +13,7 @@ export function presentPosting(
   p: OpenPosting,
   matched: MatchedSkill[],
   previousVisitStartedAt: number | null,
+  lookAlike: LookAlike | null = null,
 ) {
   return {
     id: p.id,
@@ -27,6 +29,7 @@ export function presentPosting(
       url: l.status === "open" ? safeUrl(l.url) : null,
       location_restriction: l.locationRestriction,
     })),
+    look_alike: lookAlike,
   };
 }
 
@@ -34,8 +37,16 @@ export type Posting = ReturnType<typeof presentPosting>;
 
 export const PAGE_SIZE = 50;
 
-/** One page of an ordered result starting at `offset`; the cursor is the next offset. */
-export function pageInfo(offset: number, total: number) {
-  const has_next = offset + PAGE_SIZE < total;
-  return { has_next, next_cursor: has_next ? String(offset + PAGE_SIZE) : null };
+/**
+ * The next page of a snapshot (applied-skipped ADR-0002): from `offset`, walk past marked ids until
+ * PAGE_SIZE unmarked ones. The cursor is the position after the last id read, so a posting marked
+ * since loading is left out, one cleared since appears in its place, and none is skipped (AC-12).
+ */
+export function walkUnmarked(ids: readonly string[], offset: number, marked: ReadonlySet<string>) {
+  const picked: string[] = [];
+  let i = offset;
+  for (; i < ids.length && picked.length < PAGE_SIZE; i++)
+    if (!marked.has(ids[i] as string)) picked.push(ids[i] as string);
+  const has_next = ids.slice(i).some((id) => !marked.has(id));
+  return { picked, has_next, next_cursor: has_next ? String(i) : null };
 }
