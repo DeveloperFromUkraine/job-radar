@@ -116,6 +116,61 @@ describe("SCR-01 location bar", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
+  it("a later filter change from the empty message clears the bar's old switch error (re-review 2 N-2b)", async () => {
+    const allHidden = contractExample<SearchResult>("runSearch", 200, "all_hidden");
+    const fail = { status: 500, body: { error: { code: "INTERNAL", message: "Something went wrong." } } };
+    mockApi({
+      ...base,
+      [SEARCH]: [
+        { body: allHidden },
+        { body: { ...filtered(), location_filter: { mode: "off", country: PL } } },
+      ],
+      "POST /api/v1/remote-filter/filter": [fail, { body: { ...withPoland(), filter_on: false } }],
+    });
+    renderWithProviders(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Switch off" }));
+    const bar = screen.getByRole("region", { name: "Location filter" });
+    await waitFor(() => expect(bar.querySelector("[role=alert]")).not.toBeNull());
+    fireEvent.click(screen.getByRole("button", { name: "Switch filter off" }));
+    expect(await screen.findByText("Location filter is off")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("a bar change never drops the empty message's switch still in flight (re-review 2 N-2b)", async () => {
+    const allHidden = contractExample<SearchResult>("runSearch", 200, "all_hidden");
+    const { fetchMock } = mockApi({
+      ...base,
+      [SEARCH]: [{ body: allHidden }, { body: { ...allHidden } }],
+      "POST /api/v1/remote-filter/filter": { body: { ...withPoland(), filter_on: false } },
+    });
+    let release: (r: Response) => void = () => {};
+    const held = new Promise<Response>((resolve) => {
+      release = resolve;
+    });
+    let first = true;
+    vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+      if (first && String(input) === "/api/v1/remote-filter/filter") {
+        first = false;
+        return held;
+      }
+      return fetchMock(input, init);
+    });
+    renderWithProviders(<App />);
+    fireEvent.click(await screen.findByRole("button", { name: "Switch filter off" }));
+    fireEvent.click(screen.getByRole("button", { name: "Switch off" }));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.filter(([p]) => String(p) === "/api/v1/search/snapshots").length).toBe(2),
+    );
+    expect(screen.getByRole("button", { name: "Switch filter off" }).getAttribute("aria-busy")).toBe("true");
+    release(
+      new Response(JSON.stringify({ error: { code: "INTERNAL", message: "Something went wrong." } }), {
+        status: 500,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    expect((await screen.findByRole("alert")).textContent).toContain("Something went wrong.");
+  });
+
   it("is hidden while the marked view is on, and back when it goes off (AC-11)", async () => {
     mockApi({
       ...base,

@@ -23,7 +23,7 @@ export function LocationFilterBar({ filter, onChange }: LocationFilterBarProps) 
     void queryClient.invalidateQueries({ queryKey: SETTINGS_KEY });
     onChange();
   };
-  const switching = useFilterSwitch(onChange);
+  const switching = useFilterSwitch(onChange, filter);
 
   if (settings.isError)
     return (

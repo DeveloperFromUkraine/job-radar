@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { getRemoteFilterSettings, setFilterOn, setLook } from "../../api/remoteFilter";
+import { useEffect } from "react";
+import { getRemoteFilterSettings, type LocationFilter, setFilterOn, setLook } from "../../api/remoteFilter";
 
 export const SETTINGS_KEY = ["remote-filter", "settings"];
 
@@ -10,10 +11,13 @@ export function useRemoteFilterSettings() {
 
 export type Switch = "off" | "on" | "back";
 
-/** Switch the filter off or on, or end a look; on success the settings reload and `onChange` re-runs the search. */
-export function useFilterSwitch(onChange: () => void) {
+/**
+ * Switch the filter off or on, or end a look; on success the settings reload and `onChange` re-runs the search.
+ * A new list (`filter`, the list's own filter) clears an old error, but never a request still running (re-review 2 N-2b).
+ */
+export function useFilterSwitch(onChange: () => void, filter: LocationFilter | undefined) {
   const queryClient = useQueryClient();
-  return useMutation({
+  const mutation = useMutation({
     mutationFn: (action: Switch): Promise<unknown> =>
       action === "back" ? setLook(null) : setFilterOn(action === "on"),
     onSuccess: () => {
@@ -21,4 +25,10 @@ export function useFilterSwitch(onChange: () => void) {
       onChange();
     },
   });
+  const { isPending, reset } = mutation;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keyed to the list, not to the mutation's own state
+  useEffect(() => {
+    if (!isPending) reset();
+  }, [filter]);
+  return mutation;
 }
