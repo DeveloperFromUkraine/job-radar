@@ -273,21 +273,20 @@ No new deployment unit: the `matching` module and its background scorer run in t
 
 ## 8. Crosscutting concepts
 
-<!-- 🎯 Why: CROSS-CUTTING PATTERNS spanning several modules: logging, errors, authorization, ID
-     strategy, events, caching. ⭐ The second-densest section. A pattern inside one module is NOT
-     here; a project-wide convention belongs in the convention file.
-     📋 Write: a table — concept / convention / where defined. One row per concept.
-     📌 e.g. «sortable time-based IDs generated in the app layer» as a default from the convention file. -->
-
 | Concept | Convention | Where defined |
 |---|---|---|
-| Logging | <e.g. structured, fields `module=<name>`> | <convention file §X or here> |
-| Authentication | <e.g. token-based via middleware> | <convention file §X> |
-| Error handling | <e.g. domain sentinel → ports error mapping → JSON> | <convention file §X> |
-| ID strategy | <e.g. sortable time-based ID in the app layer> | <convention file §X> |
-| Internationalisation | <e.g. N/A, single language> | — |
-| Observability | <e.g. tracing on the request boundary> | — |
-| Events | <module-specific patterns, if any> | <here> |
+| Access | Loopback only, same-origin, JSON body on every state-changing request; applies unchanged to profile, CV draft, cap and notice actions (AC-17) | `core/access.ts`, collector ADR-0007 |
+| CV upload transport | The file travels base64-encoded inside a JSON body; that one route raises its body limit to 7 MB (5 MB file plus encoding); no multipart, so the JSON rule above stays the CSRF guard | here |
+| Error handling | Expected failures throw `AppError(code, message, status)`; one envelope `{ "error": { "code", "message" } }` | `core/errors.ts`, `CLAUDE.md` |
+| Provider errors | Classified by the SDK's typed errors: rate limit, overloaded, connection and timeout → provider problem (pending, retried, AC-14); authentication or permission → key problem (retried after a restart); validation failure or `refusal` stop reason → unusable answer, a strike (AC-18). The SDK's own retries are off (`maxRetries: 0`), so every attempt passes through a spend reservation (ADR-0006) | here |
+| Logging | Structured, `module=matching`; never log CV text, profile fields, prompt or answer bodies, or the key; log posting id, outcome, tokens, cost | here, Fastify logger |
+| Secrets | Provider key only from `ANTHROPIC_API_KEY`; never stored in the database, shown on screen, put in an error message or logged | here, spec §6.1 |
+| Untrusted text | Posting text and model output are data: the fit note and quoted claims render as plain text, claims as "the posting says…" (AC-03); posting text enters prompts only inside a delimited data block | search AC-09, ADR-0008 |
+| Personal data | CV text never stored; contact details removed before sending (AC-09) and rejected on save (AC-16); profile holds no name or contact detail; nothing sent before the one-time notice is agreed (AC-20) | ADR-0007, spec §6.1 |
+| ID strategy | UUIDv7 from `core/id.ts` for spend rows; scores keyed by posting id | `CLAUDE.md` |
+| Time | Calendar month in the machine's time zone (`machineTimeZone()` in `core/config.ts`), as the grace day | `core/config.ts` |
+| Internationalisation | N/A — single language (English UI) | — |
+| Observability | Scoring health (SCR-02) plus logs; no tracing | §7 |
 
 ## 9. Architecture decisions
 
