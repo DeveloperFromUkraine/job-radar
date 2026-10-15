@@ -27,5 +27,12 @@
 | T20 | Add CV upload and the draft review to the profile screen | ui | Volodymyr Kozlov | M | T19 | done |
 | T21 | Prove the invariants and NFRs end to end, and add the real-model evaluation run | tests | Volodymyr Kozlov | M | T15, T17 | done |
 | T22 | Update the docs: SAD table names and flow 2, contract pointers, design-system inventory, roadmap and key setup | docs | Volodymyr Kozlov | S | T21 | done |
+| T23 | Review fix R1: the cap counts as reached once an attempt's reservation is refused this month | app | Volodymyr Kozlov | S | T22 | todo |
+| T24 | Review fixes R8, R10, R11: retry wakes at 15 minutes, provider calls abort on stop with their own timeout, pass errors are logged and reservations settle | app | Volodymyr Kozlov | S | T23 | todo |
+| T25 | Review fixes R14, R7: case-insensitive fence, the note names both salary amounts, eval checks AC-01 and AC-04 | infra | Volodymyr Kozlov | S | T24 | todo |
+| T26 | Review fix R15: a corrupt zip, a docx with no document part and an inflate bomb are refused as unsupported | test | Volodymyr Kozlov | S | T25 | todo |
+| T27 | Review fix R9: the domain owns profile validation, so every profile error answers MATCHING_INVALID_PROFILE with the field message | ports | Volodymyr Kozlov | S | T26 | todo |
+| T28 | Review fixes R6, R16: no problem marker for cap_reached; the cap field shows the saved cap | ui | Volodymyr Kozlov | S | T27 | todo |
+| T29 | Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload | ui | Volodymyr Kozlov | S | T28 | todo |
 
-**Total:** 22 tasks, ~19.5 person-days.
+**Total:** 29 tasks, ~22 person-days (T23–T29 from review 2026-10-15).

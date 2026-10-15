@@ -484,6 +484,146 @@
         "README.md"
       ],
       "file": "docs/features/match-score/tasks/t22-docs-and-pointers.md"
+    },
+    {
+      "id": "T23",
+      "title": "Review fix R1: the cap counts as reached once an attempt's reservation is refused this month",
+      "layer": "app",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "A scorer test with a cap that leaves less than one real reservation but more than the no-input bound fails without the fix: after the pass, the reader shows cap_reached for unscored postings and health reports cap_reached with resumes_on; raising the cap clears it",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/cap-state.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/src/modules/matching/app/deps.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T24",
+      "title": "Review fixes R8, R10, R11: retry wakes at 15 minutes, provider calls abort on stop with their own timeout, pass errors are logged and reservations settle",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-14"
+      ],
+      "dod": "Tests pin: the scorer wakes itself at retryAfter (fake timers); stop() aborts an in-flight send; a score request gets the score timeout; a throwing pass reaches onError and leaves no reservation 'reserved'",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/src/modules/matching/app/cv-draft.ts",
+        "apps/server/src/modules/matching/infra/claude.ts",
+        "apps/server/src/modules/matching/index.ts",
+        "apps/server/test/matching-scorer.integration.test.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T25",
+      "title": "Review fixes R14, R7: case-insensitive fence, the note names both salary amounts, eval checks AC-01 and AC-04",
+      "layer": "infra",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04"
+      ],
+      "dod": "claude.test pins </POSTING> and '</ posting' escaped; SCORE_INSTRUCTIONS asks for both amounts and SCORER_VERSION is bumped; the eval script reports fit median >=80 naming TypeScript and React, and unstated terms/seniority not_stated",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/prompts.ts",
+        "apps/server/src/modules/matching/domain/score.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts",
+        "apps/server/scripts/eval-match-score.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T26",
+      "title": "Review fix R15: a corrupt zip, a docx with no document part and an inflate bomb are refused as unsupported",
+      "layer": "test",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Three cv-text cases refuse with MATCHING_CV_UNSUPPORTED without throwing",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/cv-text.ts",
+        "apps/server/src/modules/matching/infra/cv-text.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T27",
+      "title": "Review fix R9: the domain owns profile validation, so every profile error answers MATCHING_INVALID_PROFILE with the field message",
+      "layer": "ports",
+      "deps": [
+        "T26"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "A routes test pins a skill over 50 characters, a negative salary and years over 60 each answering MATCHING_INVALID_PROFILE with the field-named message; openapi saveProfile text says so",
+      "files_hint": [
+        "apps/server/src/modules/matching/ports/routes.ts",
+        "apps/server/test/matching-routes.integration.test.ts",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T28",
+      "title": "Review fixes R6, R16: no problem marker for cap_reached; the cap field shows the saved cap",
+      "layer": "ui",
+      "deps": [
+        "T27"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-19"
+      ],
+      "dod": "Home.scores.test pins no marker when the problem is cap_reached; Profile.test pins the saved cap shown after leaving and returning; openapi marker wording follows screens.md",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.scores.test.tsx",
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T29",
+      "title": "Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload",
+      "layer": "ui",
+      "deps": [
+        "T28"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-20"
+      ],
+      "dod": "Profile.cv.test pins the current profile visible beside the draft (not only in details), a tag next to each field, and the notice rendered under the upload when the upload triggered it",
+      "files_hint": [
+        "apps/web/src/features/matching/DraftReview.tsx",
+        "apps/web/src/features/matching/ProfileForm.tsx",
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
     }
   ]
 }
