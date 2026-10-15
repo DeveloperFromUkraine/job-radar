@@ -624,6 +624,114 @@
         "apps/web/src/routes/Profile.cv.test.tsx"
       ],
       "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T30",
+      "title": "Review fixes R21, R22: profile type and duplicate errors answer MATCHING_INVALID_PROFILE; skill length and count are checked before the contact scan",
+      "layer": "ports",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-17"
+      ],
+      "dod": "matching-routes test: amount 'abc' and 1.5, years 2.5 and a duplicate role type each answer 400 MATCHING_INVALID_PROFILE with the field message; a profile test proves an 80k-character skill name is refused quickly with no contact scan",
+      "files_hint": [
+        "apps/server/src/modules/matching/ports/routes.ts",
+        "apps/server/src/modules/matching/domain/profile.ts",
+        "apps/server/test/matching-routes.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T31",
+      "title": "Review fix R23: a successful reservation clears the refused-cap record, and each pass retries the reservation for the current head of the queue",
+      "layer": "app",
+      "deps": [
+        "T30"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "Scorer test: after a large head posting is refused and then marked, the next smaller posting is scored and health.capReached is false; after a cap raise, health.capReached is false",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/cap-state.ts",
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T32",
+      "title": "Review fix R24: the fence also escapes whitespace between < and /, and zero-width characters",
+      "layer": "infra",
+      "deps": [
+        "T31"
+      ],
+      "acs": [
+        "AC-03"
+      ],
+      "dod": "claude.test covers < /posting>, <\\n/posting> and a zero-width character after the slash, for both the posting and CV blocks",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/prompts.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T33",
+      "title": "Review fix R27: the cap field keeps its 'Saved' message after the cap changes",
+      "layer": "ui",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "Profile.test changes the cap and checks the message in the CapField that stays on screen after the cache update; returning to the screen shows the saved cap",
+      "files_hint": [
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T34",
+      "title": "Review fixes R29, R30: two columns only when there is a current profile; on phones 'Show current profile' sits below the draft",
+      "layer": "ui",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Profile.cv.test: a first upload has no md:grid-cols class; the details element comes after the form in document order",
+      "files_hint": [
+        "apps/web/src/features/matching/DraftReview.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T35",
+      "title": "Review fix R28: openapi and sad.md say the problem marker shows when there is a problem other than a reached cap",
+      "layer": "docs",
+      "deps": [
+        "T34"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14"
+      ],
+      "dod": "openapi.yaml:314-315 and :1144 and sad.md:567 match flow 9 and Home.tsx:33",
+      "files_hint": [
+        "docs/features/match-score/contracts/openapi.yaml",
+        "docs/features/match-score/sad.md"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
     }
   ]
 }
