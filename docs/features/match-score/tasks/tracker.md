@@ -34,11 +34,11 @@
 | T27 | Review fix R9: the domain owns profile validation, so every profile error answers MATCHING_INVALID_PROFILE with the field message | ports | Volodymyr Kozlov | S | T26 | done |
 | T28 | Review fixes R6, R16: no problem marker for cap_reached; the cap field shows the saved cap | ui | Volodymyr Kozlov | S | T27 | done |
 | T29 | Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload | ui | Volodymyr Kozlov | S | T28 | done |
-| T30 | Review fixes R21, R22: profile type and duplicate errors answer MATCHING_INVALID_PROFILE; skill length and count are checked before the contact scan | ports | Volodymyr Kozlov | S | T29 | todo |
-| T31 | Review fix R23: a successful reservation clears the refused-cap record, and each pass retries the reservation for the current head of the queue | app | Volodymyr Kozlov | S | T30 | todo |
-| T32 | Review fix R24: the fence also escapes whitespace between < and /, and zero-width characters | infra | Volodymyr Kozlov | S | T31 | todo |
-| T33 | Review fix R27: the cap field keeps its 'Saved' message after the cap changes | ui | Volodymyr Kozlov | S | T32 | todo |
-| T34 | Review fixes R29, R30: two columns only when there is a current profile; on phones 'Show current profile' sits below the draft | ui | Volodymyr Kozlov | S | T33 | todo |
-| T35 | Review fix R28: openapi and sad.md say the problem marker shows when there is a problem other than a reached cap | docs | Volodymyr Kozlov | S | T34 | todo |
+| T30 | Review fixes R21, R22: profile type and duplicate errors answer MATCHING_INVALID_PROFILE; skill length and count are checked before the contact scan | ports | Volodymyr Kozlov | S | T29 | done |
+| T31 | Review fix R23: a successful reservation clears the refused-cap record, and each pass retries the reservation for the current head of the queue | app | Volodymyr Kozlov | S | T30 | done |
+| T32 | Review fix R24: the fence also escapes whitespace between < and /, and zero-width characters | infra | Volodymyr Kozlov | S | T31 | done |
+| T33 | Review fix R27: the cap field keeps its 'Saved' message after the cap changes | ui | Volodymyr Kozlov | S | T32 | done |
+| T34 | Review fixes R29, R30: two columns only when there is a current profile; on phones 'Show current profile' sits below the draft | ui | Volodymyr Kozlov | S | T33 | done |
+| T35 | Review fix R28: openapi and sad.md say the problem marker shows when there is a problem other than a reached cap | docs | Volodymyr Kozlov | S | T34 | done |
 
 **Total:** 35 tasks, ~24 person-days (T23–T29 from review 2026-10-15; T30–T35 from re-review 2026-10-15).
