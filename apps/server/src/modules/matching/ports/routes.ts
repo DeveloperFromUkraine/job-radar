@@ -76,19 +76,19 @@ const object = (properties: Record<string, object>, required = Object.keys(prope
   }) as const;
 const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 
+// Shape and types only: every field rule (AC-16) is validateProfile's, so each refusal names its field
+// in plain language (MATCHING_INVALID_PROFILE) instead of the validator's text (review R9).
 const profileSchema = object({
   skills: {
     type: "array",
-    minItems: 1,
-    maxItems: 50,
-    items: object({ name: { type: "string", minLength: 1, maxLength: 50 }, core: { type: "boolean" } }),
+    items: object({ name: { type: "string" }, core: { type: "boolean" } }),
   },
-  years: { type: ["integer", "null"], minimum: 0, maximum: 60 },
+  years: { type: ["integer", "null"] },
   seniority: { type: ["string", "null"] },
   role_types: { type: "array", uniqueItems: true, items: { type: "string" } },
   min_salary: nullable(
     object({
-      amount: { type: "integer", minimum: 0 },
+      amount: { type: "integer" },
       currency: { type: "string" },
       period: { type: "string" },
     }),

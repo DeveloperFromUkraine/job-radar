@@ -107,6 +107,27 @@ describe("matching routes (contract)", () => {
     });
   });
 
+  it.each([
+    ["a skill over 50 characters", { skills: [{ name: "x".repeat(51), core: true }] }, "Skills: "],
+    [
+      "a negative salary",
+      { min_salary: { amount: -1, currency: "EUR", period: "month" } },
+      "Minimum salary: ",
+    ],
+    ["years above 60", { years: 61 }, "Years of experience: "],
+    ["no skills at all", { skills: [] }, "Skills: "],
+  ])(
+    "saveProfile: %s answers the field message, not the validator's (AC-16, review R9)",
+    async (_n, over, field) => {
+      await post("notice", {});
+      const res = await post("profile", { profile: { ...profile, ...over } });
+      expect(res.statusCode).toBe(400);
+      contract.expectContract("saveProfile", 400, res.json());
+      expect(res.json().error.code).toBe("MATCHING_INVALID_PROFILE");
+      expect(res.json().error.message.startsWith(field)).toBe(true);
+    },
+  );
+
   it("setScoringCap: saved in cents, 400 outside $0–$100 (AC-19)", async () => {
     const res = await post("cap", { cap_usd_cents: 800 });
     contract.expectContract("setScoringCap", 200, res.json());
