@@ -539,7 +539,7 @@ On opening the main screen, the web reads the collector's source problems as it 
 | AC-09 | flow 3 (contact details removed and listed) |
 | AC-10 | flow 4 |
 | AC-11 | flow 2 (order, paging), flow 8 (choice kept) |
-| AC-12 | flow 1 (reservation refused), flow 9 (cap-reached line and marker) |
+| AC-12 | flow 1 (reservation refused), flow 9 (cap-reached line; no marker) |
 | AC-13 | flow 1 (list read from search), flow 8 (newly entered postings, marked and hidden not scored) |
 | AC-14 | flow 1 (retry), flow 9 (scoring health, marker) |
 | AC-15 | flow 2 ("no profile" state) |

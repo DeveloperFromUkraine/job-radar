@@ -105,8 +105,10 @@ paths:
 
         The web checks the same rules before sending and shows the field error itself. The server's
         `MATCHING_INVALID_PROFILE` message names the field and what it must be, as the backstop: every
-        field rule (lengths, ranges, counts, fixed lists, the currency code) answers it, including the
-        bounds listed in `Profile`. Only a body of the wrong shape or type gets `VALIDATION_ERROR`.
+        field rule (lengths, ranges, counts, fixed lists, the currency code, whole numbers, no
+        duplicates) answers it, including the bounds listed in `Profile`; a non-numeric `years` or
+        `min_salary.amount` is such a rule. Only a body of the wrong shape (a missing or extra field,
+        an object or array where text is expected, a non-boolean `core`) gets `VALIDATION_ERROR`.
       operationId: saveProfile
       requestBody:
         required: true
