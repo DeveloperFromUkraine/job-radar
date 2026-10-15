@@ -311,9 +311,10 @@ paths:
       summary: Read scoring health
       description: |
         Shown on the source health screen beside the sources and read with the collector's problems
-        on opening the main screen (sad.md §6 flow 9). `problem` set means the main-screen problem
-        marker shows (AC-14); `cap_reached` also brings the line above the list with
-        `resumes_on` (AC-12). Works with no profile: the counts are then zero.
+        on opening the main screen (sad.md §6 flow 9). `problem` set with a kind other than
+        `cap_reached` means the main-screen problem marker shows (AC-14); `cap_reached` brings the
+        line above the list with `resumes_on` instead (AC-12). Works with no profile: the counts are
+        then zero.
       operationId: getScoringHealth
       responses:
         "200":
@@ -1141,7 +1142,7 @@ components:
           oneOf:
             - $ref: "#/components/schemas/ScoringProblem"
             - type: "null"
-          description: Set → the main-screen problem marker shows (AC-14)
+          description: Set with a kind other than cap_reached → the main-screen problem marker shows (AC-14); cap_reached has its own line instead (AC-12)
 
     MatchParts:
       type: object
