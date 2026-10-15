@@ -25,7 +25,7 @@
 | T18 | Add the scoring health card to the source health screen | ui | Volodymyr Kozlov | S | T16 | done |
 | T19 | Build the profile screen: route, AppNav link, ProfileForm, DataNotice and CapField | ui | Volodymyr Kozlov | L | T16 | done |
 | T20 | Add CV upload and the draft review to the profile screen | ui | Volodymyr Kozlov | M | T19 | done |
-| T21 | Prove the invariants and NFRs end to end, and add the real-model evaluation run | tests | Volodymyr Kozlov | M | T15, T17 | todo |
+| T21 | Prove the invariants and NFRs end to end, and add the real-model evaluation run | tests | Volodymyr Kozlov | M | T15, T17 | done |
 | T22 | Update the docs: SAD table names and flow 2, contract pointers, design-system inventory, roadmap and key setup | docs | Volodymyr Kozlov | S | T21 | todo |
 
 **Total:** 22 tasks, ~19.5 person-days.

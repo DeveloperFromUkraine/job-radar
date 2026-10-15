@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
+import { seedProfile, seedScores } from "./helpers/matching-fixtures.js";
 import { seedOpenPostings } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 import { seedMarks } from "./helpers/tracking-fixtures.js";
@@ -201,4 +202,64 @@ describe.skipIf(process.env.SKIP_PERF)("marked view latency at 5,000 marked post
     }
     expect(p95(loads)).toBeLessThanOrEqual(1_000);
   }, 180_000);
+});
+
+// match-score spec §6 "Search response with scores": ≤ 1 s p95 to the first 50 postings, with 10,000
+// open postings, scores and a profile — unchanged from search, in either order. Best match first reads
+// and fingerprints every shown posting, so the feed (all 10,000 shown) is the worst case.
+describe.skipIf(process.env.SKIP_PERF)("search latency with scores and a profile (match-score §6)", () => {
+  let t: TempDb;
+  let app: FastifyInstance;
+
+  beforeAll(async () => {
+    t = createTempDb();
+    const ids = seedOpenPostings(t.db, 10_000, (i) => ({
+      title: i % 8 === 0 ? "Senior React Engineer" : "Account Manager",
+      description: DESCRIPTION,
+    }));
+    seedProfile(t.db);
+    // Mixed states: most scored (some stale), some never scored.
+    seedScores(
+      t.db,
+      ids.filter((_, i) => i % 10 !== 0),
+      (i) => ({ total: (i * 37) % 101 }),
+    );
+    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    await app.ready();
+  }, 180_000);
+
+  afterAll(async () => {
+    await app?.close();
+    t?.cleanup();
+  });
+
+  const post = (url: string, payload: object) =>
+    app.inject({ method: "POST", url, headers: { host: "127.0.0.1:3000" }, payload });
+
+  it.each([
+    ["a 20-skill search", SKILLS, 1_250],
+    ["the feed (all 10,000 shown)", "", 10_000],
+  ])(
+    "answers %s best match first and newest first in ≤ 1 s p95, pages too",
+    async (_n, skills, total) => {
+      for (const order of ["best_match", "newest"] as const) {
+        const searches: number[] = [];
+        const pages: number[] = [];
+        for (let i = 0; i < 20; i++) {
+          let started = performance.now();
+          const res = await post("/api/v1/search/snapshots", { skills, order });
+          searches.push(performance.now() - started);
+          const body = res.json();
+          expect(body).toMatchObject({ total, has_profile: true, order });
+          started = performance.now();
+          const page = await post(`/api/v1/search/snapshots/${body.snapshot_id}/pages`, { cursor: "50" });
+          pages.push(performance.now() - started);
+          expect(page.json().items).toHaveLength(50);
+        }
+        expect(p95(searches), `${order} search`).toBeLessThanOrEqual(1_000);
+        expect(p95(pages), `${order} page`).toBeLessThanOrEqual(1_000);
+      }
+    },
+    240_000,
+  );
 });
