@@ -415,6 +415,40 @@
         "apps/web/src/routes/Home.location.test.tsx"
       ],
       "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T22",
+      "title": "Re-review 3 fix N-1c: a dash run between two zones the range reader did not join makes the statement unknown",
+      "layer": "domain",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 -- UTC+3\", \"UTC-1--UTC+3\", \"UTC−1 −− UTC+3\", \"- -\", \"(UTC-1) - (UTC+3)\", the quoted form, the \"hours\" form and \"UTC-1, - UTC+3\" for PL as check / not_recognised (fails without the fix); \"UTC-1 / UTC+3\" stays not_open and \"CET - Poland\" stays fits",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T23",
+      "title": "Re-review 3 fix N-3: normalize() straightens curly double quotes and guillemets",
+      "layer": "domain",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"“Poland”\" as fits and \"«USA»\" / \"„USA“\" as not_open for PL (fails without the fix)",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/vocabulary.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
     }
   ]
 }

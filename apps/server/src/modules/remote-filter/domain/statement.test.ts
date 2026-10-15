@@ -103,6 +103,17 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["UTC-1 ― UTC+3", "PL", check("not_recognised")],
   ["Remote - USA", "PL", NOT_OPEN],
   ["USA. Canada.", "PL", NOT_OPEN],
+  // Re-review 3 N-1c: a dash run between two zones the range reader did not join is unknown, never two points
+  ["UTC-1 -- UTC+3", "PL", check("not_recognised")],
+  ["UTC-1--UTC+3", "PL", check("not_recognised")],
+  ["UTC−1 −− UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 - - UTC+3", "PL", check("not_recognised")],
+  ["(UTC-1) - (UTC+3)", "PL", check("not_recognised")],
+  ['"UTC-1" - "UTC+3"', "PL", check("not_recognised")],
+  ["UTC-1 hours - UTC+3 hours", "PL", check("not_recognised")],
+  ["UTC-1, - UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 / UTC+3", "PL", NOT_OPEN],
+  ["CET - Poland", "PL", FITS],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {

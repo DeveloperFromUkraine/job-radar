@@ -26,5 +26,7 @@
 | T19 | [Re-review fix N-2: a filter change clears the old switch error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T17 | done |
 | T20 | [Re-review 2 fix N-1b: a fixed separator set](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T18 | done |
 | T21 | [Re-review 2 fix N-2b: switches clear old errors on a new list](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T19 | done |
+| T22 | [Re-review 3 fix N-1c: a dash run between two zones is unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T20 | done |
+| T23 | [Re-review 3 fix N-3: straighten curly quotes and guillemets](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T20 | done |
 
-**Total:** 21 tasks, ~7.25 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 23 tasks, ~7.75 person-days (S ≈ ¼ day, M ≈ ½ day).

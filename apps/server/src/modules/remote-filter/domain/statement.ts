@@ -51,6 +51,8 @@ const PHRASE_RE = word(
 const CUT_SHORT_RE = /…|\.\.\.|\+\s*\d+\s*more/g;
 const SOFT_RE = word(SOFT_WORDS.map(escapeRe).join("|"));
 const FLAG_RE = /\p{Regional_Indicator}{2}/gu;
+const ZONE_MARK = "\uE000"; // stands in for a zone ZONE_RE has read
+const BROKEN_RANGE_RE = /\uE000[^\p{L}\p{N}\uE000]*[-–—−][^\p{L}\p{N}\uE000]*\uE000/u;
 
 function zoneOffsets(zone: string): number[] {
   const named = ZONE_NAMES.get(zone);
@@ -93,7 +95,7 @@ function read(statement: string): Reading {
       for (const z of [from, to]) if (z?.length === 2) r.shortZones.push(z);
       if (to) r.zones.push([Math.min(...offsets), Math.max(...offsets)]);
       else for (const o of offsets) r.zones.push([o, o]);
-      return " , ";
+      return ` ${ZONE_MARK} `;
     })
     .replace(PHRASE_RE, (phrase) => {
       if (ANYWHERE.includes(phrase)) r.anywhere = true;
@@ -104,9 +106,12 @@ function read(statement: string): Reading {
       }
       return " , ";
     });
+  // A dash run between two zones the range reader did not join ("UTC-1 -- UTC+3", "(UTC-1) - (UTC+3)") may be a
+  // range: never read it as two points (re-review 3 N-1c).
+  if (BROKEN_RANGE_RE.test(rest)) r.unknown = true;
   // Only a fixed set separates words: spaces, list punctuation, ZONE_RE's own dashes and a lone dot. Anything
   // else left over (Польша, 🌍, "~", "->", "..", "〜", "‒") is a word, unknown → check (review F-1, N-1, N-1b).
-  for (const w of rest.split(/(?:[\s,;/|()[\]:!?"'*·•&+\-–—−]|(?<!\.)\.(?!\.))+/u)) {
+  for (const w of rest.split(/(?:[\s,;/|()[\]:!?"'*·•&+\-–—−\uE000]|(?<!\.)\.(?!\.))+/u)) {
     if (!w || FILLER_WORDS.has(w)) continue;
     if (EXCEPTION_WORDS.has(w)) r.exception = true;
     else r.unknown = true;
