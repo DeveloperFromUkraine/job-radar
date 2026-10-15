@@ -6,9 +6,6 @@
 import type { FetchResult, RawListing } from "../../domain/adapter.js";
 import { type FetchContext, notOk, type SourceAdapter, unreadable } from "./types.js";
 
-// "Anywhere in the World" also sits beside country lists (feed read 2026-10-03): nothing stated.
-const NOTHING_STATED = "Anywhere in the World";
-
 const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
 /** One element's text, XML-decoded; markup inside stays for the listing rules to strip. */
@@ -45,7 +42,8 @@ function toListing(item: string): RawListing | null {
     company: split > 0 ? heading.slice(0, split) : "",
     title: split > 0 ? heading.slice(split + 2) : heading,
     description: tag(item, "description") ?? "",
-    locationRestriction: country || (region && region !== NOTHING_STATED ? region : null),
+    // <country> wins; otherwise <region> as stated, "Anywhere in the World" included (remote-filter AC-10).
+    locationRestriction: country || region || null,
     categories: category ? [category] : [],
     publishedAt: time(item, "pubDate"),
     expiresAt: time(item, "expires_at"),

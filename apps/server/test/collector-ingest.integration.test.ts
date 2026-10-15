@@ -103,7 +103,7 @@ describe("ingest one due source (Flows 5 and 6)", () => {
       {
         source_id: "jobicy",
         url: "https://jobs.example.test/jobicy/900002",
-        location_restriction: null,
+        location_restriction: "Anywhere", // kept as stated (remote-filter AC-10)
         description: "Build & ship APIs.",
       },
       {
@@ -121,7 +121,7 @@ describe("ingest one due source (Flows 5 and 6)", () => {
         outcome: "complete",
         items_returned: 3,
         new_listings: 2,
-        unknown_location_new: 1,
+        unknown_location_new: 0, // an explicit Anywhere is not unknown (remote-filter AC-10)
         added: 2,
         updated: 0,
         no_category: 0,
@@ -209,6 +209,81 @@ describe("ingest one due source (Flows 5 and 6)", () => {
         `select updated, new_listings from collector_run_sources where run_id = '${run.runId}' and source_id = 'jobicy'`,
       ),
     ).toEqual([{ updated: 1, new_listings: 0 }]);
+  });
+
+  it("keeps an explicit Anywhere as stated, not as unknown in source health (remote-filter AC-10)", async () => {
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "Anywhere" })])));
+    const { run } = await runSource("jobicy");
+    expect(rows("select location_restriction from collector_listings")).toEqual([
+      { location_restriction: "Anywhere" },
+    ]);
+    expect(
+      rows(
+        `select new_listings, unknown_location_new from collector_run_sources where run_id = '${run.runId}' and source_id = 'jobicy'`,
+      ),
+    ).toEqual([{ new_listings: 1, unknown_location_new: 0 }]);
+  });
+
+  it("a held unknown listing takes Anywhere without counting as an updated posting (remote-filter AC-10)", async () => {
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "" })])));
+    await runSource("jobicy");
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "Anywhere" })])));
+    now = T0 + HOUR;
+
+    const { run } = await runSource("jobicy");
+
+    expect(rows("select location_restriction from collector_listings")).toEqual([
+      { location_restriction: "Anywhere" },
+    ]);
+    expect(
+      rows(
+        `select added, updated, unknown_location_new from collector_run_sources where run_id = '${run.runId}' and source_id = 'jobicy'`,
+      ),
+    ).toEqual([{ added: 0, updated: 0, unknown_location_new: 0 }]);
+  });
+
+  it("a held Anywhere that turns into USA is a real change (remote-filter AC-10)", async () => {
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "Anywhere" })])));
+    await runSource("jobicy");
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "USA" })])));
+    now = T0 + HOUR;
+    const { run } = await runSource("jobicy");
+    expect(
+      rows(
+        `select updated from collector_run_sources where run_id = '${run.runId}' and source_id = 'jobicy'`,
+      ),
+    ).toEqual([{ updated: 1 }]);
+  });
+
+  it("an Anywhere listing never keeps two listings of the same role apart (remote-filter AC-10, AC-05)", async () => {
+    fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob({ jobGeo: "USA" })])));
+    await runSource("jobicy");
+    fake.route(
+      "/api/remote-jobs",
+      json(
+        remotivePage([
+          {
+            id: 77,
+            url: "https://jobs.example.test/remotive/77",
+            title: "Senior Backend Engineer",
+            company_name: "Example Co",
+            category: "Software Development",
+            candidate_required_location: "Anywhere",
+            description: "<p>Build things.</p>",
+            publication_date: "2026-10-02T11:00:00",
+          },
+        ]),
+      ),
+    );
+    now = T0 + HOUR;
+    await runSource("remotive");
+    expect(rows("select count(*) n from collector_postings")).toEqual([{ n: 1 }]);
+    expect(rows("select source_id, location_restriction from collector_listings order by source_id")).toEqual(
+      [
+        { source_id: "jobicy", location_restriction: "USA" },
+        { source_id: "remotive", location_restriction: "Anywhere" },
+      ],
+    );
   });
 
   it("does not count a listing seen again unchanged as updated", async () => {

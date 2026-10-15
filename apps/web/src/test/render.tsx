@@ -3,6 +3,7 @@ import { render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
+import { contractExample } from "./contract";
 
 export function renderWithProviders(ui: ReactElement, { route = "/" } = {}) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -15,8 +16,16 @@ export function renderWithProviders(ui: ReactElement, { route = "/" } = {}) {
 
 type Reply = { status?: number; body: unknown };
 
+// Every main screen reads the location settings; unless a test says otherwise, no country is chosen.
+const DEFAULTS = (): Record<string, Reply | Reply[]> => ({
+  "GET /api/v1/remote-filter/settings": {
+    body: contractExample("getRemoteFilterSettings", 200, "first_open"),
+  },
+});
+
 /** Stubs fetch: each path answers with the queued replies in order, repeating the last one. */
-export function mockApi(routes: Record<string, Reply | Reply[]>) {
+export function mockApi(overrides: Record<string, Reply | Reply[]>) {
+  const routes = { ...DEFAULTS(), ...overrides };
   const calls: { method: string; path: string }[] = [];
   const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input);

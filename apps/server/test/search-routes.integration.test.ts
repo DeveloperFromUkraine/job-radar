@@ -9,8 +9,9 @@ import { loadContract } from "./helpers/contract.js";
 import { addPosting, seedOpenPostings } from "./helpers/search-fixtures.js";
 
 const contract = loadContract("search-postings");
-// applied-skipped restates runSearch, getNextPage and getWaitingCount with their mark-aware shapes.
-const marksContract = loadContract("applied-skipped");
+// remote-filter restates runSearch, getNextPage and getWaitingCount with their mark- and location-aware
+// shapes, superseding applied-skipped's (which superseded search-postings').
+const listContract = loadContract("remote-filter");
 const headers = { host: "127.0.0.1:3000" };
 
 let dir: string;
@@ -65,7 +66,7 @@ describe("search routes", () => {
     const res = await post("/api/v1/search/snapshots", { skills: "React, TypeScript" });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    marksContract.expectContract("runSearch", 200, body);
+    listContract.expectContract("runSearch", 200, body);
     expect(body).toMatchObject({ total: 1, skills: ["React", "TypeScript"], has_next: false });
     expect(body.items[0].listings[1]).toEqual({
       source_id: "himalayas",
@@ -75,14 +76,14 @@ describe("search routes", () => {
     });
 
     const feed = await search("");
-    marksContract.expectContract("runSearch", 200, feed);
+    listContract.expectContract("runSearch", 200, feed);
     expect(feed).toMatchObject({ total: 61, next_cursor: "50" });
   });
 
   it("runSearch: 400 names the skill and the rule (AC-05); 400 VALIDATION_ERROR for a bad body", async () => {
     const res = await post("/api/v1/search/snapshots", { skills: "React, --" });
     expect(res.statusCode).toBe(400);
-    marksContract.expectContract("runSearch", 400, res.json());
+    listContract.expectContract("runSearch", 400, res.json());
     expect(res.json().error).toEqual({
       code: "SEARCH_INVALID_SKILLS",
       message: '"--" needs at least one letter or digit.',
@@ -97,7 +98,7 @@ describe("search routes", () => {
     const first = await search("");
     const page = await post(`/api/v1/search/snapshots/${first.snapshot_id}/pages`, { cursor: "50" });
     expect(page.statusCode).toBe(200);
-    marksContract.expectContract("getNextPage", 200, page.json());
+    listContract.expectContract("getNextPage", 200, page.json());
     expect(page.json()).toMatchObject({ has_next: false, next_cursor: null });
     expect(page.json().items).toHaveLength(11);
 
@@ -105,7 +106,7 @@ describe("search routes", () => {
       cursor: "50",
     });
     expect(gone.statusCode).toBe(410);
-    marksContract.expectContract("getNextPage", 410, gone.json());
+    listContract.expectContract("getNextPage", 410, gone.json());
     expect(gone.json().error.code).toBe("SEARCH_SNAPSHOT_EXPIRED");
 
     const bad = await post("/api/v1/search/snapshots/not-a-uuid/pages", { cursor: "50" });
@@ -119,7 +120,7 @@ describe("search routes", () => {
     const first = await search("Go");
     const res = await post(`/api/v1/search/snapshots/${first.snapshot_id}/waiting`);
     expect(res.statusCode).toBe(200);
-    marksContract.expectContract("getWaitingCount", 200, res.json());
+    listContract.expectContract("getWaitingCount", 200, res.json());
     expect(res.json()).toEqual({ waiting_count: 0 });
 
     const gone = await post("/api/v1/search/snapshots/01926a3b-1c2d-7e4f-8a00-0000000000a1/waiting");
@@ -134,7 +135,7 @@ describe("search routes", () => {
       payload: { skills: "" },
     });
     expect([foreign.statusCode, foreign.json().error.code]).toEqual([403, "FORBIDDEN_HOST"]);
-    marksContract.expectContract("runSearch", 403, foreign.json());
+    listContract.expectContract("runSearch", 403, foreign.json());
 
     const crossSite = await post(
       "/api/v1/search/snapshots",

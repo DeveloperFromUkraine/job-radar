@@ -1,6 +1,6 @@
 ---
 status: living
-updated_at: "2026-10-04"
+updated_at: "2026-10-14"
 ---
 
 # Roadmap — job-radar
@@ -23,7 +23,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive, We Work Remotely), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | shipped |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | shipped |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
-| 5 | Remote filter in two modes — "can work from my country" and "company in country X" | idea-brief.md §2 Problem | M | idea |
+| 5 | Remote filter in two modes — "can work from my country" and "open to country X" (no source states a company's own country) | idea-brief.md §2 Problem, [`spec`](features/remote-filter/spec.md) | S | shipped |
 | 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | shipped |
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
@@ -64,6 +64,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 - LinkedIn joins as public guest pages only (no login, so the owner's account is never exposed); automated access still breaches its User Agreement §8.2, so it stays low-volume and optional, and the risk that remains is an IP block or markup change, not a lost account → [`LinkedIn User Agreement §8.2`](https://www.linkedin.com/legal/user-agreement), [`ai-job-search linkedin-search`](https://github.com/MadsLorentzen/ai-job-search/tree/main/.agents/skills/linkedin-search)
 - Polish IT boards become their own step right after the remote-boards collector, entering through the same source contract; LinkedIn moves one wave later so the two never edit the collector in the same wave → [`remote-boards-collector spec §3`](features/remote-boards-collector/spec.md), [`ADR-0004`](features/remote-boards-collector/adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md)
 - Boards from any other country are added one at a time, as a new adapter behind the same contract once their terms are verified — no open-ended crawl, no separate step → [`ADR-0004`](features/remote-boards-collector/adr/0004-normalize-sources-through-one-adapter-contract-with-per-source-close-signals.md)
+- Step 5 re-sized M→S and its second mode became "open to country X": no source states a company's own country, and the verdict reads statements the collector already keeps → [`remote-filter spec §1`](features/remote-filter/spec.md)
 - Remote job boards first; ATS boards wait for the company watchlist → [`Himalayas jobs API`](https://himalayas.app/api), [`Greenhouse Job Board API`](https://developers.greenhouse.io/job-board.html)
 
 ## Dependency graph
@@ -80,6 +81,7 @@ flowchart LR
   s8["8 · Company watchlist (fog)"] -->|boards are read per company| s9["9 · ATS boards"]
   s2 -->|reuses the posting store and schedule| s9
   s2 -->|another source for the same collector| s10["10 · LinkedIn public pages"]
+  s5 -->|both edit the collector; 10 lands after| s10
   s2 -->|same source contract and collector| s11["11 · Polish IT boards (fog)"]
 ```
 
@@ -90,7 +92,7 @@ flowchart LR
 | 1 | 1 | project root (new) | 2 |
 | 2 | 2 | `collector/` (new) | 3 |
 | 3 | 3 ∥ 11 | 3: `search/` (new) · 11: Polish board adapters in `collector/infra/sources/` (new) — disjoint modules | 4, 5, 6, 10 |
-| 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new) · 6: `tracking/` (new), plus `search/app/` paging and counts and read-only `collector/app/` exports · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — not fully disjoint: 6 changes search's paging, so land it before 4 and 5 touch the list (applied-skipped sad §11) | 7 |
+| 4 | 4 ∥ 5 ∥ 6 ∥ 10 | 4: `matching/` (new) · 5: `remote-filter/` (new), plus the Jobicy and We Work Remotely readers and the merge rule's treatment of "Anywhere" in `collector/` · 6: `tracking/` (new), plus `search/app/` paging and counts and read-only `collector/app/` exports · 10: a LinkedIn adapter in `collector/infra/sources/` (new) — not fully disjoint: 6 changes search's paging, so land it before 4 and 5 touch the list (applied-skipped sad §11); 5 also edits `collector/`, so 10 lands after 5 (remote-filter spec §1) | 7 |
 | 5 | 7 | `alerts/` (new) | — |
 
 Step 11 holds its wave-3 slot only once the Access to Polish job boards area is reconnoitred and it trades `fog` for a size; its recon (D4, D5) runs now, in parallel with step 2. Step 9 enters a wave once the Company watchlist area is reconnoitred and step 8 trades `fog` for a size.
@@ -103,3 +105,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 2 · Remote-boards collector | 2026-10-03 | branch `feature/remote-boards-collector` (no remote yet), [changelog](features/remote-boards-collector/changelog.md) |
 | 3 · Search on request | 2026-10-07 | [PR #2](https://github.com/DeveloperFromUkraine/job-radar/pull/2), [changelog](features/search-postings/changelog.md) |
 | 6 · Applied / skipped marks | 2026-10-14 | [PR #3](https://github.com/DeveloperFromUkraine/job-radar/pull/3) (stacked on #2), [changelog](features/applied-skipped/changelog.md) |
+| 5 · Remote filter | 2026-10-15 | [PR #5](https://github.com/DeveloperFromUkraine/job-radar/pull/5), [changelog](features/remote-filter/changelog.md) |

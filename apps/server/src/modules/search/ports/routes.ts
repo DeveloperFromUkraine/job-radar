@@ -1,5 +1,6 @@
-// Search HTTP routes (docs/features/search-postings/contracts/openapi.yaml). All four change state, so
-// all are JSON POSTs; access rules (collector ADR-0007) apply app-wide in core/.
+// Search HTTP routes (docs/features/search-postings/contracts/openapi.yaml; runSearch, getNextPage and
+// getWaitingCount as restated in docs/features/remote-filter/contracts/openapi.yaml). All change state,
+// so all are JSON POSTs; access rules (collector ADR-0007) apply app-wide in core/.
 import type { FastifyPluginAsync } from "fastify";
 import type { SearchDeps } from "../app/deps.js";
 import { nextMarkedPage, runMarkedView } from "../app/marked.js";

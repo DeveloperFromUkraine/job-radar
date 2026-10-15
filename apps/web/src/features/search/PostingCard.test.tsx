@@ -171,4 +171,22 @@ describe("PostingCard (SCR-01)", () => {
       expect(screen.getByText("banner")).toBeTruthy();
     });
   });
+
+  describe("check location (remote-filter AC-02)", () => {
+    it.each([
+      ["exception", "Mentions an exception"],
+      ["hours_only", "Only working hours fit"],
+      ["not_recognised", "Location not recognised"],
+      ["not_stated", "Location not stated"],
+    ] as const)("%s: the Check location badge with its reason line", (reason, line) => {
+      card({ ...found(), location_check: reason });
+      expect(screen.getByText("Check location").className).toContain("border-border text-text");
+      expect(screen.getByText(line)).toBeTruthy();
+    });
+
+    it("shows no check mark when the posting fits or the list has no filter", () => {
+      card({ ...found(), location_check: null });
+      expect(screen.queryByText("Check location")).toBeNull();
+    });
+  });
 });

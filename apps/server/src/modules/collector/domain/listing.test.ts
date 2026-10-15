@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { RawListing } from "./adapter.js";
-import { filterByCategories, normalizeListing, toLocationRestriction, toPlainText } from "./listing.js";
+import {
+  filterByCategories,
+  isStatedAnywhere,
+  normalizeListing,
+  toLocationRestriction,
+  toPlainText,
+} from "./listing.js";
 
 const raw = (over: Partial<RawListing> = {}): RawListing => ({
   sourceItemId: "item-1",
@@ -55,6 +61,26 @@ describe("location restriction (AC-21, AC-22)", () => {
       expect(toLocationRestriction(value)).toBeNull();
     },
   );
+});
+
+describe("an explicit Anywhere (remote-filter AC-10)", () => {
+  it.each(["Anywhere", "  anywhere ", "ANYWHERE", "Anywhere in the World", "anywhere in the world"])(
+    "reads %j as an explicit Anywhere",
+    (text) => {
+      expect(isStatedAnywhere(text)).toBe(true);
+    },
+  );
+
+  it.each([null, "", "Anywhere in Europe", "USA, Anywhere", "Worldwide", "Remote"])(
+    "does not read %j as one",
+    (text) => {
+      expect(isStatedAnywhere(text)).toBe(false);
+    },
+  );
+
+  it("keeps it as stated, not as unknown", () => {
+    expect(toLocationRestriction("Anywhere")).toBe("Anywhere");
+  });
 });
 
 describe("normalizing a listing", () => {

@@ -78,6 +78,8 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 **I want** each source's location restriction kept exactly as the source stated it, with "unknown" when it states nothing
 **So that** the later remote filter never mistakes a missing restriction for "work from anywhere"
 
+> Amended by remote-filter AC-10 (2026-10-14): a source that states nothing is still unknown, but an explicit "Anywhere" / "Anywhere in the World" is kept as stated and read by the filter as Worldwide (for merging it still counts as stating nothing).
+
 ### US-08: Choose what gets collected
 **As an** owner
 **I want** to choose, in a settings file on my machine, which sources are enabled and which of their job categories count as tech
@@ -208,6 +210,8 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 
 > Jobicy writes `jobGeo: "Anywhere"` when the employer named no region ("`Anywhere` when no region is specified", Jobicy API docs, read 2026-10-02), so that value counts as stating nothing and is recorded as unknown. Decided in review 2026-10-02 (B11); to re-check against a recorded live response — ADR-0004 addendum.
 
+> Amended by remote-filter AC-10 (2026-10-14): Jobicy's "Anywhere" is now kept as stated, not recorded as unknown; it still counts as nothing stated for merging and change checks, and is not counted as unknown in source health.
+
 ### AC-23 (US-08) — happy
 **Given** the owner's tech category list, kept in their settings file, does not include a source's category
 **When** that source offers a listing in it
@@ -269,6 +273,7 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 ## 8. Open questions
 
 - [x] What are We Work Remotely's rate limits, and does its feed state a location restriction? Answered 2026-10-03 (fix `_fixes/2026-10-03-enable-we-work-remotely.md`): its RSS page (https://weworkremotely.com/remote-job-rss-feed) says anyone may use the public feed if links point back to WWR; no rate limit is published, so it is read hourly (≤ 1 per hour — the feed's `<ttl>` is 60 minutes) from the all-jobs feed. The feed states `<country>` and `<region>`: the location is `<country>` when given, else a specific `<region>`; "Anywhere in the World" also sits beside country lists, so it counts as nothing stated (AC-22). WWR is enabled by default. — owner: Volodymyr Kozlov, resolved 2026-10-03
+  - Amended by remote-filter AC-10 (2026-10-14): a `<region>` of "Anywhere in the World" (with no `<country>`) is now kept as stated and read by the filter as Worldwide, no longer counted as nothing stated.
 - [x] How does each source confirm that a listing is closed? Answered by design (ADR-0004): Remotive — absent from its complete unfiltered read; Himalayas — `expiryDate` passed; Jobicy — absent from an untruncated response while still inside its 7-day window; We Work Remotely — `expires_at` passed (its feed holds only the newest items per category, so absence never closes; added by fix 2026-10-03). — owner: Tech Lead, resolved 2026-10-02
 - [x] What is Himalayas' actual allowed polling rate given its documented 24-hour cache? Answered by implement T12 (2026-10-02): its API docs state rate limiting without a number and that polling more than once a day brings no benefit — the default stays: every 6 hours, ≤ 4 reads a day, ≤ 20 jobs a read. — owner: Volodymyr Kozlov, resolved 2026-10-02
 - [ ] Review round 3 L4 (deferred): the overdue reason counts fill pages sent after a good read as an attempted read, so during a first fill it says "No successful read with items for N h" when no regular read was attempted (`apps/server/src/modules/collector/app/source-health.ts:53`, AC-13). Proposed fix: derive "attempted" from the `run_sources` regular-read outcomes after the good read, not from the ledger timestamp. — owner: Volodymyr Kozlov, due: 2026-10-31

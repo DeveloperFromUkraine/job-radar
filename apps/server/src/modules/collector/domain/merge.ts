@@ -2,6 +2,7 @@
 // never re-decided, so the rules are exact: same normalized company + title, publication times at
 // most 7 days apart, and no conflicting stated location restrictions.
 import type { NormalizedListing } from "./adapter.js";
+import { isStatedAnywhere } from "./listing.js";
 import type { SourceId } from "./sources.js";
 
 const MERGE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
@@ -168,10 +169,12 @@ export function decideMerge(
     .filter((c) => withinWindow(listing.publishedAt, c.latestPublishedAt))
     .sort(byPreference);
 
+  // An explicit "Anywhere" states nothing for merging (remote-filter AC-10).
+  const stated = (s: string | null) => s !== null && !isStatedAnywhere(s);
   const conflicts = (c: Candidate) =>
-    listing.locationRestriction !== null &&
+    stated(listing.locationRestriction) &&
     c.listings.some(
-      (l) => l.locationRestriction !== null && l.locationRestriction !== listing.locationRestriction,
+      (l) => stated(l.locationRestriction) && l.locationRestriction !== listing.locationRestriction,
     );
 
   for (const c of inWindow) {

@@ -1,5 +1,7 @@
 import type { Db } from "../../../core/db.js";
 import { type OpenPosting, openPostings, postingsByIds } from "../../collector/app/open-postings.js";
+import { type ActiveFilter, activeFilter } from "../../remote-filter/app/settings.js";
+import { type Verdict, verdictsFor } from "../../remote-filter/app/verdicts.js";
 import type { MarkState } from "../../tracking/app/mark-state.js";
 import {
   hintsFor,
@@ -25,6 +27,12 @@ export interface MarkReader {
   markStatesFor(postings: readonly { id: string; status: "open" | "closed" }[]): Map<string, MarkState>;
 }
 
+/** Remote-filter's answers search needs (remote-filter ADR-0002): the visit's filter and the verdicts. */
+export interface LocationReader {
+  activeFilter(visitStartedAt: number): ActiveFilter;
+  verdictsFor(postings: readonly OpenPosting[], country: string, date: Date): Map<string, Verdict>;
+}
+
 export interface SearchLog {
   info(obj: object, msg: string): void;
 }
@@ -37,6 +45,8 @@ export interface SearchDeps {
   collection?: Collection;
   /** Default: tracking's queries on `db`. Replaced in tests to simulate marks that cannot be read. */
   marks?: MarkReader;
+  /** Default: remote-filter's app exports on `db`. Replaced in tests to simulate unreadable settings. */
+  location?: LocationReader;
   log?: SearchLog;
 }
 
@@ -59,5 +69,14 @@ export function marksOf(deps: SearchDeps): MarkReader {
     hintsFor: (postings) => hintsFor(tracking, postings),
     markedOrder: () => markedOrder(tracking),
     markStatesFor: (postings) => markStatesFor(tracking, postings),
+  };
+}
+
+export function locationOf(deps: SearchDeps): LocationReader {
+  if (deps.location) return deps.location;
+  const remoteFilter = { db: deps.db, now: deps.now };
+  return {
+    activeFilter: (visitStartedAt) => activeFilter(remoteFilter, visitStartedAt),
+    verdictsFor: (postings, country, date) => verdictsFor(remoteFilter, postings, country, date),
   };
 }

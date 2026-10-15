@@ -166,10 +166,10 @@ describe("Jobicy adapter (ADR-0004)", () => {
     });
   });
 
-  it("treats jobGeo Anywhere as nothing stated, never as anywhere (AC-22)", async () => {
+  it("keeps jobGeo Anywhere as stated (remote-filter AC-10, replacing the AC-22 note)", async () => {
     fake.route("/api/v2/remote-jobs", json(fixture("jobicy/complete.json")));
     const result = await run();
-    expect(result.listings[1]?.locationRestriction).toBeNull();
+    expect(result.listings[1]?.locationRestriction).toBe("Anywhere");
   });
 
   it("is capped when more jobs were available than one page", async () => {

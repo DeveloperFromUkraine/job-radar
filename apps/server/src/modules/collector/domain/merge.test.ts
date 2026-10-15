@@ -127,6 +127,22 @@ describe("merge decision", () => {
     expect(decideMerge(listing({ locationRestriction: null }), null, [c])).toMatchObject({ kind: "attach" });
   });
 
+  it.each([
+    ["Anywhere", "USA"],
+    ["Anywhere in the World", "Europe"],
+    ["USA", "Anywhere"],
+  ])(
+    "an explicit %j beside %j counts as nothing stated, so it merges (remote-filter AC-10)",
+    (incoming, held) => {
+      const c = candidate({
+        listings: [{ listingId: "l-j1", sourceId: "jobicy", sourceItemId: "j-1", locationRestriction: held }],
+      });
+      expect(decideMerge(listing({ locationRestriction: incoming }), null, [c])).toMatchObject({
+        kind: "attach",
+      });
+    },
+  );
+
   it("reopens a closed, not-removed posting it merges into, keeping its id (AC-11)", () => {
     expect(decideMerge(listing(), null, [candidate({ status: "closed" })])).toEqual({
       kind: "attach",

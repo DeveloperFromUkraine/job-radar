@@ -128,12 +128,12 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
 
-    it("takes the location from <country>, else a specific <region>, else states nothing (AC-21, AC-22)", async () => {
+    it("takes the location from <country>, else <region> as stated, Anywhere included (AC-21; remote-filter AC-10)", async () => {
       fake.route("/remote-jobs.rss", xml(fixture("weworkremotely/latest.rss")));
       const [countries, anywhere, region] = (await fetchLatest("weworkremotely")).listings;
       expect(countries?.locationRestriction).toMatch(/^🇦🇩 Andorra, .*🇵🇱 Poland, .*and 🇺🇦 Ukraine$/);
-      // "Anywhere in the World" sits beside country lists too (feed read 2026-10-03): nothing stated.
-      expect(anywhere?.locationRestriction).toBeNull();
+      // An explicit "Anywhere in the World" is kept as stated; the filter reads it as Worldwide.
+      expect(anywhere?.locationRestriction).toBe("Anywhere in the World");
       expect(region?.locationRestriction).toBe("USA Only");
     });
 

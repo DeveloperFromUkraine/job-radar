@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router";
+import type { Country } from "../../api/remoteFilter";
 import type { Posting, SearchResult } from "../../api/search";
 import { Button } from "../../components/Button";
 import { InlineBanner } from "../../components/InlineBanner";
@@ -26,6 +27,14 @@ interface SearchListProps {
   bannerFor?: (posting: Posting) => ReactNode;
   /** "Show marked postings" from the nothing-left-to-review state (AC-13). */
   onShowMarked?: () => void;
+  /** The owner's own country, for "Back to Poland" after a look (remote-filter AC-06); null = none chosen. */
+  ownCountry?: Country | null;
+  /** The filter's empty message actions (remote-filter AC-08). */
+  onSwitchFilterOff?: () => void;
+  onBackFromLook?: () => void;
+  /** Those actions' request in flight, and its failure with Retry (screens SCR-01 switching / switch error). */
+  switching?: boolean;
+  switchError?: ReactNode;
 }
 
 const count = (n: number, noun: string) => `${n} ${noun}${n === 1 ? "" : "s"}`;
@@ -45,6 +54,11 @@ export function SearchList({
   actionsFor,
   bannerFor,
   onShowMarked,
+  ownCountry = null,
+  onSwitchFilterOff,
+  onBackFromLook,
+  switching = false,
+  switchError,
 }: SearchListProps) {
   const feed = result.skills.length === 0;
   const clear = (
@@ -62,6 +76,31 @@ export function SearchList({
           </Link>
         </InlineBanner>
         {!feed && clear}
+      </div>
+    );
+  }
+  const filterCountry = result.location_filter.country?.name;
+  if (result.total === 0 && result.hidden_count > 0) {
+    // Empty because of the filter (remote-filter AC-08): wins over "nothing left to review".
+    const look = result.location_filter.mode === "look";
+    return (
+      <div className="flex flex-col gap-3">
+        <p>
+          No posting open to {filterCountry} matches. The location filter hid {result.hidden_count}.
+        </p>
+        {switchError}
+        <div className="flex flex-wrap gap-2">
+          {look ? (
+            <Button onClick={onBackFromLook} pending={switching}>
+              {ownCountry ? `Back to ${ownCountry.name}` : "Back to all postings"}
+            </Button>
+          ) : (
+            <Button onClick={onSwitchFilterOff} pending={switching}>
+              Switch filter off
+            </Button>
+          )}
+          {!feed && clear}
+        </div>
       </div>
     );
   }
@@ -88,11 +127,14 @@ export function SearchList({
     );
   }
 
-  const summary = count(result.total, feed ? "open posting" : "posting");
+  const counted = count(result.total, feed ? "open posting" : "posting");
+  const hidden =
+    result.hidden_count > 0 ? ` — ${result.hidden_count} hidden, not open to ${filterCountry}` : "";
   return (
     <section className="flex flex-col gap-3" aria-label="Postings">
       <p className="text-text-muted">
-        {previousVisitStartedAt === null ? summary : `${summary} · ${result.new_count} new`}
+        {previousVisitStartedAt === null ? counted : `${counted} · ${result.new_count} new`}
+        {hidden}
       </p>
       {waiting > 0 && (
         <InlineBanner

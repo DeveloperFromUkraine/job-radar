@@ -1,0 +1,471 @@
+{
+  "slug": "remote-filter",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Create the remote_filter_settings table and promote its staged migration",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-04",
+        "AC-07"
+      ],
+      "dod": "drizzle-kit generates the next migration from `remote-filter/infra/schema.ts`, and `remote-filter-schema.integration.test.ts` shows on a temp DB the five columns of the staged SQL and the NOT NULL failure on `filter_on`.",
+      "files_hint": [
+        "docs/features/remote-filter/migrations/01_create_remote_filter_settings.up.sql",
+        "docs/features/remote-filter/migrations/01_create_remote_filter_settings.down.sql",
+        "apps/server/src/modules/remote-filter/infra/schema.ts",
+        "apps/server/drizzle/",
+        "apps/server/test/remote-filter-schema.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t01-remote-filter-settings-table.md"
+    },
+    {
+      "id": "T02",
+      "title": "Build the country vocabulary from Intl plus the hand-kept alias, region, zone, filler and short-code tables",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-05"
+      ],
+      "dod": "`vocabulary.test.ts` passes: PL/US/GB/NZ pinned (names, zones, winter and summer offsets), the lookup accepts name/alias/flag case-insensitively and refuses \"Polnd\", \"Europe\" and \"CA\".",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/vocabulary.ts",
+        "apps/server/src/modules/remote-filter/domain/vocabulary.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t02-country-vocabulary.md"
+    },
+    {
+      "id": "T03",
+      "title": "Read one location statement and decide one listing's verdict for a country and a date",
+      "layer": "domain",
+      "deps": [
+        "T02"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02"
+      ],
+      "dod": "`statement.test.ts` passes for every AC-01 and AC-02 statement and the edge cases above, each giving the same verdict on 15 January and 15 July.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t03-statement-reader-and-listing-verdict.md"
+    },
+    {
+      "id": "T04",
+      "title": "Combine listing verdicts into one posting verdict and pin the fixed example set at a winter and a summer date",
+      "layer": "domain",
+      "deps": [
+        "T03"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-03"
+      ],
+      "dod": "`verdict.test.ts` passes: 100% of the fixed examples give their expected verdict on both dates, and the property test finds no `not_open` for unknown, unrecognised, exception or hours-only statements.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/verdict.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t04-posting-verdict-and-example-set.md"
+    },
+    {
+      "id": "T05",
+      "title": "Keep an explicit \"Anywhere\" as stated in the collector, treat it as nothing stated for merge and change checks, and export it with the enabled sources",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "`listing.test.ts` and `merge.test.ts` cover the predicate and the merge rule, and `collector-ingest` / `collector-adapters` integration tests show \"Anywhere\" kept as stated, never blocking a merge, and `null` → \"Anywhere\" not counted as an updated posting.",
+      "files_hint": [
+        "apps/server/src/modules/collector/domain/listing.ts",
+        "apps/server/src/modules/collector/domain/listing.test.ts",
+        "apps/server/src/modules/collector/domain/merge.ts",
+        "apps/server/src/modules/collector/domain/merge.test.ts",
+        "apps/server/src/modules/collector/infra/repo/postings.ts",
+        "apps/server/src/modules/collector/infra/sources/jobicy.ts",
+        "apps/server/src/modules/collector/infra/sources/weworkremotely.ts",
+        "apps/server/src/modules/collector/app/location.ts",
+        "apps/server/test/collector-ingest.integration.test.ts",
+        "apps/server/test/collector-adapters.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t05-collector-keeps-anywhere.md"
+    },
+    {
+      "id": "T06",
+      "title": "Write the settings repo with the lazily created singleton row and its test fixture",
+      "layer": "infra",
+      "deps": [
+        "T01"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-06",
+        "AC-07"
+      ],
+      "dod": "`remote-filter-repo.integration.test.ts` passes on a temp DB: lazy create, each write, look cleared as a pair, and values surviving a close-and-reopen of the DB file.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/infra/repo.ts",
+        "apps/server/test/helpers/remote-filter-fixtures.ts",
+        "apps/server/test/remote-filter-repo.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t06-settings-repo.md"
+    },
+    {
+      "id": "T07",
+      "title": "Implement the settings use cases: choose country, switch on/off, start or end a look, the country list, and the active filter for a visit",
+      "layer": "app",
+      "deps": [
+        "T02",
+        "T06"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-13"
+      ],
+      "dod": "`remote-filter-settings.integration.test.ts` passes every row of the edge-case table plus AC-04's reopen (a fresh deps on the same DB file reads Poland, on) and AC-13's change to Portugal.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/app/settings.ts",
+        "apps/server/src/modules/remote-filter/app/countries.ts",
+        "apps/server/test/remote-filter-settings.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t07-settings-use-cases.md"
+    },
+    {
+      "id": "T08",
+      "title": "Answer search's verdict question: verdicts for a set of postings and a country, from open listings of enabled sources, one parse per distinct statement",
+      "layer": "app",
+      "deps": [
+        "T04",
+        "T05"
+      ],
+      "acs": [
+        "AC-03"
+      ],
+      "dod": "`remote-filter-verdicts.integration.test.ts` passes for the three AC-03 postings and the closed / disabled-source listings.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/app/verdicts.ts",
+        "apps/server/test/remote-filter-verdicts.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t08-verdicts-for-postings.md"
+    },
+    {
+      "id": "T09",
+      "title": "Expose remote-filter's four routes behind the access guard and register the plugin in app.ts",
+      "layer": "ports",
+      "deps": [
+        "T07"
+      ],
+      "acs": [
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "`remote-filter-routes.integration.test.ts` validates every response against `contracts/openapi.yaml` and proves both AC-12 refusals leave the row unchanged.",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/ports/routes.ts",
+        "apps/server/src/modules/remote-filter/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/remote-filter-routes.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t09-remote-filter-routes.md"
+    },
+    {
+      "id": "T10",
+      "title": "Make search's main list location-aware: active filter, verdicts before the snapshot, hidden/total/new counts, check reasons and the waiting count",
+      "layer": "app",
+      "deps": [
+        "T07",
+        "T08"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-02",
+        "AC-06",
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-11"
+      ],
+      "dod": "`search-location.integration.test.ts` passes: AC-01/02 list and reasons, 102/38/140 counts and off (AC-07), all-hidden (AC-08), 2 waiting + new after refresh + new-when-switched-off (AC-09), Germany look and its end (AC-06), hidden look-alike with no hint and marked view unchanged (AC-11) — every response valid against the contract; existing search suites green.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/deps.ts",
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/snapshots.ts",
+        "apps/server/src/modules/search/app/present.ts",
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/waiting.ts",
+        "apps/server/src/modules/search/ports/routes.ts",
+        "apps/server/test/search-location.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t10-search-location-aware.md"
+    },
+    {
+      "id": "T11",
+      "title": "Add the web remote-filter client, the LocationFilterBar and the CountryChoice on SCR-01",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-07",
+        "AC-13"
+      ],
+      "dod": "the LocationFilterBar and CountryChoice tests pass for every bar mode (none, own, off, look, loading, switching, error) and every choice state (open, saving, unknown name, saved, save error, cancelled), and `remoteFilter.test.ts` passes.",
+      "files_hint": [
+        "apps/web/src/api/remoteFilter.ts",
+        "apps/web/src/api/remoteFilter.test.ts",
+        "apps/web/src/api/search.ts",
+        "apps/web/src/features/remote-filter/",
+        "docs/design-system.md"
+      ],
+      "file": "docs/features/remote-filter/tasks/t11-web-location-bar-and-country-choice.md"
+    },
+    {
+      "id": "T12",
+      "title": "Wire the filter into the main list: re-search on change, hidden count in the summary, the check-location mark, the filter's empty message and the marked view",
+      "layer": "ui",
+      "deps": [
+        "T11"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-11"
+      ],
+      "dod": "`PostingCard.test.tsx` and `SearchList.test.tsx` pass for the four check reasons, the summary with and without its hidden part, the filter's empty message winning over nothing-left-to-review, the off and look states, and the bar hidden in the marked view.",
+      "files_hint": [
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/features/search/PostingCard.test.tsx",
+        "apps/web/src/features/search/SearchList.test.tsx",
+        "apps/web/src/features/remote-filter/LocationCheck.tsx",
+        "apps/web/src/App.tsx"
+      ],
+      "file": "docs/features/remote-filter/tasks/t12-web-main-list-with-filter.md"
+    },
+    {
+      "id": "T13",
+      "title": "Prove \"Anywhere\" end to end from collection to verdict, and search speed with the filter on",
+      "layer": "tests",
+      "deps": [
+        "T05",
+        "T09",
+        "T10"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "`remote-filter-e2e.integration.test.ts` passes AC-10 and AC-11 through the real collector and routes, and `search-nfr.integration.test.ts` passes with the filter on for Poland at p95 ≤ 1 s.",
+      "files_hint": [
+        "apps/server/test/remote-filter-e2e.integration.test.ts",
+        "apps/server/test/search-nfr.integration.test.ts"
+      ],
+      "file": "docs/features/remote-filter/tasks/t13-end-to-end-and-speed.md"
+    },
+    {
+      "id": "T14",
+      "title": "Add the hidden count and one-off look to CONTEXT.md, amend the collector spec's \"Anywhere\" reading, and point applied-skipped's contract at this one",
+      "layer": "docs",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "`grep -n \"Hidden count\\|One-off look\" CONTEXT.md` shows both entries, the collector spec carries the three amendment lines, and the applied-skipped contract still passes `redocly lint` with the three supersede notes.",
+      "files_hint": [
+        "CONTEXT.md",
+        "docs/features/remote-boards-collector/spec.md",
+        "docs/features/applied-skipped/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/remote-filter/tasks/t14-glossary-collector-spec-and-contract-pointers.md"
+    },
+    {
+      "id": "T15",
+      "title": "Review fix F-1: words in non-Latin script and emoji count as unknown words, never as separators",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"USA, Польша\", \"USA, 波兰\" and \"USA 🌍\" for PL as check/not_recognised (fails without the fix); the property test's UNFAMILIAR list carries Польша and 🌍",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T16",
+      "title": "Review fix F-2: a bare two-letter zone name equal to the judged country code is read as unknown",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-13"
+      ],
+      "dod": "statement.test pins \"PT\" for PT, \"Remote, MT\" for MT and \"ET\" for ET as check/not_recognised, while \"PT\" for PL stays not_open (fails without the fix)",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T17",
+      "title": "Review fix F-3: the empty message's Switch filter off / Back to button shows pending and a switch error with Retry",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location test pins it (fails without the fix): Switch filter off from the filter-hid-everything state fails (500), an alert with Retry appears, and the button is disabled while the request runs",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T18",
+      "title": "Re-review fix N-1: any symbol outside the known joiners (~, →, ♁, a lone regional indicator) is an unknown word, not a separator",
+      "layer": "domain",
+      "deps": [
+        "T15"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 ~ UTC+3\", \"～\", \"→\", \"USA ♁\" and \"USA 🇵\" for PL as check / not_recognised (fails without the fix); \"US + Canada\" and \"US & Canada\" still not_open; the never-a-wrong-hide property includes \"~\" and \"♁\"",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T19",
+      "title": "Re-review fix N-2: any confirmed filter change clears the empty message's old switch error",
+      "layer": "ui",
+      "deps": [
+        "T17"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location test pins it (fails without the fix): a failed Switch filter off, then the bar's Switch off and Switch on, leaves no stale alert in the next empty message",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T20",
+      "title": "Re-review 2 fix N-1b: only a fixed set of characters separates words, so any other range joiner (->, .., 〜, ‒) is an unknown word",
+      "layer": "domain",
+      "deps": [
+        "T18"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 -> UTC+3\", \"=>\", \"..\", \"〜\", \"‒\" and \"―\" for PL as check / not_recognised (fails without the fix); \"Remote - USA\" and \"USA. Canada.\" still not_open; the never-a-wrong-hide property includes \"->\", \"..\" and \"〜\"",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T21",
+      "title": "Re-review 2 fix N-2b: each filter switch clears its old error when the list's filter changes, never while its own request runs",
+      "layer": "ui",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location tests pin it (fail without the fix): a bar switch error is gone after the empty message's switch succeeds; the empty message's switch still in flight keeps pending and shows its later error after a bar change",
+      "files_hint": [
+        "apps/web/src/features/remote-filter/queries.ts",
+        "apps/web/src/features/remote-filter/LocationFilterBar.tsx",
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T22",
+      "title": "Re-review 3 fix N-1c: a dash run between two zones the range reader did not join makes the statement unknown",
+      "layer": "domain",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 -- UTC+3\", \"UTC-1--UTC+3\", \"UTC−1 −− UTC+3\", \"- -\", \"(UTC-1) - (UTC+3)\", the quoted form, the \"hours\" form and \"UTC-1, - UTC+3\" for PL as check / not_recognised (fails without the fix); \"UTC-1 / UTC+3\" stays not_open and \"CET - Poland\" stays fits",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T23",
+      "title": "Re-review 3 fix N-3: normalize() straightens curly double quotes and guillemets",
+      "layer": "domain",
+      "deps": [
+        "T20"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"“Poland”\" as fits and \"«USA»\" / \"„USA“\" as not_open for PL (fails without the fix)",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/vocabulary.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T24",
+      "title": "Re-review 4 fix N-4: check for a broken range before place names are replaced; a literal zone marker in the text is unknown",
+      "layer": "domain",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"Poland (CET) - Romania (EET)\" as fits, \"USA (PST) - UK (GMT)\" as not_open and \"USA \\uE000\" as check / not_recognised for PL (fails without the fix); every N-1c pin stays check",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    }
+  ]
+}

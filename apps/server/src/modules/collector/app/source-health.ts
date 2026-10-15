@@ -1,5 +1,6 @@
 // Source health and the problem marker (sad §6 Flow 10, AC-12, AC-13). Reads only — nothing here
 // changes collection state; overdue is computed now from the app's running time.
+import type { Db } from "../../../core/db.js";
 import { overdueReason, raisesMarker, type Session } from "../domain/health.js";
 import { nextDueAt } from "../domain/schedule.js";
 import {
@@ -32,8 +33,8 @@ const registryIndex = (id: string) => SOURCES.findIndex((s) => s.id === id);
 const iso = (t: number | null | undefined) => (t == null ? null : new Date(t).toISOString());
 
 /** The settings in force: the last valid copy (a GET never touches the settings file). */
-function settingsInForce(deps: CollectorDeps): Settings {
-  const copy = readState(deps.db).lastValidSettings;
+export function settingsInForce(db: Db): Settings {
+  const copy = readState(db).lastValidSettings;
   const parsed = copy ? parseSettings(copy) : null;
   return parsed?.ok ? parsed.settings : DEFAULT_SETTINGS;
 }
@@ -56,7 +57,7 @@ function overdueFor(
 
 export function getProblems(deps: CollectorDeps) {
   const now = deps.now();
-  const settings = settingsInForce(deps);
+  const settings = settingsInForce(deps.db);
   const sessions = readSessions(deps.db);
   const rows = readSources(deps.db);
   const problems: { source_id: SourceId | null; kind: string }[] = [];
@@ -117,7 +118,7 @@ function p90Minutes(deltas: number[]): number | null {
 export function getSourceHealth(deps: CollectorDeps) {
   const { db } = deps;
   const now = deps.now();
-  const settings = settingsInForce(deps);
+  const settings = settingsInForce(deps.db);
   const sessions = readSessions(db);
   const state = readState(db);
   const current = runningRun(db);

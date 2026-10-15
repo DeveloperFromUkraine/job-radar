@@ -4,6 +4,7 @@ import { and, eq, gte, inArray, lt, max, min, or } from "drizzle-orm";
 import { newId } from "../../../../core/id.js";
 import type { NormalizedListing } from "../../domain/adapter.js";
 import type { ClosureListing } from "../../domain/closures.js";
+import { isStatedAnywhere } from "../../domain/listing.js";
 import {
   type Candidate,
   decideMerge,
@@ -20,6 +21,10 @@ const CHUNK = 500;
 function* chunks<T>(items: readonly T[]): Generator<T[]> {
   for (let i = 0; i < items.length; i += CHUNK) yield items.slice(i, i + CHUNK);
 }
+
+// Unknown ↔ an explicit "Anywhere" is a new reading, not a change at the source (remote-filter AC-10).
+const unstated = (s: string | null) => s === null || isStatedAnywhere(s);
+const sameStatement = (a: string | null, b: string | null) => a === b || (unstated(a) && unstated(b));
 
 export type ListingEffect = "added" | "updated" | "unchanged";
 
@@ -100,7 +105,7 @@ export function applyListing(
       before.status === "closed" ||
       before.title !== listing.title ||
       before.description !== listing.description ||
-      before.locationRestriction !== listing.locationRestriction ||
+      !sameStatement(before.locationRestriction, listing.locationRestriction) ||
       before.url !== listing.url;
     db.update(listings).set(fields).where(eq(listings.id, before.id)).run();
   } else {

@@ -45,9 +45,8 @@ function toListing(job: unknown): RawListing | null {
     title: jobTitle,
     company: companyName,
     description: typeof jobDescription === "string" ? jobDescription : "",
-    // Jobicy writes "Anywhere" when the employer named no region — that is nothing stated (AC-22).
-    locationRestriction:
-      typeof jobGeo === "string" && jobGeo.trim().toLowerCase() !== "anywhere" ? jobGeo : null,
+    // Jobicy's "Anywhere" is kept as stated; the filter reads it as Worldwide (remote-filter AC-10).
+    locationRestriction: typeof jobGeo === "string" ? jobGeo : null,
     categories: Array.isArray(jobIndustry)
       ? jobIndustry.filter((c): c is string => typeof c === "string")
       : [],

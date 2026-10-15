@@ -187,6 +187,9 @@ paths:
       tags: [search]
       summary: Run a skills search (or the feed) and return its first 50 unmarked postings
       description: |
+        Superseded by docs/features/remote-filter/contracts/openapi.yaml, which restates runSearch with the
+        location filter (remote-filter ADR-0002).
+
         As in search-postings: the skills are parsed and checked, saved as the last skills, every
         open posting is matched, ordered newest first, and kept as a snapshot. What changes (ADR-0002):
         - The snapshot keeps every matching open posting, **marked ones included**, so a posting
@@ -267,6 +270,9 @@ paths:
       tags: [search]
       summary: The next 50 unmarked postings of a snapshot
       description: |
+        Superseded by docs/features/remote-filter/contracts/openapi.yaml, which restates getNextPage with the
+        location filter (remote-filter ADR-0002).
+
         Marks are checked as each page loads (ADR-0002, AC-12). The page reads the currently marked
         ids, walks the snapshot from the cursor, skips marked ids, and stops at 50 unmarked postings.
         The cursor is the snapshot position after the last id read. A posting marked since loading
@@ -319,6 +325,9 @@ paths:
       tags: [search]
       summary: How many unmarked matching postings were collected after the snapshot loaded
       description: |
+        Superseded by docs/features/remote-filter/contracts/openapi.yaml, which restates getWaitingCount with the
+        location filter (remote-filter ADR-0002).
+
         Unchanged from search-postings except that postings marked at the time of the poll are not
         counted (AC-12, sad.md §6 flow 5). A failed poll (410, 503) is still silent.
       operationId: getWaitingCount

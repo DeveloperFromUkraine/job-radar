@@ -46,7 +46,15 @@ export function toPlainText(html: string, options: { singleLine?: boolean } = {}
     .join("\n");
 }
 
-/** The source's statement as given; nothing stated → null (unknown), never "anywhere". */
+/**
+ * An explicit "Anywhere" / "Anywhere in the World" (remote-filter AC-10): kept as stated and read by the
+ * filter as Worldwide, but for merge and change checks it counts as nothing stated.
+ */
+export function isStatedAnywhere(text: string | null): boolean {
+  return text !== null && /^anywhere( in the world)?$/i.test(text.trim());
+}
+
+/** The source's statement as given, an explicit "Anywhere" included; nothing stated → null (unknown). */
 export function toLocationRestriction(raw: RawListing["locationRestriction"]): string | null {
   if (raw == null) return null;
   const parts = (typeof raw === "string" ? [raw] : raw).map((p) => p.trim()).filter((p) => p !== "");

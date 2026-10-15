@@ -201,8 +201,12 @@ describe("runSearch", () => {
     addPosting(t.db, { title: "Secret React role" });
     search("React, Zig");
     expect(logged).toHaveLength(1);
+    // remote-filter sad §8 adds the hidden and checked counts and the country code.
     expect(Object.keys(logged[0]?.obj ?? {}).sort()).toEqual([
+      "checked",
+      "country",
       "durationMs",
+      "hidden",
       "matched",
       "openPostings",
       "skillCount",
