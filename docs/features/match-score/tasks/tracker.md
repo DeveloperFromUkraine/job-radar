@@ -19,7 +19,7 @@
 | T12 | Implement matching's score reader and scoring health | app | Volodymyr Kozlov | M | T03, T05, T10, T11 | done |
 | T13 | Implement one scoring attempt: reserve, ask, validate, store or strike, settle | app | Volodymyr Kozlov | M | T03, T04, T05, T06 | done |
 | T14 | Run the background scorer: polling, wake-ups, queue order, retry cadence, start and stop | app | Volodymyr Kozlov | M | T11, T13 | done |
-| T15 | Expose matching's routes and wire the module into app.ts | ports | Volodymyr Kozlov | M | T08, T09, T12, T14 | todo |
+| T15 | Expose matching's routes and wire the module into app.ts | ports | Volodymyr Kozlov | M | T08, T09, T12, T14 | done |
 | T16 | Show the match on every card: API types, ScoreBadge and MatchSummary in the main list and the marked view | ui | Volodymyr Kozlov | M | — | done |
 | T17 | Add the order switch, the no-profile and cap-reached line, and scoring problems in the marker | ui | Volodymyr Kozlov | M | T16 | done |
 | T18 | Add the scoring health card to the source health screen | ui | Volodymyr Kozlov | S | T16 | done |

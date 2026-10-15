@@ -3,12 +3,15 @@ import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAccessGuard } from "./core/access.js";
-import { machineTimeZone } from "./core/config.js";
+import { loadMatchingConfig, machineTimeZone } from "./core/config.js";
 import { openDb } from "./core/db.js";
 import { registerErrorHandling } from "./core/errors.js";
 import { type CollectorModuleOptions, collectorModule } from "./modules/collector/index.js";
 import { healthModule } from "./modules/health/index.js";
+import { createMatching } from "./modules/matching/index.js";
+import type { Provider } from "./modules/matching/infra/claude.js";
 import { createRemoteFilter } from "./modules/remote-filter/index.js";
+import { ownerList } from "./modules/search/app/owner-list.js";
 import { searchModule } from "./modules/search/index.js";
 import { createTracking } from "./modules/tracking/index.js";
 
@@ -20,6 +23,8 @@ export interface BuildAppOptions {
   collector?: Omit<CollectorModuleOptions, "handle">;
   /** The built web app (apps/web/dist): served with client-side routes falling back to index.html. */
   webDist?: string;
+  /** Match scoring: the stand-in provider and no background scorer in tests; env defaults to process.env. */
+  matching?: { provider?: Provider; scorer?: boolean; env?: NodeJS.ProcessEnv };
 }
 
 // Composition root: every module is a Fastify plugin registered here.
@@ -49,7 +54,22 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(tracking.plugin);
     const remoteFilter = createRemoteFilter({ db: handle.db, now: options.collector.now ?? Date.now });
     await app.register(remoteFilter.plugin);
-    await app.register(searchModule({ db: handle.db, now: options.collector.now }));
+    // Matching scores search's owner list and search reads matching's scores (match-score ADR-0004):
+    // both are wired here, so neither module imports the other.
+    const now = options.collector.now ?? Date.now;
+    const matching = createMatching({
+      db: handle.db,
+      now,
+      timeZone: machineTimeZone(),
+      config: loadMatchingConfig(options.matching?.env ?? process.env),
+      ownerList: () => ownerList({ db: handle.db, now }),
+      provider: options.matching?.provider,
+      scorer: options.matching?.scorer ?? options.collector.scheduler !== false,
+    });
+    await app.register(matching.plugin);
+    await app.register(
+      searchModule({ db: handle.db, now: options.collector.now, scores: matching.scoreReader }),
+    );
   }
   if (spa) await app.register(fastifyStatic, { root: spa, wildcard: false });
 
