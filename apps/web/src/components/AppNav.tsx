@@ -3,7 +3,7 @@ import { NavLink } from "react-router";
 const link = ({ isActive }: { isActive: boolean }) =>
   `inline-flex min-h-11 items-center px-2 text-sm ${isActive ? "font-semibold text-text" : "text-text-muted"}`;
 
-/** Top navigation between the main screen and source health. */
+/** Top navigation between the main screen, source health and the profile (match-score SCR-03). */
 export function AppNav() {
   return (
     <nav className="flex items-center justify-between border-b border-border px-4" aria-label="Main">
@@ -14,6 +14,9 @@ export function AppNav() {
         </NavLink>
         <NavLink to="/sources" className={link}>
           Source health
+        </NavLink>
+        <NavLink to="/profile" className={link}>
+          Profile
         </NavLink>
       </div>
     </nav>

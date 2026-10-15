@@ -1,6 +1,7 @@
 import { Outlet, Route, Routes } from "react-router";
 import { AppNav } from "./components/AppNav";
 import { Home } from "./routes/Home";
+import { Profile } from "./routes/Profile";
 import { SourceHealth } from "./routes/SourceHealth";
 
 function Shell() {
@@ -20,6 +21,7 @@ export function App() {
       <Route element={<Shell />}>
         <Route index element={<Home />} />
         <Route path="sources" element={<SourceHealth />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
     </Routes>
   );
