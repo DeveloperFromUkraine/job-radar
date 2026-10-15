@@ -137,12 +137,13 @@ export const FILLER_WORDS = new Set([
 export const SOFT_WORDS = ["nice to have", "preferred", "ideally", "welcome", "plus"];
 export const EXCEPTION_WORDS = new Set(["except", "excluding", "not", "outside"]);
 
-// Lower-case, strip diacritics, straighten quotes, squeeze spaces: "Türkiye" → "turkiye".
+// Lower-case, strip diacritics, straighten quotes (single, double, guillemets), squeeze spaces: "Türkiye" → "turkiye".
 export function normalize(text: string): string {
   return text
     .normalize("NFKD")
     .replace(/\p{M}/gu, "")
     .replace(/[‘’`´]/g, "'")
+    .replace(/[“”„«»]/g, '"')
     .toLowerCase()
     .replace(/\s+/g, " ")
     .trim();

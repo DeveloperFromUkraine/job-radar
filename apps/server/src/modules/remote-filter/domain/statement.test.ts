@@ -114,6 +114,10 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["UTC-1, - UTC+3", "PL", check("not_recognised")],
   ["UTC-1 / UTC+3", "PL", NOT_OPEN],
   ["CET - Poland", "PL", FITS],
+  // Re-review 3 N-3: curly quotes and guillemets are quotes, not words
+  ["“Poland”", "PL", FITS],
+  ["«USA»", "PL", NOT_OPEN],
+  ["„USA“", "PL", NOT_OPEN],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {
