@@ -9,8 +9,10 @@ import type { ScoredText } from "../domain/score.js";
 type Params = Anthropic.MessageCreateParamsNonStreaming;
 type Cfg = Pick<MatchingConfig, "model" | "scoreOutputLimit" | "draftOutputLimit">;
 
-/** A closing tag inside the text cannot end its block, in any case or spacing (review R14). */
-const fence = (tag: string, text: string) => text.replace(new RegExp(`</(\\s*${tag})`, "gi"), "<\\/$1");
+/** A closing tag inside the text cannot end its block, in any case or spacing (reviews R14, R24). */
+const GAP = "[\\s\\u200b-\\u200d]*"; // \s already covers U+FEFF
+const fence = (tag: string, text: string) =>
+  text.replace(new RegExp(`<(${GAP})/(${GAP}${tag})`, "gi"), "<$1\\/$2");
 
 const SCORE_INSTRUCTIONS = `You score how well one job posting fits a job seeker's profile.
 
