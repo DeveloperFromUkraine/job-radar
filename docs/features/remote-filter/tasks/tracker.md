@@ -28,5 +28,6 @@
 | T21 | [Re-review 2 fix N-2b: switches clear old errors on a new list](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T19 | done |
 | T22 | [Re-review 3 fix N-1c: a dash run between two zones is unknown](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T20 | done |
 | T23 | [Re-review 3 fix N-3: straighten curly quotes and guillemets](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T20 | done |
+| T24 | [Re-review 4 fix N-4: broken-range check before place names](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T22 | done |
 
-**Total:** 23 tasks, ~7.75 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 24 tasks, ~8 person-days (S ≈ ¼ day, M ≈ ½ day).

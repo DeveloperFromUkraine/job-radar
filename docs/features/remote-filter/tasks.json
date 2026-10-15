@@ -449,6 +449,23 @@
         "apps/server/src/modules/remote-filter/domain/statement.test.ts"
       ],
       "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T24",
+      "title": "Re-review 4 fix N-4: check for a broken range before place names are replaced; a literal zone marker in the text is unknown",
+      "layer": "domain",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"Poland (CET) - Romania (EET)\" as fits, \"USA (PST) - UK (GMT)\" as not_open and \"USA \\uE000\" as check / not_recognised for PL (fails without the fix); every N-1c pin stays check",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
     }
   ]
 }

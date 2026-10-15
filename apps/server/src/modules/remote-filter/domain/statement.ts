@@ -75,6 +75,8 @@ function read(statement: string): Reading {
     cutShort: false,
     unknown: false,
   };
+  // The zone marker must only ever stand for a zone ZONE_RE read (re-review 4 N-4).
+  if (statement.includes(ZONE_MARK)) r.unknown = true;
   let rest = statement.replace(FLAG_RE, (flag) => {
     const code = FLAGS.get(flag);
     if (code) r.places.push(new Set([code]));
@@ -96,21 +98,23 @@ function read(statement: string): Reading {
       if (to) r.zones.push([Math.min(...offsets), Math.max(...offsets)]);
       else for (const o of offsets) r.zones.push([o, o]);
       return ` ${ZONE_MARK} `;
-    })
-    .replace(PHRASE_RE, (phrase) => {
-      if (ANYWHERE.includes(phrase)) r.anywhere = true;
-      else if (AMBIGUOUS_NAMES.has(phrase)) r.ambiguous.push(COUNTRY_NAMES.get(phrase) as string);
-      else {
-        const code = COUNTRY_NAMES.get(phrase);
-        r.places.push(code ? new Set([code]) : (REGIONS.get(phrase) as Set<string>));
-      }
-      return " , ";
     });
   // A dash run between two zones the range reader did not join ("UTC-1 -- UTC+3", "(UTC-1) - (UTC+3)") may be a
-  // range: never read it as two points (re-review 3 N-1c).
+  // range: never read it as two points (re-review 3 N-1c). Checked before places go, so a place between the two
+  // zones ("Poland (CET) - Romania (EET)") still breaks the run (re-review 4 N-4).
   if (BROKEN_RANGE_RE.test(rest)) r.unknown = true;
-  // Only a fixed set separates words: spaces, list punctuation, ZONE_RE's own dashes and a lone dot. Anything
-  // else left over (Польша, 🌍, "~", "->", "..", "〜", "‒") is a word, unknown → check (review F-1, N-1, N-1b).
+  rest = rest.replace(PHRASE_RE, (phrase) => {
+    if (ANYWHERE.includes(phrase)) r.anywhere = true;
+    else if (AMBIGUOUS_NAMES.has(phrase)) r.ambiguous.push(COUNTRY_NAMES.get(phrase) as string);
+    else {
+      const code = COUNTRY_NAMES.get(phrase);
+      r.places.push(code ? new Set([code]) : (REGIONS.get(phrase) as Set<string>));
+    }
+    return " , ";
+  });
+  // Only a fixed set separates words: spaces, list punctuation, ZONE_RE's own dashes, the zone marker and a lone
+  // dot. Anything else left over (Польша, 🌍, "~", "->", "..", "〜", "‒") is a word, unknown → check (review F-1,
+  // N-1, N-1b).
   for (const w of rest.split(/(?:[\s,;/|()[\]:!?"'*·•&+\-–—−\uE000]|(?<!\.)\.(?!\.))+/u)) {
     if (!w || FILLER_WORDS.has(w)) continue;
     if (EXCEPTION_WORDS.has(w)) r.exception = true;

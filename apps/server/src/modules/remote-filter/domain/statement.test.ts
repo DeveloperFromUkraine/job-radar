@@ -118,6 +118,10 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["“Poland”", "PL", FITS],
   ["«USA»", "PL", NOT_OPEN],
   ["„USA“", "PL", NOT_OPEN],
+  // Re-review 4 N-4: a place between zones breaks the dash run; a literal zone marker in the text is unknown
+  ["Poland (CET) - Romania (EET)", "PL", FITS],
+  ["USA (PST) - UK (GMT)", "PL", NOT_OPEN],
+  ["USA \uE000", "PL", check("not_recognised")],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {
