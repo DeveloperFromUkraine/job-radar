@@ -4,7 +4,7 @@ owner: "Volodymyr Kozlov"
 reviewers: ["Tech Lead", "Security Lead"]
 updated_at: "2026-10-15"
 feature_size: "M"
-target_surfaces: []  # filled in §4 — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api/sequences/tasks/plan-tests/review → _shared/surfaces.md
+target_surfaces: [backend-service, web-frontend]  # decided in §4 (ADR-0001) — subset of: backend-service | web-frontend | mobile-app | desktop-app | cli | worker | library-sdk. Read (never re-derived) by api/sequences/tasks/plan-tests/review → _shared/surfaces.md
 ---
 
 # Software Architecture Document — match-score
@@ -98,19 +98,16 @@ C4Context
 
 ## 4. Solution strategy
 
-<!-- 🎯 Why: the 3–4 STRATEGIC PILLARS every ADR grows from. Without §4 each ADR looks random —
-     there's no umbrella. ⭐ The densest section — the blast-radius gate fires almost always here
-     (decisions are irreversible + multi-module).
-     📋 Write: 3–4 choices; each a heading + 2–3 sentences of rationale.
-     📌 «Store content as a table of typed blocks» is a pillar — ADR-0001 grows from it. -->
+**Target surfaces: `backend-service` + `web-frontend`** ([ADR-0001](adr/0001-ship-match-score-as-a-new-matching-module-plus-a-profile-screen-and-card-additions.md)). The profile, the background scorer, spend accounting, CV reading and scoring health live in a new `matching` server module, in the existing server process — no separate worker. The UI stays the existing React SPA (react-router, TanStack Query, the design-system components and tokens), gaining a `/profile` route (SCR-03) and additions to the main screen (SCR-01) and source health (SCR-02). No UI-architecture change: inline, not a separate decision.
 
 **Top strategic choices (the seeds for ADRs):**
 
-1. **<e.g. Module isolation through events>** — <2–3 sentences citing quality goals + constraints>.
-2. **<e.g. Single-store persistence>** — <2–3 sentences>.
-3. **<e.g. Server-rendered read side>** — <2–3 sentences>.
+1. **Claude Opus 5.5 at low effort, one posting at a time, in the background** ([ADR-0002](adr/0002-score-with-claude-opus-5-5-at-low-effort.md), [ADR-0003](adr/0003-score-one-posting-at-a-time-with-the-messages-api-in-a-background-scorer.md)). Quality of the parts and the fit note drives the success KPI and resistance to planted wording (spec §7, AC-03), so the owner chose the strongest model over volume; at the $5 default about 270 scorings fit in a month, and the owner raises the cap for their full stream (AC-19). Ordinary requests, one at a time, keep a new posting's score within seconds (freshness ≤ 15 minutes p95) and make every attempt a single spend reservation; prompt caching of the instructions and profile lowers input cost.
+2. **The list is search's; scores flow back through an injected reader** ([ADR-0004](adr/0004-read-scores-into-search-through-an-injected-reader-and-read-the-list-from-search.md)). Matching scores exactly the owner's list (AC-13), read from a new search export; search reads scores through a `ScoreReader` wired in `app.ts`, as it already reads location verdicts, and fixes scores and the best-match order when it builds a snapshot. No import cycle; one definition of the list.
+3. **A score is stored once per posting and judged stale by fingerprints** ([ADR-0005](adr/0005-keep-one-score-per-posting-with-text-and-profile-fingerprints.md)). The score row records a hash of exactly the text that was scored and the profile version; a mismatch marks it stale (AC-06, AC-10) without touching the collector.
+4. **Trust boundaries are enforced in code, not left to the model** ([ADR-0006](adr/0006-reserve-the-largest-possible-cost-before-each-attempt-and-settle-from-usage.md), [ADR-0007](adr/0007-extract-cv-text-locally-and-send-only-text.md), [ADR-0008](adr/0008-constrain-model-output-to-part-scores-and-compute-the-total-in-job-radar.md)). Money: a ledger reserves each attempt's largest possible cost before it starts, so the cap cannot be exceeded. Personal data: CV text is extracted and cleaned of contact details locally, so a scan is refused and contacts are removed before anything leaves the machine. Untrusted output: the model returns only part scores, a note and quoted claims in a fixed schema; job-radar validates them and computes the total itself, so planted wording cannot set the score.
 
-Each tactical decision in later sections should trace to one of these seeds. Tactical decisions that *contradict* a strategic choice are red flags — surface them in §11.
+Each tactical decision in later sections traces to one of these seeds. Tactical decisions that contradict a strategic choice are red flags — surface them in §11.
 
 ## 5. Building block view
 
@@ -236,10 +233,16 @@ sequenceDiagram
 
 | # | Title | Status | Section |
 |---|---|---|---|
-| <NNNN> | <imperative — e.g. "Use a sliding-window counter for rate limiting"> | Accepted | §<N> |
-| <NNNN> | <imperative — e.g. "Co-locate the worker in the API process"> | Accepted | §<N> |
+| 0001 | Ship match score as a new matching module plus a profile screen and card additions | Accepted | §4 |
+| 0002 | Score with Claude Opus 5.5 at low effort | Accepted | §4 |
+| 0003 | Score one posting at a time with the Messages API in a background scorer | Accepted | §4 |
+| 0004 | Read scores into search through an injected reader and read the list from search | Accepted | §4 |
+| 0005 | Keep one score per posting with text and profile fingerprints | Accepted | §4 |
+| 0006 | Reserve the largest possible cost before each attempt and settle from usage | Accepted | §4 |
+| 0007 | Extract CV text locally and send only text | Accepted | §4 |
+| 0008 | Constrain model output to part scores and compute the total in job-radar | Accepted | §4 |
 
-ADR files live under `docs/features/<slug>/adr/NNNN-<title>.md`.
+ADR files live under `docs/features/match-score/adr/NNNN-<title>.md`.
 
 ## 10. Quality requirements
 
