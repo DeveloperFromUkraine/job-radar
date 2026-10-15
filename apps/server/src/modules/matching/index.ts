@@ -8,7 +8,7 @@ import type { OpenPosting } from "../collector/app/open-postings.js";
 import type { MatchingDeps } from "./app/deps.js";
 import { createScoreReader } from "./app/score-reader.js";
 import { createScorer } from "./app/scorer.js";
-import type { Provider } from "./infra/claude.js";
+import { createClaudeProvider, type Provider } from "./infra/claude.js";
 import { matchingRoutes } from "./ports/routes.js";
 
 export interface MatchingOptions {
@@ -32,10 +32,17 @@ export function createMatching(options: MatchingOptions) {
     now: options.now,
     timeZone: options.timeZone,
     config: options.config,
-    provider: options.provider,
+    provider: options.provider ?? createClaudeProvider(options.config),
     wakeScorer: () => wake(),
   };
-  const scorer = createScorer(deps, { ownerList: options.ownerList });
+  const scorer = createScorer(deps, {
+    ownerList: options.ownerList,
+    onError: (err) =>
+      deps.log?.warn(
+        { module: "matching", err: err instanceof Error ? err.name : "unknown" },
+        "scoring pass failed",
+      ),
+  });
   if (options.scorer !== false) wake = () => scorer.wake();
 
   const plugin: FastifyPluginAsync = async (app) => {

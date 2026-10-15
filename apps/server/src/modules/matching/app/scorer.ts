@@ -32,6 +32,8 @@ export function createScorer(
   /** In memory: a restart is how a fixed key is picked up (AC-14). */
   let keyBlocked = false;
   let retryAfter = 0;
+  let retryTimer: NodeJS.Timeout | undefined;
+  const stopped = new AbortController();
 
   /**
    * The next posting to score, read fresh before every attempt so a posting marked or hidden before its
@@ -67,11 +69,17 @@ export function createScorer(
       if (!settings.profile || capState(deps).reached) return;
       const posting = next();
       if (!posting) return;
-      const result = await scoreOne(deps, posting, settings.profile, settings.profileVersion);
+      const result = await scoreOne(deps, posting, settings.profile, settings.profileVersion, stopped.signal);
       if (result.kind === "cap_reached") return;
       if (result.kind === "provider_problem") {
         if (result.problem === "key_missing" || result.problem === "key_refused") keyBlocked = true;
-        else retryAfter = deps.now() + PROVIDER_RETRY_MS;
+        else {
+          retryAfter = deps.now() + PROVIDER_RETRY_MS;
+          // The retry is due at 15 minutes, not on the poll after it (AC-14, review R8).
+          clearTimeout(retryTimer);
+          retryTimer = setTimeout(() => void run(), PROVIDER_RETRY_MS);
+          retryTimer.unref();
+        }
         return;
       }
     }
@@ -107,6 +115,8 @@ export function createScorer(
       stopping = true;
       if (timer) clearInterval(timer);
       timer = undefined;
+      clearTimeout(retryTimer);
+      stopped.abort();
       await running;
     },
   };

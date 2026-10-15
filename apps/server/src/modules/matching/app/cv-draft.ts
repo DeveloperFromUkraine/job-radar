@@ -88,7 +88,9 @@ export async function draftProfileFromCv(
     );
   }
 
-  const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params);
+  const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params, {
+    timeoutMs: cfg.draftTimeoutMs,
+  });
   if (outcome.kind === "problem") {
     repo.markNoAnswer(deps.db, reservation.id, deps.now());
     deps.log?.warn(

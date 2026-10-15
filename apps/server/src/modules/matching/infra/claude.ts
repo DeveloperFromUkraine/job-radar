@@ -12,14 +12,21 @@ export type ProviderOutcome =
   /** No answer: provider or key problem. `detail` is for the log (status or error class), never the key. */
   | { kind: "problem"; problem: ScoringProblem; detail: string };
 
+export interface SendOptions {
+  /** The score or the draft timeout (sad.md §8): the caller knows which request this is. */
+  timeoutMs?: number;
+  /** Aborted when the scorer stops (ADR-0003). */
+  signal?: AbortSignal;
+}
+
 export interface Provider {
-  send(params: Anthropic.MessageCreateParamsNonStreaming): Promise<ProviderOutcome>;
+  send(params: Anthropic.MessageCreateParamsNonStreaming, opts?: SendOptions): Promise<ProviderOutcome>;
 }
 
 type ClientOptions = { fetch?: (url: string | URL | Request, init?: RequestInit) => Promise<Response> };
 
 export function createClaudeProvider(
-  cfg: Pick<MatchingConfig, "apiKey" | "scoreTimeoutMs" | "draftTimeoutMs">,
+  cfg: Pick<MatchingConfig, "apiKey">,
   options: ClientOptions = {},
 ): Provider {
   const client = cfg.apiKey
@@ -27,16 +34,18 @@ export function createClaudeProvider(
         apiKey: cfg.apiKey,
         authToken: null,
         maxRetries: 0,
-        timeout: Math.max(cfg.scoreTimeoutMs, cfg.draftTimeoutMs),
         ...(options.fetch ? { fetch: options.fetch as typeof fetch } : {}),
       })
     : null;
 
   return {
-    async send(params) {
+    async send(params, opts = {}) {
       if (!client) return { kind: "problem", problem: "key_missing", detail: "no ANTHROPIC_API_KEY" };
       try {
-        const res = await client.messages.create(params);
+        const res = await client.messages.create(params, {
+          ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
+          ...(opts.signal ? { signal: opts.signal } : {}),
+        });
         const usage: Usage = {
           inputTokens: res.usage.input_tokens,
           cacheWriteTokens: res.usage.cache_creation_input_tokens ?? 0,

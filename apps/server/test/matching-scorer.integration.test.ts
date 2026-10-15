@@ -1,12 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadMatchingConfig } from "../src/core/config.js";
 import { type OpenPosting, postingsByIds } from "../src/modules/collector/app/open-postings.js";
+import { removePostings } from "../src/modules/collector/infra/repo/postings.js";
 import type { MatchingDeps } from "../src/modules/matching/app/deps.js";
 import { getScoringHealth } from "../src/modules/matching/app/health.js";
 import { createScoreReader } from "../src/modules/matching/app/score-reader.js";
 import { createScorer, PROVIDER_RETRY_MS } from "../src/modules/matching/app/scorer.js";
 import { saveProfile, setCap } from "../src/modules/matching/app/settings.js";
+import { createMatching } from "../src/modules/matching/index.js";
 import { readSettings, scoresFor } from "../src/modules/matching/infra/repo.js";
+import { matchingSpend } from "../src/modules/matching/infra/schema.js";
 import { type FakeProvider, fakeProvider, problem, scoreAnswer } from "./helpers/fake-provider.js";
 import { AC01_PROFILE, seedProfile } from "./helpers/matching-fixtures.js";
 import { seedOpenPostings } from "./helpers/search-fixtures.js";
@@ -230,5 +233,95 @@ describe("lifecycle", () => {
         list.map((p) => p.id),
       ).size,
     ).toBe(1);
+  });
+});
+
+describe("the scorer's lifecycle (AC-14, ADR-0003; review R8, R10, R11)", () => {
+  const outcomes = () =>
+    t.db
+      .select({ o: matchingSpend.outcome })
+      .from(matchingSpend)
+      .all()
+      .map((r) => r.o);
+
+  it("wakes itself when the 15-minute retry is due, without waiting for the next poll (R8)", async () => {
+    vi.useFakeTimers();
+    try {
+      seedProfile(t.db);
+      list = addPostings(1);
+      deps.provider = fakeProvider(problem("provider_unreachable"), scoreAnswer());
+      const s = createScorer(deps, { ownerList: () => list, intervalMs: 60 * MIN });
+      s.start();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(readSettings(t.db).scoringProblem).toBe("provider_unreachable");
+      now += PROVIDER_RETRY_MS;
+      await vi.advanceTimersByTimeAsync(PROVIDER_RETRY_MS);
+      expect(scoresFor(t.db, [list[0]?.id as string]).size).toBe(1);
+      await s.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stop() aborts a provider call in flight and leaves no reservation open or problem recorded (R10)", async () => {
+    seedProfile(t.db);
+    list = addPostings(1);
+    let asked = false;
+    deps.provider = {
+      send: (_params, opts) =>
+        new Promise((resolve) => {
+          asked = true;
+          opts?.signal?.addEventListener("abort", () =>
+            resolve({ kind: "problem", problem: "provider_unreachable", detail: "aborted" }),
+          );
+        }),
+    };
+    const s = createScorer(deps, { ownerList: () => list, intervalMs: 60 * MIN });
+    s.start();
+    await vi.waitFor(() => expect(asked).toBe(true));
+    await s.stop();
+    expect(outcomes()).toEqual(["no_answer"]);
+    expect(readSettings(t.db).scoringProblem).toBe(null);
+  }, 2000);
+
+  it("asks the provider with the score timeout, not the draft one (R10)", async () => {
+    seedProfile(t.db);
+    list = addPostings(1);
+    const seen: (number | undefined)[] = [];
+    deps.provider = {
+      send: async (_params, opts) => {
+        seen.push(opts?.timeoutMs);
+        return scoreAnswer();
+      },
+    };
+    await createScorer(deps, { ownerList: () => list }).pass();
+    expect(seen).toEqual([deps.config.scoreTimeoutMs]);
+  });
+
+  it("settles the reservation when the posting is removed during the call, and logs the failed pass (R11)", async () => {
+    seedProfile(t.db);
+    const added = addPostings(1);
+    const warn = vi.fn();
+    const m = createMatching({
+      db: t.db,
+      now: () => now,
+      timeZone: "Europe/Warsaw",
+      config: deps.config,
+      ownerList: () => added,
+      provider: fakeProvider(() => {
+        removePostings(t.db, [added[0]?.id as string]);
+        return scoreAnswer();
+      }),
+    });
+    m.deps.log = { info: () => {}, warn };
+    m.scorer.wake();
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(
+        expect.objectContaining({ module: "matching" }),
+        "scoring pass failed",
+      ),
+    );
+    expect(outcomes()).toEqual(["answered"]);
+    await m.scorer.stop();
   });
 });

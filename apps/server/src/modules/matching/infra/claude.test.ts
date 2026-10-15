@@ -160,6 +160,19 @@ describe("createClaudeProvider", () => {
     expect(await p.send(params)).toMatchObject({ kind: "problem", problem: "provider_unreachable" });
   });
 
+  it("gives up after the request's own timeout and on abort (review R10)", async () => {
+    const hang = async (_url: string | URL | Request, init?: RequestInit) =>
+      new Promise<Response>((_, reject) =>
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))),
+      );
+    const p = createClaudeProvider(cfg, { fetch: hang });
+    expect(await p.send(params, { timeoutMs: 50 })).toMatchObject({ kind: "problem" });
+    const stop = new AbortController();
+    const pending = p.send(params, { timeoutMs: 60_000, signal: stop.signal });
+    stop.abort();
+    expect(await pending).toMatchObject({ kind: "problem" });
+  }, 2000);
+
   it("reports a missing key without making any request", async () => {
     const { p, seen } = provider(() => json(200, message()), null);
     expect(await p.send(params)).toMatchObject({ kind: "problem", problem: "key_missing" });

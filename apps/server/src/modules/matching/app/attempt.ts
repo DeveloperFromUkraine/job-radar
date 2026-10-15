@@ -29,6 +29,7 @@ export async function scoreOne(
   posting: OpenPosting,
   profile: Profile,
   profileVersion: number,
+  signal?: AbortSignal,
 ): Promise<AttemptResult> {
   const { config: cfg, db } = deps;
   const text = scoredText(posting);
@@ -50,12 +51,17 @@ export async function scoreOne(
     return { kind: "cap_reached" };
   }
 
-  const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params);
+  const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params, {
+    timeoutMs: cfg.scoreTimeoutMs,
+    signal,
+  });
   const log = (o: object) =>
     deps.log?.info({ module: "matching", postingId: posting.id, ...o }, "scoring attempt");
 
   if (outcome.kind === "problem") {
     repo.markNoAnswer(db, reservation.id, deps.now());
+    // Stopped by shutdown: no answer, but not a provider problem to show (review R10).
+    if (signal?.aborted) return { kind: "provider_problem", problem: outcome.problem };
     repo.setProblem(db, outcome.problem, deps.now());
     log({ outcome: "provider_problem", problem: outcome.problem, detail: outcome.detail });
     return { kind: "provider_problem", problem: outcome.problem };
@@ -76,6 +82,8 @@ export async function scoreOne(
     return { kind: "strike", strikes };
   }
 
+  // Settled before the score is stored: a posting removed during the call fails the write, not the ledger.
+  repo.settle(db, reservation.id, { outcome: "answered", cost, usage: outcome.usage, at: deps.now() });
   const { parts, note, claims } = checked.value;
   repo.upsertScore(
     db,
@@ -91,7 +99,6 @@ export async function scoreOne(
     },
     deps.now(),
   );
-  repo.settle(db, reservation.id, { outcome: "answered", cost, usage: outcome.usage, at: deps.now() });
   repo.setLastSuccess(db, deps.now());
   log({ outcome: "scored", total: score, ...tokens });
   return { kind: "scored", total: score };
