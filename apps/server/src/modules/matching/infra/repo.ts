@@ -164,6 +164,16 @@ export function monthSpend(db: Conn, monthStart: number): number {
   return row?.n ?? 0;
 }
 
+/** When this month's latest attempt started: when a reached cap was reached. */
+export function lastSpendAt(db: Db, monthStart: number): number | null {
+  const row = db
+    .select({ at: sql<number | null>`max(${matchingSpend.startedAt})` })
+    .from(matchingSpend)
+    .where(gte(matchingSpend.startedAt, monthStart))
+    .get();
+  return row?.at ?? null;
+}
+
 export interface Reservation {
   kind: "score" | "draft";
   postingId: string | null;
