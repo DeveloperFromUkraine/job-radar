@@ -40,5 +40,10 @@
 | T33 | Review fix R27: the cap field keeps its 'Saved' message after the cap changes | ui | Volodymyr Kozlov | S | T32 | done |
 | T34 | Review fixes R29, R30: two columns only when there is a current profile; on phones 'Show current profile' sits below the draft | ui | Volodymyr Kozlov | S | T33 | done |
 | T35 | Review fix R28: openapi and sad.md say the problem marker shows when there is a problem other than a reached cap | docs | Volodymyr Kozlov | S | T34 | done |
+| T36 | Review fix R37: sad.md, CONTEXT and openapi say a reached cap has its own line, and which wrong types get VALIDATION_ERROR | docs | Volodymyr Kozlov | S | T35 | todo |
+| T37 | Review fix R33: skill names are trimmed before they are checked and stored | domain | Volodymyr Kozlov | S | T36 | todo |
+| T38 | Review fix R35: cap reached clears when the queue is empty and money is left | app | Volodymyr Kozlov | S | T37 | todo |
+| T39 | Review fix R32: the web profile rules check in the server's order and refuse duplicates, from one shared table | ui | Volodymyr Kozlov | S | T38 | todo |
+| T40 | Review fix R36: Spent this month follows the settings, not the value at mount | ui | Volodymyr Kozlov | S | T39 | todo |
 
-**Total:** 35 tasks, ~24 person-days (T23–T29 from review 2026-10-15; T30–T35 from re-review 2026-10-15).
+**Total:** 40 tasks, ~25 person-days (T23–T29 from review 2026-10-15; T30–T35 from re-review 2026-10-15; T36–T40 from review 2026-10-16).

@@ -732,6 +732,98 @@
         "docs/features/match-score/sad.md"
       ],
       "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T36",
+      "title": "Review fix R37: sad.md, CONTEXT and openapi say a reached cap has its own line, and which wrong types get VALIDATION_ERROR",
+      "layer": "docs",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-16"
+      ],
+      "dod": "sad.md:542, CONTEXT.md:33 and openapi.yaml:109 match flow 9 and routes.ts",
+      "files_hint": [
+        "docs/features/match-score/sad.md",
+        "CONTEXT.md",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T37",
+      "title": "Review fix R33: skill names are trimmed before they are checked and stored",
+      "layer": "domain",
+      "deps": [
+        "T36"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-12"
+      ],
+      "dod": "A settings test saves a skill padded with whitespace and reads it back trimmed; a 1 MB padded name never reaches the stored profile",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/settings.ts",
+        "apps/server/src/modules/matching/domain/profile.ts",
+        "apps/server/test/matching-routes.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T38",
+      "title": "Review fix R35: cap reached clears when the queue is empty and money is left",
+      "layer": "app",
+      "deps": [
+        "T37"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "Scorer test: a refused large posting is marked, the queue is empty, and health.capReached is false after the next pass",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T39",
+      "title": "Review fix R32: the web profile rules check in the server's order and refuse duplicates, from one shared table",
+      "layer": "ui",
+      "deps": [
+        "T38"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "profile-rule-cases.json holds the duplicate and precedence cases with messages; both profile.test and profile-rules.test pass on it",
+      "files_hint": [
+        "apps/web/src/features/matching/profile-rules.ts",
+        "apps/server/src/modules/matching/domain/profile-rule-cases.json",
+        "apps/server/src/modules/matching/domain/profile.test.ts",
+        "apps/web/src/features/matching/profile-rules.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T40",
+      "title": "Review fix R36: Spent this month follows the settings, not the value at mount",
+      "layer": "ui",
+      "deps": [
+        "T39"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "Profile.test: a settings refetch with a new spend updates Spent this month without leaving the screen",
+      "files_hint": [
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
     }
   ]
 }
