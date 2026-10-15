@@ -8,7 +8,7 @@
 | T01 | Promote the staged schema: the three matching tables and search_state.list_order | migration | Volodymyr Kozlov | S | — | done |
 | T02 | Write the profile rules: fixed lists, field checks, contact detection, change detection and salary periods | domain | Volodymyr Kozlov | M | — | done |
 | T03 | Write the score rules: total with fixed weights, answer validation, text fingerprint, staleness and the match state | domain | Volodymyr Kozlov | M | — | done |
-| T04 | Write the spend rules: largest possible cost, settled cost from usage, month boundary and cents rounding | domain | Volodymyr Kozlov | S | — | todo |
+| T04 | Write the spend rules: largest possible cost, settled cost from usage, month boundary and cents rounding | domain | Volodymyr Kozlov | S | — | done |
 | T05 | Write matching's repo: settings singleton, scores, and the spend ledger with reserve-in-one-transaction | infra | Volodymyr Kozlov | M | T01, T04 | todo |
 | T06 | Add the Claude client: SDK, configuration, fixed output schemas, usage, error classes and a stand-in provider | infra | Volodymyr Kozlov | M | T02, T03 | todo |
 | T07 | Extract CV text locally from PDF, Word (.docx) and plain text, with the AC-08 refusals | infra | Volodymyr Kozlov | M | — | todo |
