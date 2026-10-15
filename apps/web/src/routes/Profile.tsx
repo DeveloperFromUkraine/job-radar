@@ -58,6 +58,11 @@ export function Profile() {
   });
   const cv = useMutation({
     mutationFn: async (file: File) => draftProfileFromCv(await readCv(file)),
+    // A draft is charged, whatever its outcome: the spend and scoring health move (review R41).
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: ["matching", "settings"] });
+      void queryClient.invalidateQueries({ queryKey: ["matching", "health"] });
+    },
     onSuccess: (result) => {
       setNotice(null);
       setDraft(result);

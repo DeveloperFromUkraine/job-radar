@@ -115,6 +115,17 @@ describe("SCR-03 CV upload and draft review", () => {
     ).toBeTruthy();
   });
 
+  it("a CV draft refreshes Spent this month, since the draft was charged (AC-19, review R41)", async () => {
+    open({
+      [SETTINGS]: [{ body: withProfile() }, { body: { ...withProfile(), spent_usd_cents: 530 } }],
+      [DRAFT]: { body: draft() },
+    });
+    expect(await screen.findByText("Spent this month: $4.98")).toBeTruthy();
+    await choose(pdf());
+    await screen.findByRole("heading", { name: "Draft from your CV" });
+    expect(await screen.findByText("Spent this month: $5.30")).toBeTruthy();
+  });
+
   it("Use this profile saves the (corrected) draft; Discard keeps the current profile", async () => {
     const { fetchMock } = open({
       [SETTINGS]: { body: withProfile() },
