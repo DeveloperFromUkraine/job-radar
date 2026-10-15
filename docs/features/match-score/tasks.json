@@ -824,6 +824,57 @@
         "apps/web/src/routes/Profile.test.tsx"
       ],
       "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T41",
+      "title": "Review fix R40: openapi says how scalars are converted and which bodies still get VALIDATION_ERROR",
+      "layer": "docs",
+      "deps": [
+        "T40"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "openapi.yaml saveProfile text matches Fastify's type conversion and the domain rules",
+      "files_hint": [
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "T42",
+      "title": "Review fix R39: the web refuses a postal address in a skill, from a shared table case",
+      "layer": "ui",
+      "deps": [
+        "T41"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "profile-rule-cases.json has address cases with the message; profile.test and profile-rules.test pass on them",
+      "files_hint": [
+        "apps/web/src/features/matching/profile-rules.ts",
+        "apps/server/src/modules/matching/domain/profile-rule-cases.json"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "T43",
+      "title": "Review fix R41: a CV draft refreshes the settings and scoring health",
+      "layer": "ui",
+      "deps": [
+        "T42"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-12"
+      ],
+      "dod": "Profile.cv.test: after a draft, Spent this month shows the refetched spend",
+      "files_hint": [
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
     }
   ]
 }
