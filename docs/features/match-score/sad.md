@@ -61,37 +61,39 @@ target_surfaces: []  # filled in §4 — subset of: backend-service | web-fronte
 
 ## 3. Context and scope
 
-<!-- 🎯 Why: draws the SYSTEM BOUNDARY — who talks to it from outside, where the trust zone ends.
-     Without §3, §5 and §8 (authorization) blur — unclear what's «inside» vs «outside».
-     📋 Write: 2–3 sentences of business context + an external-systems table + a C4Context block.
-     📌 «External: none (deliberate, no third-party in v1)» is itself a decision worth stating.
-     Trust boundary — the line past which you don't trust data without checking it.
-     Never N/A — greenfield still draws the planned actors + external systems. -->
+The owner runs job-radar on their own laptop. The collector fills the local database from remote job boards, search shows the owner the open postings that match their skills, the remote filter hides those not open to their country, and marks take decided postings out of the list. This feature adds one outside party, the Claude API: job-radar sends it the owner's CV text once to draft a profile, and the profile with each posting's text to score the posting. It is the first trust boundary crossed in both directions — personal data goes out only after the owner's one-time agreement, and what comes back is model output built from third-party posting text, so it is checked against a fixed shape and shown as plain text before anything uses it.
 
-<Business context in 2–3 sentences. What the system does for whom.>
-
-<!-- brownfield: <one-line scan summary> (or «N/A — greenfield repo» if no source existed) -->
+<!-- brownfield: architecture-map.md is stale (reflects 133499e); the code was scanned directly on 2026-10-15. Modules: health, collector (postings, listings, merge, source readers, scheduler with abort-signal shutdown, source health + problems endpoint), search (in-memory snapshots of ordered ids, order fixed at load, verdicts and checks computed at snapshot time), tracking (marks), remote-filter (settings singleton, verdicts on read). No LLM SDK, file upload or PDF/Word reader yet; latest migration 0005. -->
 
 **External systems (in / out):**
 
 | Actor or system | Type | Interaction |
 |---|---|---|
-| <author role> | Person | <what they do> |
-| <external service> | System (internal/external) | <interaction> |
-| <identity provider> | System (external) | <provides auth tokens> |
+| Owner | Person | Sets up the profile (CV or by hand), reads scores and fit notes, orders the list, sets the scoring cap |
+| Visitor | Person (external) | Can reach the machine over the network but cannot connect: loopback only (AC-17, collector ADR-0007) |
+| Other web sites | System (external) | Pages open in the owner's browser; a request from them to upload a CV, change the profile or the cap is refused as cross-site (AC-17) |
+| Job sources | System (external) | Read by the collector, unchanged; their posting text is what gets scored |
+| Claude API (Anthropic) | System (external) | New. Receives the CV text once (draft profile) and the profile with each posting's text (scoring), over HTTPS with the owner's provider key; returns a draft or a score that job-radar checks before use |
 
-**C4 Context (L1):** <!-- syntax → references/c4-mermaid-syntax.md. Real names, no <placeholder> stubs. -->
+**C4 Context (L1):**
 
 ```mermaid
 C4Context
-    title <feature> — System Context
+    title match-score - System Context
 
-    Person(actor, "<Actor role>", "<intent>")
-    System(app, "<Our system>", "<one-sentence description>")
-    System_Ext(ext, "<External system>", "<one-sentence description>")
+    Person(owner, "Owner", "A software engineer looking for remote roles that fit their skills, level and terms")
+    Person_Ext(visitor, "Visitor", "Someone on the same network who is not the owner")
 
-    Rel(actor, app, "<interaction>", "<protocol>")
-    Rel(app, ext, "<interaction>", "<protocol>")
+    System(jr, "job-radar", "Collects postings and scores each one in the owner's list against the owner's profile, on the owner's machine")
+    System_Ext(sources, "Job sources", "Remote job boards read by the collector")
+    System_Ext(claude, "Claude API", "Anthropic's language model; drafts a profile from CV text and scores a posting against a profile")
+    System_Ext(sites, "Other web sites", "Pages open in the owner's browser")
+
+    Rel(owner, jr, "Sets up the profile, reads scores, orders the list, sets the cap", "browser, loopback")
+    Rel(jr, sources, "Reads postings", "HTTPS")
+    Rel(jr, claude, "Sends CV text once and profile plus posting text per score", "HTTPS")
+    Rel(visitor, jr, "Cannot connect", "refused")
+    Rel(sites, jr, "Cannot act for the owner", "refused as cross-site")
 ```
 
 ## 4. Solution strategy
