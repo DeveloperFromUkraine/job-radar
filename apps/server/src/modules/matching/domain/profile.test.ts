@@ -36,6 +36,20 @@ describe("validateProfile (AC-16)", () => {
     });
     expect(error?.message).toBe("Skills: remove the email address; a profile holds no contact details.");
   });
+
+  it("refuses an over-long skill name before the contact scan, so it stays fast (review R22)", () => {
+    const started = performance.now();
+    const [error] = validateProfile({ ...base, skills: [{ name: `1 A${"a".repeat(80_000)}`, core: true }] });
+    expect(error?.message).toBe("Skills: use up to 50 characters per skill.");
+    expect(performance.now() - started).toBeLessThan(100);
+  });
+
+  it.each([
+    ["roleTypes", { roleTypes: ["backend", "backend"] }, "Role types: choose each role type once."],
+    ["engagementForms", { engagementForms: ["b2b", "b2b"] }, "Engagement forms: choose each form once."],
+  ])("refuses a duplicate in %s (review R21)", (field, change, message) => {
+    expect(validateProfile({ ...base, ...change } as Profile)).toEqual([{ field, message }]);
+  });
 });
 
 describe("findContactDetails (AC-09)", () => {

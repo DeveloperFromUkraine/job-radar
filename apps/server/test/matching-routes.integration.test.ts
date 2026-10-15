@@ -116,6 +116,19 @@ describe("matching routes (contract)", () => {
     ],
     ["years above 60", { years: 61 }, "Years of experience: "],
     ["no skills at all", { skills: [] }, "Skills: "],
+    [
+      "a non-numeric salary",
+      { min_salary: { amount: "abc", currency: "EUR", period: "month" } },
+      "Minimum salary: ",
+    ],
+    [
+      "a fractional salary",
+      { min_salary: { amount: 1.5, currency: "EUR", period: "month" } },
+      "Minimum salary: ",
+    ],
+    ["fractional years", { years: 2.5 }, "Years of experience: "],
+    ["a duplicate role type", { role_types: ["backend", "backend"] }, "Role types: "],
+    ["a duplicate engagement form", { engagement_forms: ["b2b", "b2b"] }, "Engagement forms: "],
   ])(
     "saveProfile: %s answers the field message, not the validator's (AC-16, review R9)",
     async (_n, over, field) => {

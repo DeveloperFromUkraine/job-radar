@@ -132,15 +132,24 @@ export function validateProfile(p: Profile): FieldError[] {
   const fail = (field: ProfileField, message: string) => errors.push({ field, message });
 
   const skills = Array.isArray(p.skills) ? p.skills : [];
-  const contact = skills.flatMap((s) => (typeof s.name === "string" ? findContactDetails(s.name) : []))[0];
-  if (contact && contact.kind !== "name") {
-    fail("skills", `Skills: remove ${KIND_WORDS[contact.kind]}; a profile holds no contact details.`);
-  } else if (skills.some((s) => typeof s.name !== "string" || s.name.trim() === "")) {
+  // Length and count come before the contact scan, which is slow on long text (review R22).
+  const sized =
+    skills.length <= MAX_PROFILE_SKILLS &&
+    skills.every((s) => typeof s.name === "string" && s.name.trim().length <= MAX_PROFILE_SKILL_LENGTH);
+  const contact = sized
+    ? skills.flatMap((s) => findContactDetails(s.name)).find((c) => c.kind !== "name")
+    : undefined;
+  if (skills.some((s) => typeof s.name !== "string" || s.name.trim() === "")) {
     fail("skills", "Skills: give every skill a name or remove it.");
   } else if (skills.some((s) => s.name.trim().length > MAX_PROFILE_SKILL_LENGTH)) {
     fail("skills", `Skills: use up to ${MAX_PROFILE_SKILL_LENGTH} characters per skill.`);
   } else if (skills.length > MAX_PROFILE_SKILLS) {
     fail("skills", `Skills: list up to ${MAX_PROFILE_SKILLS} skills.`);
+  } else if (contact) {
+    fail(
+      "skills",
+      `Skills: remove ${KIND_WORDS[contact.kind as Exclude<ContactKind, "name">]}; a profile holds no contact details.`,
+    );
   } else if (!skills.some((s) => s.core === true)) {
     fail("skills", "Skills: mark at least one skill as core.");
   }
@@ -153,9 +162,13 @@ export function validateProfile(p: Profile): FieldError[] {
   }
   if (!Array.isArray(p.roleTypes) || p.roleTypes.some((r) => !isOneOf(ROLE_TYPES, r))) {
     fail("roleTypes", "Role types: choose only from the listed role types.");
+  } else if (new Set(p.roleTypes).size !== p.roleTypes.length) {
+    fail("roleTypes", "Role types: choose each role type once.");
   }
   if (!Array.isArray(p.engagementForms) || p.engagementForms.some((f) => !isOneOf(ENGAGEMENT_FORMS, f))) {
     fail("engagementForms", "Engagement forms: choose only employment, B2B or contract/freelance.");
+  } else if (new Set(p.engagementForms).size !== p.engagementForms.length) {
+    fail("engagementForms", "Engagement forms: choose each form once.");
   }
 
   const s = p.minSalary;

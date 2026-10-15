@@ -76,24 +76,25 @@ const object = (properties: Record<string, object>, required = Object.keys(prope
   }) as const;
 const nullable = (schema: object) => ({ anyOf: [schema, { type: "null" }] });
 
-// Shape and types only: every field rule (AC-16) is validateProfile's, so each refusal names its field
-// in plain language (MATCHING_INVALID_PROFILE) instead of the validator's text (review R9).
+// Shape only: every field rule (AC-16), including the numeric and no-duplicate ones, is validateProfile's,
+// so each refusal names its field in plain language (MATCHING_INVALID_PROFILE), not the validator's text
+// (reviews R9, R21).
 const profileSchema = object({
   skills: {
     type: "array",
     items: object({ name: { type: "string" }, core: { type: "boolean" } }),
   },
-  years: { type: ["integer", "null"] },
+  years: {},
   seniority: { type: ["string", "null"] },
-  role_types: { type: "array", uniqueItems: true, items: { type: "string" } },
+  role_types: { type: "array", items: { type: "string" } },
   min_salary: nullable(
     object({
-      amount: { type: "integer" },
+      amount: {},
       currency: { type: "string" },
       period: { type: "string" },
     }),
   ),
-  engagement_forms: { type: "array", uniqueItems: true, items: { type: "string" } },
+  engagement_forms: { type: "array", items: { type: "string" } },
 });
 
 /** 5 MB of file, base64-encoded, plus room for the JSON around it (sad.md §8 CV upload transport). */
