@@ -8,4 +8,5 @@ export const searchState = sqliteTable("search_state", {
   visitStartedAt: integer("visit_started_at"),
   visitLastSeenAt: integer("visit_last_seen_at"),
   previousVisitStartedAt: integer("previous_visit_started_at"), // null on the first visit
+  listOrder: text("list_order", { enum: ["newest", "best_match"] }), // null = never chosen = newest (match-score AC-11)
 });

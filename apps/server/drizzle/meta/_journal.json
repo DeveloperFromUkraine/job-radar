@@ -43,6 +43,13 @@
       "when": 1792012888109,
       "tag": "0005_stormy_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1792075072869,
+      "tag": "0006_silky_polaris",
+      "breakpoints": true
     }
   ]
 }

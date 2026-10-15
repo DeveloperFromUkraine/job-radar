@@ -5,7 +5,7 @@
 
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
-| T01 | Promote the staged schema: the three matching tables and search_state.list_order | migration | Volodymyr Kozlov | S | — | todo |
+| T01 | Promote the staged schema: the three matching tables and search_state.list_order | migration | Volodymyr Kozlov | S | — | done |
 | T02 | Write the profile rules: fixed lists, field checks, contact detection, change detection and salary periods | domain | Volodymyr Kozlov | M | — | todo |
 | T03 | Write the score rules: total with fixed weights, answer validation, text fingerprint, staleness and the match state | domain | Volodymyr Kozlov | M | — | todo |
 | T04 | Write the spend rules: largest possible cost, settled cost from usage, month boundary and cents rounding | domain | Volodymyr Kozlov | S | — | todo |

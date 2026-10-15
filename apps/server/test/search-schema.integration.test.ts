@@ -9,6 +9,12 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 const stagedDir = fileURLToPath(
   new URL("../../../docs/features/search-postings/migrations/", import.meta.url),
 );
+// Later features that change search's own table, applied on top in feature order.
+const laterStaged = [
+  fileURLToPath(
+    new URL("../../../docs/features/match-score/migrations/04_add_search_list_order.up.sql", import.meta.url),
+  ),
+];
 
 type Row = Record<string, unknown>;
 
@@ -47,6 +53,7 @@ describe("search schema", () => {
       .sort()) {
       ref.exec(readFileSync(`${stagedDir}${file}`, "utf8"));
     }
+    for (const file of laterStaged) ref.exec(readFileSync(file, "utf8"));
 
     const expected = describeSchema((q) => ref.prepare(q).all() as Row[]);
     expect(expected.map((t) => t.table)).toEqual(["search_state"]);
