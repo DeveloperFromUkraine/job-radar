@@ -5,9 +5,13 @@ import { removePostings } from "../src/modules/collector/infra/repo/postings.js"
 import type { MatchingDeps } from "../src/modules/matching/app/deps.js";
 import { getScoringHealth } from "../src/modules/matching/app/health.js";
 import { createScoreReader } from "../src/modules/matching/app/score-reader.js";
+import { scoredText } from "../src/modules/matching/app/scored-text.js";
 import { createScorer, PROVIDER_RETRY_MS } from "../src/modules/matching/app/scorer.js";
 import { saveProfile, setCap } from "../src/modules/matching/app/settings.js";
+import type { Profile } from "../src/modules/matching/domain/profile.js";
+import { maxCostMicros } from "../src/modules/matching/domain/spend.js";
 import { createMatching } from "../src/modules/matching/index.js";
+import { requestBytes, scoreRequest } from "../src/modules/matching/infra/prompts.js";
 import { readSettings, scoresFor } from "../src/modules/matching/infra/repo.js";
 import { matchingSpend } from "../src/modules/matching/infra/schema.js";
 import { type FakeProvider, fakeProvider, problem, scoreAnswer } from "./helpers/fake-provider.js";
@@ -126,6 +130,35 @@ describe("the scorer's queue (flow 1, AC-13, AC-21)", () => {
 
     setCap(deps, 800); // $8
     expect(states()).toEqual(["pending", "pending"]);
+    expect(getScoringHealth(deps, () => list).capReached).toBe(false);
+  });
+
+  it("a refused large posting does not hold back a smaller one once it leaves the list (AC-12, R23)", async () => {
+    seedProfile(t.db);
+    const ids = seedOpenPostings(t.db, 2, (i) => ({
+      firstFoundAt: i + 1,
+      title: `Role ${i + 1}`,
+      description: i === 1 ? "x ".repeat(100_000) : "We build remote-first software.",
+    }));
+    const [big, small] = postingsByIds(t.db, ids).sort((a, b) => b.firstFoundAt - a.firstFoundAt);
+    const profile = readSettings(t.db).profile as Profile;
+    const cost = (p: OpenPosting) =>
+      maxCostMicros(
+        requestBytes(scoreRequest(deps.config, profile, scoredText(p))),
+        deps.config.scoreOutputLimit,
+        deps.config.price,
+      );
+    // Room for the small posting's reservation, not the large one's.
+    setCap(deps, Math.floor((cost(small as OpenPosting) + cost(big as OpenPosting)) / 2 / 10_000));
+    list = [big, small] as OpenPosting[];
+    const s = scorer();
+    await s.pass();
+    expect(asked()).toEqual([]);
+
+    list = [small as OpenPosting]; // the owner marks the large one
+    await s.pass();
+    expect(asked()).toEqual(["Role 1"]);
+    expect(getScoringHealth(deps, () => list).capReached).toBe(false);
   });
 
   it("does nothing without a profile", async () => {

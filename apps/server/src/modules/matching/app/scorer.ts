@@ -66,7 +66,9 @@ export function createScorer(
     if (keyBlocked || deps.now() < retryAfter) return;
     while (!stopping) {
       const settings = repo.readSettings(deps.db);
-      if (!settings.profile || capState(deps).reached) return;
+      // Only the no-input bound stops a pass early: a refused reservation is retried with whatever heads
+      // the queue now, so a large posting that left the list does not hold back smaller ones (review R23).
+      if (!settings.profile || !capState(deps).fitsSmallest) return;
       const posting = next();
       if (!posting) return;
       const result = await scoreOne(deps, posting, settings.profile, settings.profileVersion, stopped.signal);

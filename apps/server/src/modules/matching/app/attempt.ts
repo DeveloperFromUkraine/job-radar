@@ -50,6 +50,7 @@ export async function scoreOne(
     deps.capRefused = { monthStart, cost: maxCost };
     return { kind: "cap_reached" };
   }
+  deps.capRefused = undefined; // the cap fits the queue again (review R23)
 
   const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params, {
     timeoutMs: cfg.scoreTimeoutMs,

@@ -12,5 +12,11 @@ export function capState(deps: MatchingDeps) {
   const cap = repo.readSettings(deps.db).capUsdMicros;
   const smallest = maxCostMicros(0, deps.config.scoreOutputLimit, deps.config.price);
   const refused = deps.capRefused?.monthStart === window.start ? deps.capRefused.cost : smallest;
-  return { window, spent, cap, reached: !fits({ spent, cost: Math.max(smallest, refused), cap }) };
+  return {
+    window,
+    spent,
+    cap,
+    fitsSmallest: fits({ spent, cost: smallest, cap }),
+    reached: !fits({ spent, cost: Math.max(smallest, refused), cap }),
+  };
 }
