@@ -23,7 +23,7 @@ const open = (health: SourceHealth | { status: number; body: unknown }[]) => {
 describe("SCR-02 source health page", () => {
   afterEach(() => vi.unstubAllGlobals());
 
-  it("loading: four card-shaped skeleton rows", () => {
+  it("loading: four card-shaped skeleton rows for the sources, one for scoring (match-score SCR-02)", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise(() => {})),
@@ -31,7 +31,7 @@ describe("SCR-02 source health page", () => {
     renderWithProviders(<App />, { route: "/sources" });
 
     expect(screen.getByRole("heading", { name: "Source health" })).toBeTruthy();
-    expect(screen.getAllByTestId("skeleton-row")).toHaveLength(4);
+    expect(screen.getAllByTestId("skeleton-row")).toHaveLength(5);
   });
 
   it("error: an inline banner with the API message and Retry", async () => {

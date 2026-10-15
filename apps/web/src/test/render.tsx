@@ -16,11 +16,14 @@ export function renderWithProviders(ui: ReactElement, { route = "/" } = {}) {
 
 type Reply = { status?: number; body: unknown };
 
-// Every main screen reads the location settings; unless a test says otherwise, no country is chosen.
+// Every main screen reads the location settings and scoring health; unless a test says otherwise, no
+// country is chosen, a profile is set up and scoring is healthy.
 const DEFAULTS = (): Record<string, Reply | Reply[]> => ({
   "GET /api/v1/remote-filter/settings": {
     body: contractExample("getRemoteFilterSettings", 200, "first_open"),
   },
+  "GET /api/v1/matching/health": { body: contractExample("getScoringHealth", 200, "healthy") },
+  "GET /api/v1/matching/settings": { body: contractExample("getMatchingSettings", 200, "with_profile") },
 });
 
 /** Stubs fetch: each path answers with the queued replies in order, repeating the last one. */
