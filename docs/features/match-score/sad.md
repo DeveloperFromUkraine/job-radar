@@ -259,6 +259,299 @@ sequenceDiagram
     end
 ```
 
+### Flow 4: saving the profile by hand or after an edit (AC-10, AC-16, AC-20, AC-21; ADR-0005)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as user (owner)
+    participant U as ui (profile screen SCR-03)
+    participant M as service (matching)
+    participant D as data-store
+    participant SC as service (matching scorer)
+
+    Note over O,M: Precondition: the profile screen is open with an empty or the current profile
+    O->>U: fills in or edits the fields and saves
+    U->>U: checks the fields before sending
+    alt the data notice was never agreed
+        U-->>O: data notice - the profile and each posting's text go to the LLM provider with every scoring, never a name or contact
+        alt owner declines
+            O->>U: declines
+            U-->>O: back to the editor, profile not saved, nothing sent
+        else owner agrees
+            O->>U: agrees
+            U->>M: record agreement
+            M->>D: notice agreed at
+            Note over M,D: persists the notice agreement (once)
+        end
+    end
+    U->>M: save profile
+    M->>M: validate - a core skill, salary with currency and period, years 0 to 60, skills up to 50 characters, no email, phone or web address in any field
+    alt a field is invalid
+        M-->>U: which field is wrong and what it must be
+        U-->>O: field error, profile and scores unchanged
+    else notice not agreed (guard)
+        M-->>U: refused, nothing saved or sent
+    else valid
+        M->>D: current profile and version
+        D-->>M: current profile
+        alt no profile field changed
+            M-->>U: saved, nothing becomes stale, nothing re-scored
+        else first profile or a profile field changed
+            M->>D: replace profile, bump profile version
+            Note over M,D: persists the profile and its version - scores with an older version now read as stale
+            M->>SC: wake
+            M-->>U: saved
+            U-->>O: back to the main screen, existing scores marked scored against your previous profile
+            Note over SC,D: postings with no score first, then stale ones, newest first, within the cap (flow 1)
+        end
+    end
+    Note over O,M: Postcondition: a saved profile holds no name or contact detail, and best match first uses new scores from the next load or refresh
+```
+
+The owner fills in or edits the profile and saves. If the data notice was never agreed, the screen shows it first. Declining returns to the editor with nothing saved or sent. Agreeing records the agreement once. Matching validates every field. An invalid field comes back named, with what it must be, and the profile and scores stay unchanged. Matching also refuses a save without an agreement, as a guard. A valid save that changes no profile field makes nothing stale. A first profile, or a real change, replaces the profile and bumps its version, which makes every score stale, and wakes the scorer. On the main screen, existing scores keep showing, marked "scored against your previous profile". The scorer redoes them after the postings that have no score.
+
+### Flow 5: drafting from a CV, refusals and declines (AC-07, AC-08, AC-20; ADR-0006, ADR-0007)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as user (owner)
+    participant U as ui (profile screen SCR-03)
+    participant M as service (matching)
+    participant D as data-store
+    participant X as external-system (LLM provider)
+
+    Note over O,M: Precondition: the owner chose a readable CV file - flow 3 shows the agreed, successful path and the unreadable-file refusal
+    alt the data notice was never agreed and the owner declines it
+        U-->>O: data notice
+        O->>U: declines
+        U-->>O: CV not read, nothing sent, profile unchanged
+    else notice agreed
+        U->>M: CV file in a JSON body
+        M->>M: extract text locally, remove contact details
+        M->>D: reserve the largest possible cost of a draft
+        alt cap would be exceeded
+            D-->>M: refused
+            M-->>U: the draft cannot be made, monthly cap reached, resumes on the first of next month
+        else reserved
+            M->>X: cleaned CV text, fixed profile schema
+            alt provider unreachable, rate-limited, key missing or refused
+                X-->>M: error
+                M->>D: keep the reservation as spent (no answer)
+                Note over M,D: persists a spend entry - kind draft, outcome failed
+                M-->>U: why the draft could not be made, in plain language
+            else answer fails validation
+                X-->>M: unusable draft, usage
+                M->>D: settle cost from usage
+                M-->>U: the draft could not be made, try again later
+            else usable draft
+                X-->>M: draft profile, usage
+                M->>D: settle cost from usage
+                Note over M,D: persists a spend entry - kind draft, outcome answered
+                M-->>U: draft beside the current profile, removed details listed
+                O->>U: declines the draft
+                U-->>O: current profile unchanged
+            end
+        end
+        M->>M: drop the CV text in every branch
+    end
+    Note over O,M: Postcondition: after any refusal or decline the profile is unchanged and the CV is not kept - the owner uploads it again later
+```
+
+This flow adds the paths flow 3 leaves out. If the owner declines the one-time data notice, the CV is not read and nothing is sent. Once the notice is agreed, matching extracts the text locally, removes contact details and tries to reserve the draft's largest possible cost. If that would exceed the cap, the owner is told the draft cannot be made until next month. If the provider is unreachable, rate-limited, or the key is missing or refused, the reservation stays as spent and the owner is told why. If the answer fails validation, its real cost is settled and the owner is told to try again later. If a usable draft comes back and the owner declines it, the current profile stays as it was. In every branch the CV text is dropped, so the owner uploads it again later.
+
+### Flow 6: changing the scoring cap (AC-19; ADR-0006)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as user (owner)
+    participant U as ui (profile screen SCR-03)
+    participant M as service (matching)
+    participant D as data-store
+    participant SC as service (matching scorer)
+
+    Note over O,M: Precondition: scoring is running, or stopped at the cap this month
+    O->>U: sets a new scoring cap
+    U->>M: save scoring cap
+    alt outside 0 to 100 dollars
+        M-->>U: the cap must be from 0 to 100 dollars, cap unchanged
+    else valid
+        M->>D: save cap
+        Note over M,D: persists the scoring cap - no score becomes stale
+        M->>D: this month's settled and reserved spend
+        D-->>M: spent so far
+        alt cap above what is spent
+            M->>SC: wake
+            M-->>U: saved, scoring resumes
+            Note over SC,D: newest first until an attempt no longer fits under the new cap (flow 1)
+        else cap at or below what is spent, or 0
+            M-->>U: saved, scoring stopped until next month, or paused at 0
+        end
+    end
+    U-->>O: the cap with this month's spend
+    Note over O,M: Postcondition: no attempt starts unless its largest possible cost fits under the cap
+```
+
+The owner sets a new cap on the profile screen. A value outside $0–$100 is refused and the cap stays as it was. A valid cap is saved, which makes no score stale. Matching then compares the cap with this month's spend. If the cap is above it, the scorer wakes and resumes newest first until the next attempt no longer fits. If the cap is at or below the spend, or is $0, scoring stays stopped until next month, or paused. The screen shows the cap beside this month's spend.
+
+### Flow 7: a scored posting changes, its score goes stale and is redone (AC-06, AC-18; ADR-0005)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as service (collector)
+    participant SC as service (matching scorer)
+    participant D as data-store
+    participant X as external-system (LLM provider)
+
+    Note over C,D: Trigger: a collection run finds the posting's text changed at its source, or a listing from another board merges into it
+    C->>D: update the posting or attach the merged listing
+    Note over C,D: persists the posting as today - the collector is unchanged and sends no event
+    Note over SC: next wake, every 60 s (flow 1)
+    SC->>D: the posting's score with its text fingerprint and profile version
+    SC->>SC: fingerprint the posting's current text
+    alt fingerprint and profile version match (idempotency key)
+        SC->>SC: skip - a posting seen again unchanged keeps its score, nothing is spent
+    else fingerprint differs
+        Note over SC,D: the old score stays shown, marked scored against an earlier version of this posting
+        SC->>SC: queue after postings with no score, newest first
+        SC->>X: score the current text - reserve, call, validate as flow 1
+        Note over SC,X: provider problems retried at most every 15 minutes, a missing or refused key after a restart (flow 1)
+        alt usable answer
+            X-->>SC: parts, note, claims, usage
+            SC->>D: replace the score with the new fingerprint and profile version, settle cost
+            Note over SC,D: persists one score per posting, keyed by posting id, with text fingerprint and profile version
+        else third unusable answer in a row
+            X-->>SC: answer that fails validation
+            SC->>D: settle cost, mark could not be scored until the posting or the profile changes
+            Note over SC,D: dead-letter - the posting stays in the list in its place with its reason
+        end
+    end
+```
+
+The collector updates a posting as it does today and sends no event. On its next wake, the scorer compares the fingerprint of the posting's current text, and the profile version, with those stored on its score. That pair is the idempotency key. If both match, the posting was only seen again unchanged: it keeps its score and nothing is spent. If the fingerprint differs, the old score keeps showing with the "earlier version" mark. The posting is queued after the postings that have no score, newest first, and scored as in flow 1. A provider problem is retried at most every 15 minutes, and a key problem after a restart. A usable answer replaces the score and stores the new fingerprint. A third unusable answer in a row is the dead-letter case: the posting shows "could not be scored", stays in its place in the list, and is not tried again until it or the profile changes.
+
+### Flow 8: changing the order or the skills, and the marked view (AC-11, AC-13; ADR-0004)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as user (owner)
+    participant U as ui (main screen SCR-01)
+    participant S as service (search)
+    participant M as service (matching)
+    participant D as data-store
+    participant SC as service (matching scorer)
+
+    Note over O,U: Precondition: the main screen is open with a profile set up
+    alt switches between newest first and best match first
+        O->>U: chooses the order
+        U->>S: run search with the chosen order
+        S->>D: save the chosen order beside the last skills
+        Note over S,D: persists the chosen list order in search state - kept for the next opening
+        S->>M: scores for the snapshot through the score reader
+        M-->>S: score and state per posting
+        S-->>U: new snapshot in that order, first 50 (flow 2)
+    else widens the skills, switches the remote filter off or starts a one-off look
+        O->>U: changes skills or the filter
+        U->>S: run search
+        S->>M: scores for the snapshot through the score reader
+        M->>SC: wake - a new list was read
+        M-->>S: newly entered postings read as pending
+        S-->>U: new snapshot, newly entered postings show pending
+        SC->>S: the owner's current list
+        S-->>SC: posting ids - marked and hidden postings are not among them
+        Note over SC,D: newly entered postings scored in their turn, no score before stale, newest first (flow 1)
+    else opens the marked view
+        O->>U: opens the marked view
+        U->>S: marked postings
+        S->>M: last scores through the score reader
+        M->>D: scores and fingerprints
+        M-->>S: last score per posting, with its stale mark if any
+        S-->>U: marked postings with their last score
+        Note over M,SC: marked postings are never in the owner's list, so they are never scored again
+    end
+    Note over O,U: Postcondition: the scorer re-reads the list on every pass, so a posting marked or hidden before its turn is not scored
+```
+
+Switching the order runs a new search in that order. Search keeps the choice beside the last skills, so it is in place at the next opening, and the snapshot comes back as in flow 2. Widening the skills, switching the remote filter off or starting a one-off look builds a new snapshot. The score reader call during that build wakes the scorer, and the postings that newly entered show "pending". The scorer then reads the owner's current list from search, which never holds marked or hidden postings, and scores the new ones in their turn: postings with no score before stale ones, newest first. The marked view reads each marked posting's last score, with its stale mark if it has one. Marked postings are never in the owner's list, so they are never scored again. Because the scorer re-reads the list on every pass, a posting marked or hidden before its turn is never scored.
+
+### Flow 9: scoring health and the main-screen problem marker (AC-12, AC-14, AC-18)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor O as user (owner)
+    participant U as ui (main screen SCR-01, source health SCR-02)
+    participant C as service (collector)
+    participant M as service (matching)
+    participant D as data-store
+
+    Note over O,M: Precondition: the scorer records every outcome and problem (flow 1)
+    O->>U: opens the main screen
+    U->>C: source problems
+    C-->>U: source problems as today
+    U->>M: scoring health
+    M->>D: last success, this month's spend and cap, pending count, oldest pending age, could-not-be-scored count this month, current problem
+    D-->>M: figures
+    M-->>U: scoring health
+    alt provider unreachable, key missing or refused
+        U-->>O: problem marker, leading to source health
+    else cap reached
+        U-->>O: line above the list - scoring cap reached, resumes on the first of next month - and the problem marker
+    else no scoring problem
+        U-->>O: marker only if a source has a problem
+    end
+    opt opens source health
+        O->>U: follows the marker or the navigation
+        U-->>O: scoring health beside the sources - the problem with its reason and when scoring last succeeded, spend against the cap, pending and oldest pending age, could not be scored this month
+    end
+    Note over O,M: Postcondition: cards keep showing not scored with the reason per posting (flow 2), nothing is hidden, and the collector is unchanged
+```
+
+On opening the main screen, the web reads the collector's source problems as it does today, and matching's scoring health: last success, this month's spend and cap, pending count and oldest pending age, how many postings could not be scored this month, and the current problem. A provider or key problem raises the problem marker. A reached cap raises it too, and adds the line above the list saying when scoring resumes. With no scoring problem, the marker shows only for a source problem. The source health screen shows the scoring health block beside the sources. Cards still give each posting's own reason, nothing is hidden, and the collector does not change.
+
+### Coverage
+
+| Spec item | Shown in |
+|---|---|
+| US-01 | flows 1, 2, 7 |
+| US-02 | flows 3, 5 |
+| US-03 | flow 4 |
+| US-04 | flows 2, 8 |
+| US-05 | flows 1, 6 |
+| US-06 | flows 1, 9 |
+| AC-01 | flow 1 (usable answer) |
+| AC-02 | flow 2 (same total and counts in either order) |
+| AC-03 | flow 1 (posting text as a data block, fixed schema, total computed in job-radar), flow 2 (note shown on the card). The median bound is not runtime: the evaluation run (§10 QG-5) checks it |
+| AC-04 | flow 1 ("compute total"): the neutral rule is a pure domain function, not a runtime step |
+| AC-05 | flow 2 (location verdicts read as today, the score never changes them). The median bound is not runtime: evaluation run (§10 QG-5) |
+| AC-06 | flow 7 |
+| AC-07 | flow 3 (confirm), flow 5 (decline) |
+| AC-08 | flow 3 (unreadable file), flow 5 (provider, key, cap) |
+| AC-09 | flow 3 (contact details removed and listed) |
+| AC-10 | flow 4 |
+| AC-11 | flow 2 (order, paging), flow 8 (choice kept) |
+| AC-12 | flow 1 (reservation refused), flow 9 (cap-reached line and marker) |
+| AC-13 | flow 1 (list read from search), flow 8 (newly entered postings, marked and hidden not scored) |
+| AC-14 | flow 1 (retry), flow 9 (scoring health, marker) |
+| AC-15 | flow 2 ("no profile" state) |
+| AC-16 | flow 4 (invalid field) |
+| AC-17 | not runtime: the loopback-only server and the cross-site guard in `core/access.ts` apply to every request, unchanged (collector ADR-0007) |
+| AC-18 | flow 1 (strike), flow 7 (third strike), flow 9 (count) |
+| AC-19 | flow 6 |
+| AC-20 | flow 3 (agree), flow 4 (first profile), flow 5 (decline) |
+| AC-21 | flow 4 (first profile) |
+
+### Flags from the runtime view
+
+- **Participant naming:** flows 1–3 (from `design`) name concrete participants, such as Claude API, Search and Collector. Flows 4–9 use the generic vocabulary, with the §5 module in brackets. Both describe the same participants: the LLM provider is the Claude API (ADR-0002). Flows 1–3 were left as written, since they are not edited here.
+- **Merge without a text change (AC-06):** staleness is judged by a fingerprint of the scored text (ADR-0005). So a listing merge that leaves the posting's scored text unchanged keeps its score current. AC-06 lists "a listing from another board merges into it" as a stale trigger without that condition. `data-model` and `tasks` should confirm that the fingerprint covers whatever a merge changes.
+- **Stale posting reaching three strikes (AC-06 vs AC-18):** flow 7 shows "could not be scored" after the third unusable answer. The spec does not say whether the earlier stale score stays visible beside that reason. This is a candidate for `screens`.
+- **Notice guard on the server:** flows 4 and 5 assume matching refuses a save or a draft when the notice was never agreed, not only the UI. This follows §10 QG-3 ("a draft or scoring before agreement sends nothing").
+
 ## 7. Deployment view
 
 No new deployment unit: the `matching` module and its background scorer run in the existing server process on the owner's machine, started on the server's ready hook and stopped through an abort signal on close, as the collector is (ADR-0001, ADR-0003). One new migration adds the three matching tables and the order field on `search_state`; it runs with the existing `db:migrate`, which backs up the database first. New configuration, read once at start: the provider key from the `ANTHROPIC_API_KEY` environment variable (the SDK's standard source; never in the repository, never shown or logged), the model id and the price table (defaults for `claude-opus-5-5`: $4 input, $20 output, $0.20 cache read per million tokens, plus the cache-write price from the provider's price list, checked in `implement`), and the scorer's concurrency (default 1). Without a key the feature runs in its AC-14 state ("not scored", reason shown); nothing else breaks. Deployment checklist gains: set the key, and set a spending limit in the provider account as the backstop for a leaked key (spec §6.1).
