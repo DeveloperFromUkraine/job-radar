@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 
 /** Bump when the prompt or the output schema changes: every score becomes stale (ADR-0008). */
-export const SCORER_VERSION = "1";
+export const SCORER_VERSION = "2";
 
 export const STRIKES_TO_GIVE_UP = 3;
 export const MAX_NOTE_WORDS = 40;

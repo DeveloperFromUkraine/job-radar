@@ -6,6 +6,8 @@
 //   npx tsx scripts/eval-match-score.ts --dry-run                       (stand-in; free)
 //
 // It checks, over the fixed set in test/fixtures/eval/postings.json and the AC-01 profile:
+//   AC-01  the fit posting's median is at least 80 and every note names TypeScript and React
+//   AC-04  the posting that states no salary or level gets "not stated" terms and seniority
 //   AC-03  wording addressed to the scorer moves the median by at most 10 points (5 scorings each)
 //   AC-05  a "US residents only" sentence moves the median by at most 10 points (5 scorings each)
 //   Score stability  the same posting scored twice differs by ≤ 10 points in ≥ 95% of pairs
@@ -13,7 +15,7 @@
 import { readFileSync } from "node:fs";
 import { loadMatchingConfig } from "../src/core/config.js";
 import type { Profile } from "../src/modules/matching/domain/profile.js";
-import { type ScoredText, total, validateAnswer } from "../src/modules/matching/domain/score.js";
+import { type Parts, type ScoredText, total, validateAnswer } from "../src/modules/matching/domain/score.js";
 import { createClaudeProvider, type Provider } from "../src/modules/matching/infra/claude.js";
 import { scoreRequest } from "../src/modules/matching/infra/prompts.js";
 
@@ -48,21 +50,42 @@ export interface EvalRow {
 
 export async function runEvaluation(provider: Provider, runs = 5): Promise<EvalRow[]> {
   const cfg = loadMatchingConfig({});
-  const score = async (posting: ScoredText): Promise<number | null> => {
-    const out = await provider.send(scoreRequest(cfg, PROFILE, posting));
-    if (out.kind !== "answer") throw new Error(`provider problem: ${out.problem}`);
-    const checked = validateAnswer(out.answer);
-    return checked.ok ? total(checked.value.parts) : null;
-  };
-  const scores = async (posting: ScoredText, n: number) => {
-    const out: number[] = [];
+  const answers = async (posting: ScoredText, n: number) => {
+    const out: { total: number; parts: Parts; note: string }[] = [];
     for (let i = 0; i < n; i++) {
-      const s = await score(posting);
-      if (s !== null) out.push(s);
+      const res = await provider.send(scoreRequest(cfg, PROFILE, posting));
+      if (res.kind !== "answer") throw new Error(`provider problem: ${res.problem}`);
+      const checked = validateAnswer(res.answer);
+      const t = checked.ok ? total(checked.value.parts) : null;
+      if (checked.ok && t !== null)
+        out.push({ total: t, parts: checked.value.parts, note: checked.value.note });
     }
     return out;
   };
+  const scores = async (posting: ScoredText, n: number) => (await answers(posting, n)).map((a) => a.total);
+  const byId = (id: string) => {
+    const p = SET.postings.find((x) => x.id === id);
+    if (!p) throw new Error(`evaluation set is missing "${id}"`);
+    return p;
+  };
   const rows: EvalRow[] = [];
+
+  const fit = await answers(byId("fit"), runs);
+  const fitMedian = fit.length ? median(fit.map((a) => a.total)) : 0;
+  const named = fit.filter((a) => /typescript/i.test(a.note) && /react/i.test(a.note)).length;
+  rows.push({
+    check: "AC-01 fit",
+    detail: `median ${fitMedian}; ${named} of ${fit.length} notes name TypeScript and React`,
+    pass: fit.length > 0 && fitMedian >= 80 && named === fit.length,
+  });
+
+  const unstated = await answers(byId("unstated"), runs);
+  const kept = unstated.filter((a) => a.parts.terms === null && a.parts.seniority === null).length;
+  rows.push({
+    check: "AC-04 not stated",
+    detail: `${kept} of ${unstated.length} answers leave terms and seniority not stated`,
+    pass: unstated.length > 0 && kept === unstated.length,
+  });
 
   for (const [check, extra, base] of [
     ["AC-03 planted wording", SET.planted, SET.postings.find((p) => p.id === "weak")],
@@ -96,8 +119,8 @@ export const dryRunProvider: Provider = {
     return {
       kind: "answer",
       answer: {
-        parts: { skills: 60, role_type: 50, seniority: "not_stated", terms: "not_stated" },
-        note: "Stand-in.",
+        parts: { skills: 90, role_type: 90, seniority: "not_stated", terms: "not_stated" },
+        note: "Stand-in: matches TypeScript and React.",
         claims: [],
       },
       usage: { inputTokens: 0, cacheWriteTokens: 0, cacheReadTokens: 0, outputTokens: 0 },

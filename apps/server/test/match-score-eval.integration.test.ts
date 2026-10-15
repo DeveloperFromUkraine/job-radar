@@ -7,6 +7,8 @@ describe("eval-match-score (dry run)", () => {
   it("passes every check against the deterministic stand-in", async () => {
     const rows = await runEvaluation(dryRunProvider);
     expect(rows.map((r) => r.check)).toEqual([
+      "AC-01 fit",
+      "AC-04 not stated",
       "AC-03 planted wording",
       "AC-05 location phrase",
       "Score stability",
@@ -22,5 +24,14 @@ describe("eval-match-score (dry run)", () => {
     );
     const rows = await runEvaluation(provider);
     expect(rows.find((r) => r.check.startsWith("AC-03"))?.pass).toBe(false);
+  });
+
+  it("fails AC-01 below 80 or without the core skills in the note, and AC-04 when unstated parts get a number (review R7)", async () => {
+    const low = await runEvaluation(fakeProvider(scoreAnswer({ skills: 40, role_type: 40 })), 1);
+    expect(low.find((r) => r.check === "AC-01 fit")?.pass).toBe(false);
+    const vague = await runEvaluation(fakeProvider(scoreAnswer({}, { note: "A good fit." })), 1);
+    expect(vague.find((r) => r.check === "AC-01 fit")?.pass).toBe(false);
+    const guessed = await runEvaluation(fakeProvider(scoreAnswer()), 1);
+    expect(guessed.find((r) => r.check === "AC-04 not stated")?.pass).toBe(false);
   });
 });
