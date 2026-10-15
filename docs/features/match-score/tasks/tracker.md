@@ -17,7 +17,7 @@
 | T10 | Give search a ScoreReader, the best-match order and a match on every posting | app | Volodymyr Kozlov | L | T01 | done |
 | T11 | Export the owner's list from search and show the last score in the marked view | app | Volodymyr Kozlov | S | T10 | done |
 | T12 | Implement matching's score reader and scoring health | app | Volodymyr Kozlov | M | T03, T05, T10, T11 | todo |
-| T13 | Implement one scoring attempt: reserve, ask, validate, store or strike, settle | app | Volodymyr Kozlov | M | T03, T04, T05, T06 | todo |
+| T13 | Implement one scoring attempt: reserve, ask, validate, store or strike, settle | app | Volodymyr Kozlov | M | T03, T04, T05, T06 | done |
 | T14 | Run the background scorer: polling, wake-ups, queue order, retry cadence, start and stop | app | Volodymyr Kozlov | M | T11, T13 | todo |
 | T15 | Expose matching's routes and wire the module into app.ts | ports | Volodymyr Kozlov | M | T08, T09, T12, T14 | todo |
 | T16 | Show the match on every card: API types, ScoreBadge and MatchSummary in the main list and the marked view | ui | Volodymyr Kozlov | M | — | done |
