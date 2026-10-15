@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { extractCvText, MAX_CV_BYTES } from "./cv-text.js";
 
@@ -79,5 +80,59 @@ describe("extractCvText (ADR-0007, AC-08)", () => {
   it("refuses text that is not UTF-8 text (binary content declared as text)", async () => {
     const r = await extractCvText({ mediaType: TXT, bytes: new Uint8Array([0, 1, 2, 0xff, 0xfe, 0]) });
     expect(r).toMatchObject({ ok: false, code: "MATCHING_CV_UNSUPPORTED" });
+  });
+});
+
+/** A minimal zip: one entry, deflated, with its central directory (the reader ignores CRCs). */
+function zip(name: string, content: Uint8Array): Uint8Array {
+  const data = deflateRawSync(content);
+  const n = Buffer.from(name);
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0);
+  local.writeUInt16LE(8, 8);
+  local.writeUInt32LE(data.length, 18);
+  local.writeUInt32LE(content.length, 22);
+  local.writeUInt16LE(n.length, 26);
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50, 0);
+  central.writeUInt16LE(8, 10);
+  central.writeUInt32LE(data.length, 20);
+  central.writeUInt32LE(content.length, 24);
+  central.writeUInt16LE(n.length, 28);
+  const cdStart = local.length + n.length + data.length;
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(1, 8);
+  end.writeUInt16LE(1, 10);
+  end.writeUInt32LE(central.length + n.length, 12);
+  end.writeUInt32LE(cdStart, 16);
+  return new Uint8Array(Buffer.concat([local, n, data, central, n, end]));
+}
+const xml = (text: string) =>
+  new TextEncoder().encode(
+    `<w:document><w:body><w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:body></w:document>`,
+  );
+
+describe("extractCvText on broken .docx files (AC-08, review R15)", () => {
+  it("reads a well-formed one built the same way (the control)", async () => {
+    const r = await extractCvText({
+      mediaType: DOCX,
+      bytes: zip("word/document.xml", xml("Senior TypeScript engineer")),
+    });
+    expect(r).toMatchObject({ ok: true });
+  });
+
+  it.each([
+    ["a truncated zip", () => zip("word/document.xml", xml("Senior TypeScript engineer")).subarray(0, 40)],
+    ["a zip with no word/document.xml", () => zip("word/other.xml", xml("Senior TypeScript engineer"))],
+    [
+      "a document part that inflates past the limit",
+      () => zip("word/document.xml", new Uint8Array(25 * 1024 * 1024)),
+    ],
+  ])("refuses %s as unsupported, without throwing", async (_n, make) => {
+    const bytes = make();
+    expect(bytes.length).toBeLessThan(MAX_CV_BYTES);
+    const r = await extractCvText({ mediaType: DOCX, bytes });
+    expect(r).toMatchObject({ ok: false, status: 400, code: "MATCHING_CV_UNSUPPORTED" });
   });
 });
