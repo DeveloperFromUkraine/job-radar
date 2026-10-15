@@ -11,3 +11,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseFile: env.DATABASE_FILE ?? "data/job-radar.sqlite",
   };
 }
+
+/** The machine's zone: clean-up's calendar day and tracking's grace day both count in it. */
+export const machineTimeZone = (): string => Intl.DateTimeFormat().resolvedOptions().timeZone;

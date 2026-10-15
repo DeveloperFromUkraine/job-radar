@@ -1,5 +1,6 @@
 // Typed client for the tracking API (docs/features/applied-skipped/contracts/openapi.yaml).
-import { type Mark, type MarkState, post } from "./search";
+import { post } from "./collector";
+import type { Mark, MarkState } from "./search";
 
 const marks = (postingId: string) => `/api/v1/tracking/marks/${encodeURIComponent(postingId)}`;
 

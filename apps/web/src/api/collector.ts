@@ -120,12 +120,14 @@ export async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const getProblems = () => request<ProblemSummary>("/api/v1/collector/problems");
 export const getSourceHealth = () => request<SourceHealth>("/api/v1/collector/source-health");
-export const collectNow = () =>
-  request<CollectNowResult>("/api/v1/collector/runs", {
+export const post = <T>(path: string, body: object = {}) =>
+  request<T>(path, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: "{}",
+    body: JSON.stringify(body),
   });
+
+export const collectNow = () => post<CollectNowResult>("/api/v1/collector/runs");
 
 export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   jobicy: { name: "Jobicy", url: "https://jobicy.com" },

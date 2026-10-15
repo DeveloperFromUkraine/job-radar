@@ -3,6 +3,7 @@ import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerAccessGuard } from "./core/access.js";
+import { machineTimeZone } from "./core/config.js";
 import { openDb } from "./core/db.js";
 import { registerErrorHandling } from "./core/errors.js";
 import { type CollectorModuleOptions, collectorModule } from "./modules/collector/index.js";
@@ -40,7 +41,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     const tracking = createTracking({
       db: handle.db,
       now: options.collector.now ?? Date.now,
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // the zone clean-up uses
+      timeZone: machineTimeZone(),
     });
     await app.register(
       collectorModule({ ...options.collector, handle, protectedPostings: tracking.protectedPostings }),

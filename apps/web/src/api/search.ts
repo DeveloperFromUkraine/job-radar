@@ -1,7 +1,7 @@
 // Typed client for the search API (docs/features/search-postings/contracts/openapi.yaml), with the
 // marked view from docs/features/applied-skipped/contracts/openapi.yaml and the mark- and location-aware
 // main list from docs/features/remote-filter/contracts/openapi.yaml.
-import { request } from "./collector";
+import { post } from "./collector";
 import type { LocationCheck, LocationFilter } from "./remoteFilter";
 
 export interface Visit {
@@ -106,13 +106,6 @@ export interface WaitingCount {
 }
 
 // Every search operation changes state, so all are JSON POSTs (access guard, collector ADR-0007).
-export const post = <T>(path: string, body: object = {}) =>
-  request<T>(path, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body),
-  });
-
 const snapshot = (id: string) => `/api/v1/search/snapshots/${encodeURIComponent(id)}`;
 
 export const openVisit = () => post<Visit>("/api/v1/search/visits");

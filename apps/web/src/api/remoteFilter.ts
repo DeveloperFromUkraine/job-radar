@@ -1,6 +1,5 @@
 // Typed client for the remote-filter API (docs/features/remote-filter/contracts/openapi.yaml).
-import { request } from "./collector";
-import { post } from "./search";
+import { post, request } from "./collector";
 
 export interface Country {
   /** ISO 3166-1 alpha-2 (XK for Kosovo). */

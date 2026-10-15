@@ -18,7 +18,7 @@ export type ParseResult = { ok: true; settings: Settings } | { ok: false; reason
 // Default tech categories, named exactly as each source publishes them (checked 2026-10-02):
 // Jobicy — GET /api/v2/remote-jobs?get=industries; Remotive — GET /api/remote-jobs/categories;
 // Himalayas publishes no category list — these are its job `parentCategories` values;
-// We Work Remotely — none until spec §8 Q1 is answered (the source stays disabled).
+// We Work Remotely — its RSS `<category>` names (spec §8 Q1, answered 2026-10-03).
 export const DEFAULT_SETTINGS: Settings = {
   sources: {
     jobicy: {
