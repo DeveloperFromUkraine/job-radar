@@ -21,7 +21,7 @@
 | T14 | Run the background scorer: polling, wake-ups, queue order, retry cadence, start and stop | app | Volodymyr Kozlov | M | T11, T13 | todo |
 | T15 | Expose matching's routes and wire the module into app.ts | ports | Volodymyr Kozlov | M | T08, T09, T12, T14 | todo |
 | T16 | Show the match on every card: API types, ScoreBadge and MatchSummary in the main list and the marked view | ui | Volodymyr Kozlov | M | — | done |
-| T17 | Add the order switch, the no-profile and cap-reached line, and scoring problems in the marker | ui | Volodymyr Kozlov | M | T16 | todo |
+| T17 | Add the order switch, the no-profile and cap-reached line, and scoring problems in the marker | ui | Volodymyr Kozlov | M | T16 | done |
 | T18 | Add the scoring health card to the source health screen | ui | Volodymyr Kozlov | S | T16 | todo |
 | T19 | Build the profile screen: route, AppNav link, ProfileForm, DataNotice and CapField | ui | Volodymyr Kozlov | L | T16 | todo |
 | T20 | Add CV upload and the draft review to the profile screen | ui | Volodymyr Kozlov | M | T19 | todo |

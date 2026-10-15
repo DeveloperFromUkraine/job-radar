@@ -3,6 +3,7 @@ import {
   getNextMarkedPage,
   getNextPage,
   getWaitingCount,
+  type ListOrder,
   type MarkedPage,
   type MarkedResult,
   openVisit,
@@ -27,6 +28,8 @@ export function useVisit() {
 export interface SearchRequest {
   skills: string;
   run: number;
+  /** Set when the owner switches the order; left out, the server uses the kept one (match-score AC-11). */
+  order?: ListOrder;
 }
 
 type Page = SearchResult | PostingPage;
@@ -38,11 +41,13 @@ type Cursor = { snapshotId: string; cursor: string } | null;
  */
 export function useSearchList(req: SearchRequest | null) {
   return useInfiniteQuery<Page, Error, { pages: Page[] }, (string | number)[], Cursor>({
-    queryKey: ["search", "list", req?.skills ?? "", req?.run ?? 0],
+    queryKey: ["search", "list", req?.skills ?? "", req?.run ?? 0, req?.order ?? ""],
     enabled: req !== null,
     initialPageParam: null,
     queryFn: ({ pageParam }) =>
-      pageParam ? getNextPage(pageParam.snapshotId, pageParam.cursor) : runSearch(req?.skills ?? ""),
+      pageParam
+        ? getNextPage(pageParam.snapshotId, pageParam.cursor)
+        : runSearch(req?.skills ?? "", req?.order),
     getNextPageParam: (last, pages) => {
       const first = pages[0] as SearchResult;
       return last.next_cursor ? { snapshotId: first.snapshot_id, cursor: last.next_cursor } : undefined;
