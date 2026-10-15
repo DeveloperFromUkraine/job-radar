@@ -23,7 +23,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive, We Work Remotely), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | shipped |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | shipped |
 | 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem | M | idea |
-| 5 | Remote filter in two modes — "can work from my country" and "open to country X" (no source states a company's own country) | idea-brief.md §2 Problem, [`spec`](features/remote-filter/spec.md) | S | spec'd |
+| 5 | Remote filter in two modes — "can work from my country" and "open to country X" (no source states a company's own country) | idea-brief.md §2 Problem, [`spec`](features/remote-filter/spec.md) | S | shipped |
 | 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | shipped |
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
 | 8 | Company watchlist for public ATS boards → see [Not yet specified](#not-yet-specified) | idea-brief.md §7 Recommendation | fog | idea |
@@ -105,3 +105,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 2 · Remote-boards collector | 2026-10-03 | branch `feature/remote-boards-collector` (no remote yet), [changelog](features/remote-boards-collector/changelog.md) |
 | 3 · Search on request | 2026-10-07 | [PR #2](https://github.com/DeveloperFromUkraine/job-radar/pull/2), [changelog](features/search-postings/changelog.md) |
 | 6 · Applied / skipped marks | 2026-10-14 | [PR #3](https://github.com/DeveloperFromUkraine/job-radar/pull/3) (stacked on #2), [changelog](features/applied-skipped/changelog.md) |
+| 5 · Remote filter | 2026-10-15 | branch `feature/remote-filter`, PR pending (stacked on #3), [changelog](features/remote-filter/changelog.md) |
