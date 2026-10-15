@@ -10,7 +10,7 @@
 | T03 | Write the score rules: total with fixed weights, answer validation, text fingerprint, staleness and the match state | domain | Volodymyr Kozlov | M | — | done |
 | T04 | Write the spend rules: largest possible cost, settled cost from usage, month boundary and cents rounding | domain | Volodymyr Kozlov | S | — | done |
 | T05 | Write matching's repo: settings singleton, scores, and the spend ledger with reserve-in-one-transaction | infra | Volodymyr Kozlov | M | T01, T04 | done |
-| T06 | Add the Claude client: SDK, configuration, fixed output schemas, usage, error classes and a stand-in provider | infra | Volodymyr Kozlov | M | T02, T03 | todo |
+| T06 | Add the Claude client: SDK, configuration, fixed output schemas, usage, error classes and a stand-in provider | infra | Volodymyr Kozlov | M | T02, T03 | done |
 | T07 | Extract CV text locally from PDF, Word (.docx) and plain text, with the AC-08 refusals | infra | Volodymyr Kozlov | M | — | done |
 | T08 | Implement the settings use cases: read settings, save profile, agree to the notice, set the cap | app | Volodymyr Kozlov | M | T02, T05 | todo |
 | T09 | Implement the CV draft use case: extract, remove contacts, reserve, ask, map to the fixed lists, drop the CV | app | Volodymyr Kozlov | M | T02, T04, T05, T06, T07 | todo |
