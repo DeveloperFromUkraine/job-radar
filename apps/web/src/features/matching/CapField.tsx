@@ -30,7 +30,6 @@ export function CapField({
 }) {
   const id = useId();
   const [text, setText] = useState(dollars(settings.cap_usd_cents));
-  const [spent, setSpent] = useState(settings.spent_usd_cents);
   const [flagged, setFlagged] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<string | null>(null);
@@ -48,7 +47,6 @@ export function CapField({
       (after) => {
         setSaving(false);
         setText(dollars(after.cap_usd_cents));
-        setSpent(after.spent_usd_cents);
         setSaved(
           after.cap_usd_cents === 0
             ? "Saved — scoring paused."
@@ -96,7 +94,7 @@ export function CapField({
             Use an amount from $0 to $100.
           </p>
         )}
-        <p className="text-sm">Spent this month: ${dollars(spent)}</p>
+        <p className="text-sm">Spent this month: ${dollars(settings.spent_usd_cents)}</p>
         <p className="text-sm text-text-muted">
           $0 pauses scoring. Also set a spending limit in your provider account.
         </p>

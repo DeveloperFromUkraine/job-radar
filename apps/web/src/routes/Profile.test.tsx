@@ -216,6 +216,18 @@ describe("SCR-03 scoring cap (AC-19)", () => {
     await waitFor(() => expect(back.getByLabelText("Cap in dollars")).toMatchObject({ value: "8.00" }));
   });
 
+  it("Spent this month follows the settings while the owner stays on the screen (AC-19, review R36)", async () => {
+    const later = { ...withProfile(), spent_usd_cents: 612 };
+    open({
+      [SETTINGS]: [{ body: withProfile() }, { body: later }],
+      [SAVE]: { body: { ...changed(), settings: later } },
+    });
+    const cap = await capField();
+    expect(cap.getByText("Spent this month: $4.98")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(await (await capField()).findByText("Spent this month: $6.12")).toBeTruthy();
+  });
+
   it("refuses a cap outside $0–$100 without sending", async () => {
     const { fetchMock } = open({ [SETTINGS]: { body: withProfile() } });
     const cap = await capField();
