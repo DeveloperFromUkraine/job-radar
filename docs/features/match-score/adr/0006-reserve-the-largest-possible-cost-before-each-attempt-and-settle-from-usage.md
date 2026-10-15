@@ -30,7 +30,7 @@ The month's scoring and profile drafting must never exceed the scoring cap, coun
 
 ## Decision outcome
 
-**Chosen:** Option 1. The check and the reservation happen in one synchronous transaction on the only connection, so two attempts cannot both pass the check. The ledger survives restarts and feeds scoring health (spend this month, failures) and the spending KPI. The largest possible cost is an upper bound, not an estimate: the request's input bounded from its size in characters (counted as one token per character, which no tokenizer exceeds), priced at the cache-write rate, plus its output limit at the output rate. Settlement prices every usage figure the answer reports — uncached input, cache writes, cache reads and output.
+**Chosen:** Option 1. The check and the reservation happen in one synchronous transaction on the only connection, so two attempts cannot both pass the check. The ledger survives restarts and feeds scoring health (spend this month, failures) and the spending KPI. The largest possible cost is an upper bound, not an estimate: the request's input bounded from its size in UTF-8 bytes (counted as one token per byte, a bound no byte-level tokenizer exceeds), priced at the cache-write rate, plus its output limit at the output rate. Settlement prices every usage figure the answer reports — uncached input, cache writes, cache reads and output.
 
 ## Consequences
 
