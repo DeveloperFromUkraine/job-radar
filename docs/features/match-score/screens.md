@@ -241,16 +241,16 @@ Every action on all three screens is at least 44×44 px. On phones, segmented op
 
 | Component | Why no existing primitive fits | Registered in design-system |
 |---|---|---|
-| ScoreBadge | Badge's tones are statuses (enabled, problem, notice, new). A score needs the three `score-*` tokens chosen by value, and a number with an accessible label ("Match 88 out of 100"). It could be a Badge tone, but the value-to-tone rule belongs with the score | pending |
-| MatchSummary | No component shows a value, a plain-text note, an expandable detail and five alternative states. PostingCard gains it through its existing slot pattern (additive prop), like the check line | pending |
-| OrderSwitch | MarkedToggle is an on/off switch. The order is a choice between two named options, so a native radio group styled as a segmented control is needed, with 44 px options | pending |
-| ScoringNotice | InlineBanner covers the look (info / warning). This is a thin wrapper that picks the no-profile or cap-reached text and action from health and settings, so SearchList need not know scoring. It composes InlineBanner and Button | pending |
-| ScoringHealthCard | SourceCard is bound to one source's flags and runs. Scoring has spend, pending, age and a problem with a reason. It composes Badge, Button and InlineBanner | pending |
-| ProfileForm | No form exists beyond the single-input SkillsField and CountryChoice. It has seven fields with fixed lists, a repeatable skill row and field-level errors, and follows SkillsField's error pattern (`aria-describedby`, `aria-invalid`) | pending |
-| CvUpload | No file input exists. It is a native `<input type="file">` behind a labelled 44 px button, with client-side kind and size checks | pending |
-| DraftReview | It shows a proposed profile with per-field provenance tags beside the current one. ProfileForm is for editing; this view is for comparing. It reuses ProfileForm's fields for corrections | pending |
-| DataNotice | It is a consent step that blocks the triggering action until agreed. InlineBanner is non-blocking and has a single action | pending |
-| CapField | It is a money input with the month's spend and a three-way saved message. It is too specific for a generic input, and composes Button and InlineBanner | pending |
+| ScoreBadge | Badge's tones are statuses (enabled, problem, notice, new). A score needs the three `score-*` tokens chosen by value, and a number with an accessible label ("Match 88 out of 100"). It could be a Badge tone, but the value-to-tone rule belongs with the score | yes |
+| MatchSummary | No component shows a value, a plain-text note, an expandable detail and five alternative states. PostingCard gains it through its existing slot pattern (additive prop), like the check line | yes |
+| OrderSwitch | MarkedToggle is an on/off switch. The order is a choice between two named options, so a native radio group styled as a segmented control is needed, with 44 px options | yes |
+| ScoringNotice | InlineBanner covers the look (info / warning). This is a thin wrapper that picks the no-profile or cap-reached text and action from health and settings, so SearchList need not know scoring. It composes InlineBanner and Button | yes |
+| ScoringHealthCard | SourceCard is bound to one source's flags and runs. Scoring has spend, pending, age and a problem with a reason. It composes Badge, Button and InlineBanner | yes |
+| ProfileForm | No form exists beyond the single-input SkillsField and CountryChoice. It has seven fields with fixed lists, a repeatable skill row and field-level errors, and follows SkillsField's error pattern (`aria-describedby`, `aria-invalid`) | yes |
+| CvUpload | No file input exists. It is a native `<input type="file">` behind a labelled 44 px button, with client-side kind and size checks | yes |
+| DraftReview | It shows a proposed profile with per-field provenance tags beside the current one. ProfileForm is for editing; this view is for comparing. It reuses ProfileForm's fields for corrections | yes |
+| DataNotice | It is a consent step that blocks the triggering action until agreed. InlineBanner is non-blocking and has a single action | yes |
+| CapField | It is a money input with the month's spend and a three-way saved message. It is too specific for a generic input, and composes Button and InlineBanner | yes |
 
 Extended, not new:
 - **ProblemMarker:** also shows for a scoring problem, with its text naming scoring.

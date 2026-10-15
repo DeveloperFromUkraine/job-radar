@@ -121,7 +121,7 @@ apps/server/src/modules/matching/
 │                 answer validation (AC-18), text fingerprint, cap rule (largest possible cost, month boundary)
 ├── app/          profile use cases (save, change-detection, notice consent), CV draft, scorer (queue, one attempt at a time,
 │                 retry policy), scoring health, scoreReader export for search, cap settings
-├── infra/        schema (matching_settings singleton, match_scores, scoring_spend), repo, claude client (SDK wrapper:
+├── infra/        schema (matching_settings singleton, matching_scores, matching_spend), repo, claude client (SDK wrapper:
 │                 structured output, usage, error classes), cv text extraction (PDF, DOCX, text)
 ├── ports/        routes: profile, CV draft, cap, notice, scoring health
 └── index.ts      createMatching(deps) → { plugin, scoreReader, start/stop } registered in app.ts
@@ -132,7 +132,7 @@ apps/web/src/                     routes/Profile.tsx (SCR-03), features/matching
                                   no-profile and cap lines, notice step), features/source-health/ (scoring health block, marker)
 ```
 
-Tables (shapes fixed in `data-model`): `matching_settings` — one row: the profile (fields per CONTEXT: Profile) and its version, the scoring cap, when the data notice was agreed; `match_scores` — one row per scored posting: four parts, note, quoted claims, total, text fingerprint, profile version, strikes and last failure, removed with the posting; `scoring_spend` — one row per attempt: kind (score / draft), reserved and settled cost, model, usage, outcome, time. The chosen list order lives in search's existing `search_state` row, beside the last skills.
+Tables (shapes fixed in `data-model`): `matching_settings` — one row: the profile (fields per CONTEXT: Profile) and its version, the scoring cap, when the data notice was agreed; `matching_scores` — one row per scored posting: four parts, note, quoted claims, total, text fingerprint, profile version, strikes and last failure, removed with the posting; `matching_spend` — one row per attempt: kind (score / draft), reserved and settled cost, model, usage, outcome, time. The chosen list order lives in search's existing `search_state` row, beside the last skills.
 
 **C4 Container (L2):**
 
@@ -212,9 +212,14 @@ sequenceDiagram
     Web->>Search: run search with skills and the kept order
     Search->>DB: open postings, marks, location verdicts as today
     Search->>Matching: scores for the matching postings through the score reader
-    Matching->>DB: current scores and fingerprints
-    Matching-->>Search: per posting - score, parts, note, claims and state (scored, earlier version, pending, not scored - provider or key problem, cap reached, could not be scored, no profile)
-    Search->>Search: order - postings with no score newest first, then scores high to low, ties newest first
+    alt scores readable
+        Matching->>DB: current scores and fingerprints
+        Matching-->>Search: per posting - score, parts, note, claims and state (scored, earlier version, pending, not scored - provider or key problem, cap reached, could not be scored, no profile)
+        Search->>Search: order - postings with no score newest first, then scores high to low, ties newest first
+    else scores unreadable (fail-open, api-sync F-3)
+        Matching-->>Search: error
+        Search->>Search: newest first with no matches - a score only orders, so the list never waits on it
+    end
     Search->>Search: fix order and scores in the snapshot, same total and counts as newest first
     Search-->>Web: first 50 with their scores and states
     Web-->>Owner: cards with score and note, or why there is none
@@ -563,7 +568,7 @@ No new deployment unit: the `matching` module and its background scorer run in t
 
 **Scaling thresholds:**
 - One attempt at a time keeps the 15-minute freshness target up to about 200 new postings an hour entering the list (a scoring takes seconds); above that, raise the scorer's concurrency to 2–3.
-- `match_scores` holds at most one row per open posting (10,000 in the search NFR); `scoring_spend` grows by one row per attempt — about 1,500–3,000 a month — comfortable in SQLite for years; trimming rows older than 12 months is optional housekeeping.
+- `matching_scores` holds at most one row per open posting (10,000 in the search NFR); `matching_spend` grows by one row per attempt — about 1,500–3,000 a month — comfortable in SQLite for years; trimming rows older than 12 months is optional housekeeping.
 
 ## 8. Crosscutting concepts
 
