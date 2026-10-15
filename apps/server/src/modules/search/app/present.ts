@@ -1,5 +1,5 @@
 // OpenPosting → the API's Posting (docs/features/remote-filter/contracts/openapi.yaml, which adds
-// location_check in presentPage). Descriptions are never sent; a link only for an open listing with an
+// location_check in presentPage; docs/features/match-score/contracts/openapi.yaml adds match). Descriptions are never sent; a link only for an open listing with an
 // http(s) URL (AC-08, AC-09).
 import type { OpenPosting } from "../../collector/app/open-postings.js";
 import type { LookAlike } from "../../tracking/app/queries.js";
@@ -7,6 +7,7 @@ import { safeUrl } from "../domain/links.js";
 import type { MatchedSkill } from "../domain/match.js";
 import { effectiveTime } from "../domain/order.js";
 import { isNew } from "../domain/visit.js";
+import type { MatchView } from "./deps.js";
 
 const iso = (ms: number) => new Date(ms).toISOString();
 
@@ -35,6 +36,21 @@ export function presentPosting(
 }
 
 export type Posting = ReturnType<typeof presentPosting>;
+
+/** A MatchView as the contract's `Match`; null when there is no profile or scores could not be read. */
+export function presentMatch(m: MatchView | undefined) {
+  if (!m) return null;
+  const { parts, ...rest } = m;
+  return {
+    ...rest,
+    parts: parts && {
+      skills: parts.skills,
+      role_type: parts.roleType,
+      seniority: parts.seniority,
+      terms: parts.terms,
+    },
+  };
+}
 
 export const PAGE_SIZE = 50;
 

@@ -34,8 +34,44 @@ export interface LocationReader {
   verdictsFor(postings: readonly OpenPosting[], country: string, date: Date): Map<string, Verdict>;
 }
 
+/** A posting's match as search shows it (match-score contract `Match`); computed by matching. */
+export interface MatchView {
+  state: "scored" | "pending" | "not_scored" | "cap_reached" | "could_not_score";
+  total: number | null;
+  parts: {
+    skills: number | null;
+    roleType: number | null;
+    seniority: number | null;
+    terms: number | null;
+  } | null;
+  note: string | null;
+  claims: string[];
+  stale: "posting_changed" | "profile_changed" | null;
+  reason: string | null;
+}
+
+/**
+ * Matching's answers search needs (match-score ADR-0004). Wired at the composition root, so search never
+ * imports matching. A score only orders and informs: it never changes which postings are listed.
+ */
+export interface ScoreReader {
+  hasProfile(): boolean;
+  /** Each posting's match, from the postings' current text (staleness, ADR-0005). */
+  matchesFor(postings: readonly OpenPosting[]): Map<string, MatchView>;
+  /** A new list was read: the scorer looks at it now (match-score AC-13). */
+  listRead(): void;
+}
+
+/** No matching wired in (or no profile): the list works exactly as before (match-score AC-15). */
+export const NO_SCORES: ScoreReader = {
+  hasProfile: () => false,
+  matchesFor: () => new Map(),
+  listRead: () => {},
+};
+
 export interface SearchLog {
   info(obj: object, msg: string): void;
+  warn?(obj: object, msg: string): void;
 }
 
 /** What search's use cases need; the clock is injected so every rule is testable. */
@@ -48,6 +84,8 @@ export interface SearchDeps {
   marks?: MarkReader;
   /** Default: remote-filter's app exports on `db`. Replaced in tests to simulate unreadable settings. */
   location?: LocationReader;
+  /** Default: no scores. app.ts wires matching's reader (match-score ADR-0004). */
+  scores?: ScoreReader;
   log?: SearchLog;
 }
 

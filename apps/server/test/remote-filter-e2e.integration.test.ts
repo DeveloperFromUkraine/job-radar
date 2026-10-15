@@ -16,7 +16,8 @@ import { type FakeSources, json, startFakeSources, xml } from "./helpers/fake-so
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 // AC-10 and AC-11 end to end: real source readers, merge and routes; only the boards are fake.
-const contract = loadContract("remote-filter");
+// runSearch as restated by match-score (it supersedes remote-filter's).
+const contract = loadContract("match-score");
 const marksContract = loadContract("applied-skipped");
 const T0 = Date.UTC(2026, 9, 14, 8);
 const headers = { host: "127.0.0.1:3000" };
