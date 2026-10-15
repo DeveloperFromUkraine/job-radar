@@ -111,49 +111,51 @@ Each tactical decision in later sections traces to one of these seeds. Tactical 
 
 ## 5. Building block view
 
-<!-- 🎯 Why: INTERNAL DECOMPOSITION — modules, containers, datastores. The static topology: who
-     may talk to whom. Without §5, §6 (the flows) has no vocabulary of participants.
-     📋 Write: 1 ¶ on the style (layered / hexagonal / clean / event-driven) + a folder tree + a
-     C4Container block.
-     📌 Draw ONE Container per declared `target_surface` (frontmatter): a fullstack
-     [backend-service, web-frontend] = a backend-API container + a web/SPA container; a
-     [backend-service, mobile-app] = the API + the mobile app. The Container(web, …) line below is
-     just one surface's container — swap/add per what was declared in §4. → _shared/surfaces.md
-     📌 e.g. «web app, content API, media worker, datastore, object store, CDN». -->
-
-<One paragraph: layered / hexagonal / clean / event-driven, and why.>
+Layered, as every module in the repo (project ADR 0002): `domain/` holds pure rules with no I/O, `app/` the use cases and the exports other modules may call, `infra/` the tables, the Claude client and the CV reader, `ports/` the routes. `matching` reads postings through `collector/app/` and the owner's list through a new `search/app/` export; search reads scores through a `ScoreReader` that `app.ts` wires in (ADR-0004). Scoring health is matching's own; the web shows the main-screen problem marker when either the collector's problems or matching's scoring health report a problem, so the collector is unchanged.
 
 **Internal decomposition:**
 
 ```
-<e.g. modules/<feature>/>
-├── domain/       <entities + sentinel errors>
-├── app/          <use cases / services>
-├── infra/        <repository + integration impl>
-├── ports/        <handlers, DTOs, error mapping>
-└── wiring        <self-wiring entry point>
+apps/server/src/modules/matching/
+├── domain/       profile rules (fixed lists, field checks, contact detection), score total (weights 50/20/15/15, neutral rule),
+│                 answer validation (AC-18), text fingerprint, cap rule (largest possible cost, month boundary)
+├── app/          profile use cases (save, change-detection, notice consent), CV draft, scorer (queue, one attempt at a time,
+│                 retry policy), scoring health, scoreReader export for search, cap settings
+├── infra/        schema (matching_settings singleton, match_scores, scoring_spend), repo, claude client (SDK wrapper:
+│                 structured output, usage, error classes), cv text extraction (PDF, DOCX, text)
+├── ports/        routes: profile, CV draft, cap, notice, scoring health
+└── index.ts      createMatching(deps) → { plugin, scoreReader, start/stop } registered in app.ts
+
+apps/server/src/modules/search/   app/deps.ts gains ScoreReader; app/ gains ownerListIds(); snapshot keeps a score per posting
+                                  and the best-match order; search_state keeps the chosen order (AC-11)
+apps/web/src/                     routes/Profile.tsx (SCR-03), features/matching/ (score on PostingCard, order switch,
+                                  no-profile and cap lines, notice step), features/source-health/ (scoring health block, marker)
 ```
 
-**C4 Container (L2):** <!-- syntax → references/c4-mermaid-syntax.md. Real names, no <placeholder> stubs. ONE Container per declared target_surface (frontmatter); the web container below is one example surface. -->
+Tables (shapes fixed in `data-model`): `matching_settings` — one row: the profile (fields per CONTEXT: Profile) and its version, the scoring cap, when the data notice was agreed; `match_scores` — one row per scored posting: four parts, note, quoted claims, total, text fingerprint, profile version, strikes and last failure, removed with the posting; `scoring_spend` — one row per attempt: kind (score / draft), reserved and settled cost, model, usage, outcome, time. The chosen list order lives in search's existing `search_state` row, beside the last skills.
+
+**C4 Container (L2):**
 
 ```mermaid
 C4Container
-    title <feature> — Containers
+    title match-score - Containers
 
-    Person(actor, "<Actor>")
+    Person(owner, "Owner", "Reads scores, edits the profile, sets the cap")
 
-    Container_Boundary(app, "<Our system>") {
-        Container(web, "<Web/UI>", "<technology>", "<purpose>")
-        Container(api, "<API/handler>", "<technology>", "<purpose>")
-        ContainerDb(db, "<Datastore>", "<technology>", "<purpose>")
+    Container_Boundary(jr, "job-radar") {
+        Container(web, "Web SPA", "React 19, Vite, TanStack Query", "Main screen with scores and order switch, profile screen, source health with scoring health")
+        Container(api, "Server", "Node 22, Fastify 5", "Collector, search, tracking, remote-filter and the new matching module with its background scorer")
+        ContainerDb(db, "Local database", "SQLite via Drizzle", "Postings, marks, settings; new: matching settings and profile, scores, spend ledger")
     }
 
-    System_Ext(ext, "<External>", "<purpose>")
+    System_Ext(claude, "Claude API", "Drafts a profile from CV text; scores a posting against the profile")
+    System_Ext(sources, "Job sources", "Remote job boards")
 
-    Rel(actor, web, "<interaction>", "<protocol>")
-    Rel(web, api, "<calls>")
-    Rel(api, db, "<reads/writes>", "<driver>")
-    Rel(api, ext, "<emits>", "<protocol>")
+    Rel(owner, web, "Uses", "browser")
+    Rel(web, api, "Calls", "JSON over loopback")
+    Rel(api, db, "Reads and writes", "better-sqlite3")
+    Rel(api, claude, "Drafts and scores", "HTTPS, official SDK")
+    Rel(api, sources, "Collects postings", "HTTPS")
 ```
 
 ## 6. Runtime view
