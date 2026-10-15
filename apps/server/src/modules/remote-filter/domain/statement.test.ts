@@ -94,6 +94,15 @@ const cases: Array<[string | null, string, ListingVerdict]> = [
   ["USA 🇵", "PL", check("not_recognised")],
   ["US + Canada", "PL", NOT_OPEN],
   ["US & Canada", "PL", NOT_OPEN],
+  // Re-review 2 N-1b: only a fixed set separates words; any other joiner is unknown, never a split range
+  ["UTC-1 -> UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 => UTC+3", "PL", check("not_recognised")],
+  ["UTC-1..UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 〜 UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 ‒ UTC+3", "PL", check("not_recognised")],
+  ["UTC-1 ― UTC+3", "PL", check("not_recognised")],
+  ["Remote - USA", "PL", NOT_OPEN],
+  ["USA. Canada.", "PL", NOT_OPEN],
 ];
 
 describe("listingVerdict (AC-01, AC-02)", () => {

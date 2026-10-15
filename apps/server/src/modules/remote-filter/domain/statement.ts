@@ -104,9 +104,9 @@ function read(statement: string): Reading {
       }
       return " , ";
     });
-  // Only spaces, punctuation and a few list joiners separate words. Any letter, emoji or other symbol left
-  // over (Польша, 🌍, "~", "→") is a word, unknown → check (review F-1, re-review N-1).
-  for (const w of rest.split(/(?:[^\p{L}\p{N}%\p{S}]|[+<>=|^])+/u)) {
+  // Only a fixed set separates words: spaces, list punctuation, ZONE_RE's own dashes and a lone dot. Anything
+  // else left over (Польша, 🌍, "~", "->", "..", "〜", "‒") is a word, unknown → check (review F-1, N-1, N-1b).
+  for (const w of rest.split(/(?:[\s,;/|()[\]:!?"'*·•&+\-–—−]|(?<!\.)\.(?!\.))+/u)) {
     if (!w || FILLER_WORDS.has(w)) continue;
     if (EXCEPTION_WORDS.has(w)) r.exception = true;
     else r.unknown = true;

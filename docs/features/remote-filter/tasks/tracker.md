@@ -24,5 +24,7 @@
 | T17 | [Review fix F-3: empty-message switch shows pending and error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | — | done |
 | T18 | [Re-review fix N-1: other symbols count as unknown words](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T15 | done |
 | T19 | [Re-review fix N-2: a filter change clears the old switch error](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T17 | done |
+| T20 | [Re-review 2 fix N-1b: a fixed separator set](../_review/review-2026-10-15.md) | domain | Volodymyr Kozlov | S | T18 | done |
+| T21 | [Re-review 2 fix N-2b: switches clear old errors on a new list](../_review/review-2026-10-15.md) | ui | Volodymyr Kozlov | S | T19 | done |
 
-**Total:** 19 tasks, ~6.75 person-days (S ≈ ¼ day, M ≈ ½ day).
+**Total:** 21 tasks, ~7.25 person-days (S ≈ ¼ day, M ≈ ½ day).

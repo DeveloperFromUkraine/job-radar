@@ -378,6 +378,43 @@
         "apps/web/src/routes/Home.location.test.tsx"
       ],
       "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T20",
+      "title": "Re-review 2 fix N-1b: only a fixed set of characters separates words, so any other range joiner (->, .., 〜, ‒) is an unknown word",
+      "layer": "domain",
+      "deps": [
+        "T18"
+      ],
+      "acs": [
+        "AC-01"
+      ],
+      "dod": "statement.test pins \"UTC-1 -> UTC+3\", \"=>\", \"..\", \"〜\", \"‒\" and \"―\" for PL as check / not_recognised (fails without the fix); \"Remote - USA\" and \"USA. Canada.\" still not_open; the never-a-wrong-hide property includes \"->\", \"..\" and \"〜\"",
+      "files_hint": [
+        "apps/server/src/modules/remote-filter/domain/statement.ts",
+        "apps/server/src/modules/remote-filter/domain/statement.test.ts",
+        "apps/server/src/modules/remote-filter/domain/verdict.test.ts"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T21",
+      "title": "Re-review 2 fix N-2b: each filter switch clears its old error when the list's filter changes, never while its own request runs",
+      "layer": "ui",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Home.location tests pin it (fail without the fix): a bar switch error is gone after the empty message's switch succeeds; the empty message's switch still in flight keeps pending and shows its later error after a bar change",
+      "files_hint": [
+        "apps/web/src/features/remote-filter/queries.ts",
+        "apps/web/src/features/remote-filter/LocationFilterBar.tsx",
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.location.test.tsx"
+      ],
+      "file": "docs/features/remote-filter/_review/review-2026-10-15.md"
     }
   ]
 }
