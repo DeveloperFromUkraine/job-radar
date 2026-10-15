@@ -107,11 +107,12 @@ paths:
         `MATCHING_INVALID_PROFILE` message names the field and what it must be, as the backstop: every
         field rule (lengths, ranges, counts, fixed lists, the currency code, whole numbers, no
         duplicates) answers it, including the bounds listed in `Profile`; a non-numeric `years` or
-        `min_salary.amount` is such a rule. The server converts simple values to the schema's type
-        before the rules run (Fastify's default): a number becomes text, `"true"`/`"false"`/`1`/`0`/
-        `null` a boolean `core`, a one-item array its item, and a `null` name an empty one, which the
-        rules then refuse. Only a body of the wrong shape (a missing or extra field, an object, or an
-        array of other than one item, where text or a boolean is expected) gets `VALIDATION_ERROR`.
+        `min_salary.amount` is such a rule. Before the rules run, the server converts a value to the
+        schema's type where it can (Fastify's default type coercion): for example a number or boolean
+        name becomes text, `"true"`/`"false"`/`1`/`0`/`null` a boolean `core`, a one-item array its
+        item for a single-type field (not `seniority`), and `""`/`0`/`false` for `min_salary` becomes
+        `null`, which clears the salary. A missing or extra field, or a value the schema cannot convert
+        to its type, gets `VALIDATION_ERROR`.
       operationId: saveProfile
       requestBody:
         required: true
