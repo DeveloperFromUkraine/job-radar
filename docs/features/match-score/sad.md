@@ -339,22 +339,20 @@ Each quality goal from §1 expanded into a full scenario; numbers from spec §6 
 
 ## 11. Risks and technical debt
 
-<!-- 🎯 Why: ⭐ collects EVERYTHING that can break — not only the technical. Without §11 risks get
-     discussed at standups and lost; debt lives only in the head of whoever accepted it.
-     📋 Write: a risk/debt table — severity — mitigation — owner. Accepted debt in its own block.
-     📌 The first risk is often a product risk, not a technical one. That's normal. -->
-
-<!-- Severity literals: Low / Medium / High for regular risks; "Open question" for rows created by
-     a Save-as-OQ resolution during the Socratic walk (see references/socratic.md). -->
-
 | Risk / debt | Severity | Mitigation | Owner |
 |---|---|---|---|
-| <e.g. Worker lag may reach hours during a downstream outage> | Medium | <alert >10 min, on-call playbook, retry backoff> | <DevOps> |
-| <e.g. No event-schema versioning in v1> | Medium | <ADR-NNNN planned for v2, tolerate unknown fields> | <Backend> |
-| Open architectural decision: <decision-headline> | Open question | Resolve before <stage trigger or YYYY-MM-DD>; <inline rationale from the Save-as-OQ> | <owner> |
+| Product: at the $5 default, Opus 5.5 covers about 270 scorings — roughly one to two weeks of the owner's stream (ADR-0002) | Medium | The cap-reached line says so and when scoring resumes (AC-12); the owner raises the cap (AC-19, about $15–30 for the full stream); measure the real cost per scoring in `implement` and, if needed, switch the model by configuration after a Score stability run | Volodymyr Kozlov |
+| Planted wording in posting text still moves the part scores | Medium | Fixed output schema, total computed in job-radar, posting text in a delimited data block, claims shown as the posting's words (ADR-0008); AC-03 evaluation run before `ship` | Volodymyr Kozlov (Security Lead) |
+| Scores bunch in a narrow band and the applied-vs-skipped KPI is missed | Medium | Review the KPI at 30 days (spec §7); calibrate the instructions and part definitions; re-run the evaluation set after each change | Volodymyr Kozlov |
+| The stored price drifts from the provider's price list, so job-radar's spend count understates the bill | Low | Price table is configuration; set a spending limit in the provider account (spec §6.1, §7 deployment checklist) | Volodymyr Kozlov |
+| Two new dependencies for reading PDF and Word files | Low | Pick small, maintained libraries in `tasks`; they only read local files; pin versions | Volodymyr Kozlov |
+| Brownfield: `docs/architecture-map.md` is stale (reflects 133499e, about 200 commits behind) | Low | Run `/sdd:survey` to refresh it after this feature ships | Volodymyr Kozlov |
+| Spec §8 Q1 open: should the profile's core skills also bring postings into the list | Low | Default stays: typed skills alone decide the list; decide by 2026-10-31 | Volodymyr Kozlov |
 
 **Accepted debt (acceptable in v1, plan to fix later):**
-- <e.g. the entity is immutable / unversioned — OK for v1, may need audit versioning in v2>
+- Only the current score per posting is kept; no history of earlier scores.
+- The scorer runs one attempt at a time; raise concurrency if the stream exceeds about 200 postings an hour (§7).
+- Postings that newly enter the list after switching the filter off, widening skills or starting a one-off look show "pending" until scored in their turn (AC-13).
 
 ## 12. Glossary
 
