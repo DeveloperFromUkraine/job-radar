@@ -1,0 +1,1554 @@
+openapi: 3.1.0
+
+info:
+  title: job-radar Match-score API (match-score)
+  version: 0.1.0
+  description: |
+    A skill match says only that a word appears: the owner still opens every posting to learn
+    whether it is their kind of role, at their level, on terms they would take (spec §1). This API
+    keeps the owner's profile, drafts one from an uploaded CV, records the one-time data notice,
+    sets the monthly scoring cap and reports scoring health; search returns each posting with its
+    match score, or why it has none, and can order the list best match first.
+
+    Scope of this document:
+    - **matching** (new): read and save the profile, agree to the data notice, set the scoring cap,
+      draft a profile from a CV, read scoring health (ADR-0001). Scoring itself runs in the
+      background (ADR-0003) and has no HTTP operation.
+    - **search** (changed): `runSearch` and `getNextPage` restated with the list order and a
+      `match` on every posting; `runMarkedView` and `getNextMarkedPage` restated with each marked
+      posting's last score. These restatements supersede the same operations in
+      `docs/features/remote-filter/contracts/openapi.yaml` (runSearch, getNextPage) and
+      `docs/features/applied-skipped/contracts/openapi.yaml` (marked view). `openVisit` and
+      `getWaitingCount` are unchanged and not repeated here.
+    - **collector**: no HTTP change. The main-screen problem marker shows when
+      `GET /api/v1/collector/problems` reports a problem **or** `getScoringHealth.problem` is set
+      (sad.md §5, flow 9).
+
+    Access (collector ADR-0007), unchanged: no accounts, loopback only, loopback `Host` headers only,
+    a state-changing request is refused when `Sec-Fetch-Site` is `cross-site`, and a JSON body is
+    required. No CORS headers are sent, so another site can neither read the profile nor spend the
+    cap. The 403 responses are what AC-17 rests on.
+    Errors use the repo's single envelope `{ "error": { "code", "message" } }` (core/errors.ts).
+    The fit note and the claims come from model output built on third-party text: the web renders
+    them only as plain text, claims as "the posting says…" (AC-03). The provider key never appears
+    in any response or error message (sad.md §8).
+
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+
+# No authentication scheme: access is limited by the network boundary (collector ADR-0007), not by credentials.
+security: []
+
+tags:
+  - name: matching
+    description: The profile, the CV draft, the data notice, the scoring cap and scoring health
+  - name: search
+    description: Main list and marked view, now with match scores and a best-match order
+
+paths:
+  /api/v1/matching/settings:
+    get:
+      tags: [matching]
+      summary: Read the profile, the scoring cap, this month's spend and whether the data notice was agreed
+      description: |
+        Read by the profile screen (SCR-03, sad.md §6 flows 4–6). Creates the settings row lazily
+        with no profile, version 0 and the $5 cap (data-model). `profile: null` means no profile
+        yet, so the main screen shows the "no scores yet" line (AC-15).
+      operationId: getMatchingSettings
+      responses:
+        "200":
+          description: The matching settings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MatchingSettings" }
+              examples:
+                first_open:
+                  summary: No profile, notice never agreed (AC-15, AC-20)
+                  value:
+                    profile: null
+                    profile_version: 0
+                    cap_usd_cents: 500
+                    spent_usd_cents: 0
+                    notice_agreed_at: null
+                with_profile:
+                  summary: The AC-01 profile, $4.98 spent of $5 (AC-12)
+                  value:
+                    profile:
+                      skills:
+                        - { name: TypeScript, core: true }
+                        - { name: React, core: true }
+                        - { name: Node, core: false }
+                      years: 8
+                      seniority: senior
+                      role_types: [backend, fullstack]
+                      min_salary: { amount: 6000, currency: EUR, period: month }
+                      engagement_forms: [b2b]
+                    profile_version: 3
+                    cap_usd_cents: 500
+                    spent_usd_cents: 498
+                    notice_agreed_at: "2026-10-15T09:00:00Z"
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/matching/profile:
+    post:
+      tags: [matching]
+      summary: Save the profile, by hand or by confirming a CV draft
+      description: |
+        Replaces the whole profile (AC-07 confirm, AC-10 edit, AC-21 by hand; sad.md §6 flows 3, 4).
+        The server checks every field (AC-16) and refuses a save before the data notice is agreed
+        (AC-20 guard). A save that changes a profile field bumps `profile_version`, which makes every
+        score stale, and wakes the scorer; a save with nothing changed returns `changed: false` and
+        makes nothing stale (AC-10 note).
+
+        The web checks the same rules before sending and shows the field error itself. The server's
+        `MATCHING_INVALID_PROFILE` message names the field and what it must be, as the backstop.
+        A body that breaks the schema's bounds gets `VALIDATION_ERROR`.
+      operationId: saveProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SaveProfileRequest" }
+            example:
+              profile:
+                skills:
+                  - { name: TypeScript, core: true }
+                  - { name: React, core: true }
+                  - { name: Node, core: false }
+                years: 8
+                seniority: staff
+                role_types: [backend, fullstack]
+                min_salary: { amount: 6000, currency: EUR, period: month }
+                engagement_forms: [b2b]
+      responses:
+        "200":
+          description: The settings after the save
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SaveProfileResult" }
+              examples:
+                changed:
+                  summary: Seniority senior → staff; every score now stale (AC-10)
+                  value:
+                    changed: true
+                    settings:
+                      profile:
+                        skills:
+                          - { name: TypeScript, core: true }
+                          - { name: React, core: true }
+                          - { name: Node, core: false }
+                        years: 8
+                        seniority: staff
+                        role_types: [backend, fullstack]
+                        min_salary: { amount: 6000, currency: EUR, period: month }
+                        engagement_forms: [b2b]
+                      profile_version: 4
+                      cap_usd_cents: 500
+                      spent_usd_cents: 120
+                      notice_agreed_at: "2026-10-15T09:00:00Z"
+                unchanged:
+                  summary: Saved with nothing changed; nothing stale (AC-10 note)
+                  value:
+                    changed: false
+                    settings:
+                      profile:
+                        skills:
+                          - { name: TypeScript, core: true }
+                        years: 8
+                        seniority: senior
+                        role_types: [backend]
+                        min_salary: { amount: 6000, currency: EUR, period: month }
+                        engagement_forms: [b2b]
+                      profile_version: 3
+                      cap_usd_cents: 500
+                      spent_usd_cents: 120
+                      notice_agreed_at: "2026-10-15T09:00:00Z"
+        "400": { $ref: "#/components/responses/InvalidProfile" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/NoticeNotAgreed" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/matching/notice:
+    post:
+      tags: [matching]
+      summary: Record the owner's one-time agreement to the data notice
+      description: |
+        Called when the owner agrees to the notice that says what is sent and to whom (AC-20,
+        sad.md §6 flows 3–5). Sets `notice_agreed_at` once; calling it again keeps the first time.
+        Declining calls nothing: no request is made and nothing is sent.
+      operationId: agreeNotice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EmptyRequest" }
+            example: {}
+      responses:
+        "200":
+          description: The agreement as stored
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/NoticeState" }
+              example: { notice_agreed_at: "2026-10-15T09:00:00Z" }
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/matching/cap:
+    post:
+      tags: [matching]
+      summary: Set the monthly scoring cap
+      description: |
+        Saves the cap, from $0 to $100 in whole cents (AC-19, sad.md §6 flow 6). No score becomes
+        stale. A cap above this month's spend wakes the scorer, which resumes at once; a cap at or
+        below it, or $0, keeps scoring stopped until next month or paused. A value outside the
+        bounds is refused by the schema and the cap stays as it was.
+      operationId: setScoringCap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SetCapRequest" }
+            examples:
+              raise: { summary: Raise to $8 after stopping at $5 (AC-19), value: { cap_usd_cents: 800 } }
+              pause: { summary: Pause scoring, value: { cap_usd_cents: 0 } }
+      responses:
+        "200":
+          description: The settings after the change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MatchingSettings" }
+              example:
+                profile: null
+                profile_version: 0
+                cap_usd_cents: 800
+                spent_usd_cents: 500
+                notice_agreed_at: "2026-10-15T09:00:00Z"
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/matching/cv-drafts:
+    post:
+      tags: [matching]
+      summary: Draft a profile from an uploaded CV
+      description: |
+        The CV travels base64-encoded in a JSON body (sad.md §8 "CV upload transport"); this route
+        raises its body limit to 7 MB, every other route keeps 1 MB. The server checks the kind and
+        the 5 MB size again, extracts the text locally (ADR-0007), removes contact details, reserves
+        the draft's largest possible cost (ADR-0006), and asks the provider for a draft
+        (sad.md §6 flows 3, 5). The CV and its text are dropped on every outcome (AC-07, AC-08).
+
+        Nothing is saved: the draft comes back beside the current profile, and the owner confirms it
+        with `saveProfile` or declines by doing nothing (AC-07). Each call that reaches the provider
+        is a new charged attempt, so the web never retries it on its own.
+
+        Refusals (AC-08): an unsupported kind, an empty file, a file with no text, or one over 5 MB
+        answers before anything is sent or counted. A cap that would be exceeded, an unreachable
+        provider and a missing or refused key answer after the text is read but before or instead of
+        the provider's answer; the profile is unchanged in every case.
+      operationId: draftProfileFromCv
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CvDraftRequest" }
+            example:
+              file_name: cv.pdf
+              media_type: application/pdf
+              content_base64: JVBERi0xLjcKJcfsj6IK
+      responses:
+        "200":
+          description: The draft, the current profile and what was removed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CvDraft" }
+              example:
+                draft:
+                  skills:
+                    - { name: TypeScript, core: true }
+                    - { name: React, core: true }
+                    - { name: GraphQL, core: false }
+                  years: 8
+                  seniority: senior
+                  role_types: [fullstack]
+                  min_salary: null
+                  engagement_forms: []
+                field_sources:
+                  skills: from_cv
+                  years: from_cv
+                  seniority: from_cv
+                  role_types: from_cv
+                  min_salary: not_found
+                  engagement_forms: not_found
+                not_mapped:
+                  - { field: role_types, value: Solutions Architect }
+                removed:
+                  - { kind: name, text: Test User }
+                  - { kind: email, text: user-0001@example.test }
+                  - { kind: phone, text: "+48 000 000 000" }
+                  - { kind: link, text: "https://example.test/u/0001" }
+                current: null
+        "400": { $ref: "#/components/responses/CvUnreadable" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/DraftRefused" }
+        "413": { $ref: "#/components/responses/CvTooLarge" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "502": { $ref: "#/components/responses/DraftUnusable" }
+        "503": { $ref: "#/components/responses/ProviderUnavailable" }
+
+  /api/v1/matching/health:
+    get:
+      tags: [matching]
+      summary: Read scoring health
+      description: |
+        Shown on the source health screen beside the sources and read with the collector's problems
+        on opening the main screen (sad.md §6 flow 9). `problem` set means the main-screen problem
+        marker shows (AC-14); `cap_reached` also brings the line above the list with
+        `resumes_on` (AC-12). Works with no profile: the counts are then zero.
+      operationId: getScoringHealth
+      responses:
+        "200":
+          description: Scoring health
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScoringHealth" }
+              examples:
+                healthy:
+                  value:
+                    last_success_at: "2026-10-15T08:55:00Z"
+                    cap_usd_cents: 500
+                    spent_usd_cents: 120
+                    cap_reached: false
+                    resumes_on: null
+                    pending_count: 3
+                    oldest_pending_since: "2026-10-15T08:50:00Z"
+                    could_not_score_count: 1
+                    problem: null
+                key_refused:
+                  summary: The provider refused the key (AC-14)
+                  value:
+                    last_success_at: "2026-10-14T21:00:00Z"
+                    cap_usd_cents: 500
+                    spent_usd_cents: 120
+                    cap_reached: false
+                    resumes_on: null
+                    pending_count: 42
+                    oldest_pending_since: "2026-10-14T21:05:00Z"
+                    could_not_score_count: 0
+                    problem:
+                      kind: key_refused
+                      reason: The language-model provider refused job-radar's key. Set a valid key and restart job-radar.
+                      since: "2026-10-14T21:05:00Z"
+                cap_reached:
+                  summary: $5 cap reached on the 20th (AC-12)
+                  value:
+                    last_success_at: "2026-10-20T11:00:00Z"
+                    cap_usd_cents: 500
+                    spent_usd_cents: 498
+                    cap_reached: true
+                    resumes_on: "2026-11-01"
+                    pending_count: 17
+                    oldest_pending_since: "2026-10-20T11:30:00Z"
+                    could_not_score_count: 0
+                    problem:
+                      kind: cap_reached
+                      reason: This month's scoring cap is reached. Scoring resumes on 1 November.
+                      since: "2026-10-20T11:02:00Z"
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "500": { $ref: "#/components/responses/Internal" }
+
+  /api/v1/search/snapshots:
+    post:
+      tags: [search]
+      summary: Run a skills search (or the feed) and return its first 50 shown postings, with match scores
+      description: |
+        As in remote-filter (skills checked and saved, location filter applied, marks dropped as each
+        page loads). What changes (ADR-0004, sad.md §6 flows 2, 8):
+        - `order` chooses newest first or best match first and is kept for the next opening; leave it
+          out to use the kept order, which is newest first for an owner who never chose (AC-11).
+        - Search reads each posting's score through the score reader when it builds the snapshot.
+          Best match first puts the postings with no score first, newest first, then the scored ones,
+          stale ones included, by score from high to low, equal scores newest first. The order is
+          fixed with the snapshot (search AC-16).
+        - Every posting carries `match`, or `match: null` for every posting when there is no profile
+          (AC-15, `has_profile: false`).
+        - A score never changes which postings are in the list or any count: `total`, `new_count`,
+          `marked_count` and `hidden_count` are the same in either order (AC-02).
+        - Reading the scores for a new snapshot wakes the scorer, so postings that newly entered the
+          list are scored in their turn (AC-13).
+
+        Matching is read fail-open: if the scores cannot be read, the list is built newest first with
+        `match: null` and `has_profile` as last known, because a score only orders and never hides.
+      operationId: runSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SearchRequest" }
+            examples:
+              kept_order: { summary: Use the kept order, value: { skills: "TypeScript, React" } }
+              best_match: { summary: Switch to best match first (AC-11), value: { skills: "TypeScript, React", order: best_match } }
+      responses:
+        "200":
+          description: The snapshot's first page of shown postings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SearchResult" }
+              examples:
+                best_match:
+                  summary: Best match first; one pending posting first, then a fresh score (AC-01, AC-11)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a5
+                    skills: [TypeScript, React]
+                    order: best_match
+                    has_profile: true
+                    total: 130
+                    new_count: 2
+                    marked_count: 5
+                    hidden_count: 20
+                    collection_empty: false
+                    location_filter:
+                      mode: own
+                      country: { code: PL, name: Poland, flag: "🇵🇱" }
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000d1
+                        title: Frontend Engineer
+                        company: Example Co
+                        published_at: "2026-10-15T07:00:00Z"
+                        first_seen_at: "2026-10-15T07:10:00Z"
+                        is_new: true
+                        matched_skills:
+                          - { skill: React, in_title: false }
+                        listings:
+                          - source_id: remotive
+                            status: open
+                            url: https://jobs.example.test/remotive/9
+                            location_restriction: Europe
+                        look_alike: null
+                        location_check: null
+                        match:
+                          state: pending
+                          total: null
+                          parts: null
+                          note: null
+                          claims: []
+                          stale: null
+                          reason: Waiting to be scored.
+                      - id: 01926a00-0000-7000-8000-0000000000d2
+                        title: Senior Fullstack Engineer
+                        company: Example Co
+                        published_at: "2026-10-14T09:00:00Z"
+                        first_seen_at: "2026-10-14T09:20:00Z"
+                        is_new: false
+                        matched_skills:
+                          - { skill: TypeScript, in_title: false }
+                          - { skill: React, in_title: false }
+                        listings:
+                          - source_id: himalayas
+                            status: open
+                            url: https://jobs.example.test/himalayas/41
+                            location_restriction: Europe
+                        look_alike: null
+                        location_check: null
+                        match:
+                          state: scored
+                          total: 88
+                          parts: { skills: 95, role_type: 100, seniority: 100, terms: 70 }
+                          note: Matches your core TypeScript and React at senior level, fullstack, B2B. The range tops at 8,500 EUR a month, above your 6,000. Node is not mentioned.
+                          claims: ["visa sponsorship guaranteed"]
+                          stale: null
+                          reason: null
+                    has_next: true
+                    next_cursor: "50"
+                no_profile:
+                  summary: No profile set up (AC-15)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a6
+                    skills: [Go]
+                    order: newest
+                    has_profile: false
+                    total: 1
+                    new_count: 0
+                    marked_count: 0
+                    hidden_count: 0
+                    collection_empty: false
+                    location_filter:
+                      mode: none
+                      country: null
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000d3
+                        title: Backend Engineer (Go)
+                        company: Example Co
+                        published_at: null
+                        first_seen_at: "2026-10-12T12:00:00Z"
+                        is_new: false
+                        matched_skills:
+                          - { skill: Go, in_title: true }
+                        listings:
+                          - source_id: weworkremotely
+                            status: open
+                            url: https://jobs.example.test/wwr/12
+                            location_restriction: null
+                        look_alike: null
+                        location_check: null
+                        match: null
+                    has_next: false
+                    next_cursor: null
+        "400": { $ref: "#/components/responses/InvalidSkills" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 shown postings of a snapshot, with their current match
+      description: |
+        As in remote-filter; the snapshot's order is fixed. Each item's `match` is read fresh, so a
+        score that arrived after loading shows on its card without moving it, and paging never
+        repeats or skips a posting (AC-11 note).
+      operationId: getNextPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "50" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PostingPage" }
+              example:
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000d4
+                    title: Staff Platform Engineer
+                    company: Example Co
+                    published_at: "2026-09-30T08:00:00Z"
+                    first_seen_at: "2026-09-30T08:30:00Z"
+                    is_new: false
+                    matched_skills:
+                      - { skill: TypeScript, in_title: false }
+                    listings:
+                      - source_id: jobicy
+                        status: open
+                        url: https://jobs.example.test/jobicy/301
+                        location_restriction: null
+                    look_alike: null
+                    location_check: not_stated
+                    match:
+                      state: scored
+                      total: 41
+                      parts: { skills: 40, role_type: 30, seniority: null, terms: null }
+                      note: Asks for TypeScript but centres on Kubernetes platform work. Seniority and salary are not stated. The posting says "US residents only".
+                      claims: ["US residents only"]
+                      stale: posting_changed
+                      reason: null
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/marked-snapshots:
+    post:
+      tags: [search]
+      summary: Open the marked postings and return the first 50, each with its last score
+      description: |
+        As in applied-skipped. Each marked posting also carries `match`: the last score it had, with
+        its stale mark if any, or `null` if it was never scored. Marked postings are never in the
+        owner's list, so they are never scored again (AC-13 note, sad.md §6 flow 8). The view's
+        order is unchanged (`marked_at` descending).
+      operationId: runMarkedView
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MarkedViewRequest" }
+            example: { skills: "Go" }
+      responses:
+        "200":
+          description: The marked view's first page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkedResult" }
+              example:
+                snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000a7
+                skills: [Go]
+                marked_count: 1
+                cleared_count: 0
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000b4
+                    title: Senior Backend Engineer (Go)
+                    company: Example Co
+                    status: open
+                    published_at: "2026-09-25T08:00:00Z"
+                    first_seen_at: "2026-09-25T10:00:00Z"
+                    matched_skills:
+                      - { skill: Go, in_title: true }
+                    listings:
+                      - source_id: himalayas
+                        status: open
+                        url: https://jobs.example.test/himalayas/7
+                        location_restriction: Europe
+                    mark_state:
+                      posting_id: 01926a00-0000-7000-8000-0000000000b4
+                      mark: applied
+                      marked_at: "2026-10-03T14:00:00Z"
+                      change_id: 01926b10-0000-7000-8000-0000000000c3
+                      at_risk: false
+                      removed_after: null
+                    match:
+                      state: scored
+                      total: 76
+                      parts: { skills: 80, role_type: 100, seniority: 60, terms: null }
+                      note: Go backend role close to your profile. Asks for lead level, above your senior. Salary not stated.
+                      claims: []
+                      stale: profile_changed
+                      reason: null
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/InvalidSkills" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+  /api/v1/search/marked-snapshots/{snapshot_id}/pages:
+    post:
+      tags: [search]
+      summary: The next 50 postings of a marked snapshot, each with its last score
+      description: As in applied-skipped, with `match` read fresh as in `getNextPage`.
+      operationId: getNextMarkedPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PageRequest" }
+            example: { cursor: "50" }
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MarkedPage" }
+              example:
+                items: []
+                has_next: false
+                next_cursor: null
+        "400": { $ref: "#/components/responses/ValidationError" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "410": { $ref: "#/components/responses/SnapshotExpired" }
+        "415": { $ref: "#/components/responses/UnsupportedMediaType" }
+        "500": { $ref: "#/components/responses/Internal" }
+        "503": { $ref: "#/components/responses/CollectionUnavailable" }
+
+components:
+  parameters:
+
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+      description: The id the snapshot's first call returned (UUIDv7, in memory only)
+
+  responses:
+
+    ValidationError:
+      description: The body or a path parameter does not match the schema
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: VALIDATION_ERROR, message: "body/on must be boolean" }
+    InvalidProfile:
+      description: |
+        A profile field breaks a rule (AC-16): no core skill, a negative or non-numeric minimum
+        salary, a salary without a currency or period, years above 60, a skill over 50 characters, or
+        an email address, phone number or web address in any field. The message names the field and
+        what it must be. Nothing was saved; the profile and the scores are unchanged.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            no_core:
+              value:
+                error: { code: MATCHING_INVALID_PROFILE, message: "Skills: mark at least one skill as core." }
+            contact:
+              value:
+                error: { code: MATCHING_INVALID_PROFILE, message: "Skills: remove the email address; a profile holds no contact details." }
+    NoticeNotAgreed:
+      description: The data notice was never agreed, so nothing may be saved for sending or sent (AC-20 guard)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: MATCHING_NOTICE_NOT_AGREED, message: "Agree to the data notice before anything is sent to the language-model provider." }
+    CvUnreadable:
+      description: |
+        The file is not a readable CV (AC-08): an unsupported kind, an empty file, or a file with no
+        text such as an image-only scan. Nothing was sent or counted; the profile is unchanged. A body
+        that breaks the schema gets `VALIDATION_ERROR`.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            unsupported:
+              value:
+                error: { code: MATCHING_CV_UNSUPPORTED, message: "This kind of file can't be read. Upload a PDF, a Word document (.docx) or a plain text file." }
+            no_text:
+              value:
+                error: { code: MATCHING_CV_NO_TEXT, message: "This file has no text job-radar can read; it may be a scanned image. Upload a PDF, a Word document (.docx) or a plain text file with text in it." }
+            empty:
+              value:
+                error: { code: MATCHING_CV_EMPTY, message: "This file is empty. Upload a PDF, a Word document (.docx) or a plain text file." }
+    CvTooLarge:
+      description: |
+        The file is larger than 5 MB, or the request body is over the route's 7 MB limit (AC-08,
+        sad.md §8: answered with this message, not the generic one). Nothing was sent or counted.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: MATCHING_CV_TOO_LARGE, message: "This file is larger than 5 MB. Upload a PDF, a Word document (.docx) or a plain text file of up to 5 MB." }
+    DraftRefused:
+      description: |
+        The draft was not attempted (AC-08): the notice was never agreed, or the draft's largest
+        possible cost would exceed this month's cap. Nothing was sent; the CV was not kept.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            cap:
+              value:
+                error: { code: MATCHING_CAP_REACHED, message: "This month's scoring cap is reached, so the draft can't be made. It can be made again from 1 November, or after you raise the cap." }
+            notice:
+              value:
+                error: { code: MATCHING_NOTICE_NOT_AGREED, message: "Agree to the data notice before anything is sent to the language-model provider." }
+    DraftUnusable:
+      description: The provider answered with something that is not a usable draft. Its cost is counted; the CV was not kept
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: MATCHING_DRAFT_UNUSABLE, message: "The draft could not be made from this CV. Try again later, or fill in the profile by hand." }
+    ProviderUnavailable:
+      description: |
+        The provider is unreachable or rate-limited, or the key is missing or refused (AC-08, AC-14).
+        The reservation counts as spent when the attempt was started. The key itself never appears.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            unreachable:
+              value:
+                error: { code: MATCHING_PROVIDER_UNAVAILABLE, message: "The language-model provider can't be reached right now. Try again later; your profile is unchanged." }
+            key:
+              value:
+                error: { code: MATCHING_KEY_PROBLEM, message: "No valid provider key is set up. Set one in your local configuration and restart job-radar." }
+
+    InvalidSkills:
+      description: The skills fail the check (search AC-05), so nothing ran
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_INVALID_SKILLS, message: "24 skills entered; search takes at most 20." }
+
+    Forbidden:
+      description: The Host header is not loopback, or the request is cross-site (collector ADR-0007, AC-12)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          examples:
+            host:
+              value:
+                error: { code: FORBIDDEN_HOST, message: "Requests are accepted only for 127.0.0.1 or localhost." }
+            cross_site:
+              value:
+                error: { code: CROSS_SITE_REQUEST, message: "Cross-site requests are not accepted." }
+
+    UnsupportedMediaType:
+      description: The request has no JSON body (collector ADR-0007)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
+
+    SnapshotExpired:
+      description: Unknown or expired snapshot (search ADR-0003); the web reloads the list from the start
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_SNAPSHOT_EXPIRED, message: "This list has expired; it was reloaded from the newest." }
+
+    CollectionUnavailable:
+      description: |
+        The postings, the marks or the location settings cannot be read (search AC-12). The web shows a
+        plain-language message with Retry and keeps the last list visible.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: SEARCH_COLLECTION_UNAVAILABLE, message: "Job-radar could not read its postings just now. Try again." }
+
+    Internal:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+          example:
+            error: { code: INTERNAL, message: "Internal server error" }
+
+  schemas:
+
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: "^[A-Z][A-Z0-9_]*$"
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (REMOTE_FILTER_..., SEARCH_...)
+            message:
+              type: string
+
+    EmptyRequest:
+      type: object
+      additionalProperties: false
+      description: No fields. The JSON body is required by the access guard (collector ADR-0007)
+
+    Timestamp:
+      type: string
+      format: date-time
+      description: ISO 8601 UTC, converted from a stored epoch-milliseconds column
+
+    UsdCents:
+      type: integer
+      minimum: 0
+      description: US dollars in whole cents (500 = $5); stored as integer millionths of a dollar (data-model `*_usd_micros`), spend rounded up to the cent
+
+    Seniority:
+      type: string
+      enum: [junior, mid, senior, lead, staff, principal]
+      description: CONTEXT Profile, fixed list
+
+    RoleType:
+      type: string
+      enum: [backend, frontend, fullstack, mobile, devops_sre, data, ml_ai, qa, security, engineering_management]
+      description: CONTEXT Profile, fixed list
+
+    EngagementForm:
+      type: string
+      enum: [employment, b2b, contract_freelance]
+      description: CONTEXT Profile, fixed list
+
+    ProfileSkill:
+      type: object
+      required: [name, core]
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+          description: Free text, up to 50 characters (CONTEXT Profile, AC-16)
+        core:
+          type: boolean
+          description: true = core, false = nice-to-have
+
+    MinSalary:
+      type: object
+      required: [amount, currency, period]
+      additionalProperties: false
+      description: Minimum gross salary; every part required (AC-16)
+      properties:
+        amount:
+          type: integer
+          minimum: 0
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: ISO 4217 code, e.g. EUR, USD, PLN
+        period:
+          type: string
+          enum: [hour, day, month, year]
+
+    Profile:
+      type: object
+      required: [skills, years, seniority, role_types, min_salary, engagement_forms]
+      additionalProperties: false
+      description: matching_settings.profile (JSON); never holds a name or contact detail (AC-09, AC-16)
+      properties:
+        skills:
+          type: array
+          minItems: 1
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ProfileSkill" }
+          description: At least one must be core (AC-16, checked by the server)
+        years:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 60
+        seniority:
+          oneOf:
+            - $ref: "#/components/schemas/Seniority"
+            - type: "null"
+        role_types:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/RoleType" }
+        min_salary:
+          oneOf:
+            - $ref: "#/components/schemas/MinSalary"
+            - type: "null"
+        engagement_forms:
+          type: array
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/EngagementForm" }
+
+    MatchingSettings:
+      type: object
+      required: [profile, profile_version, cap_usd_cents, spent_usd_cents, notice_agreed_at]
+      additionalProperties: false
+      properties:
+        profile:
+          oneOf:
+            - $ref: "#/components/schemas/Profile"
+            - type: "null"
+          description: null = no profile yet (AC-15)
+        profile_version:
+          type: integer
+          minimum: 0
+          description: matching_settings.profile_version
+        cap_usd_cents:
+          allOf: [{ $ref: "#/components/schemas/UsdCents" }]
+          maximum: 10000
+          description: matching_settings.cap_usd_micros
+        spent_usd_cents:
+          allOf: [{ $ref: "#/components/schemas/UsdCents" }]
+          description: This calendar month's settled plus reserved spend (matching_spend), rounded up to the cent
+        notice_agreed_at:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+          description: matching_settings.notice_agreed_at; null = never agreed (AC-20)
+
+    SaveProfileRequest:
+      type: object
+      required: [profile]
+      additionalProperties: false
+      properties:
+        profile: { $ref: "#/components/schemas/Profile" }
+
+    SaveProfileResult:
+      type: object
+      required: [changed, settings]
+      additionalProperties: false
+      properties:
+        changed:
+          type: boolean
+          description: A profile field changed, so profile_version went up and every score is now stale (AC-10)
+        settings: { $ref: "#/components/schemas/MatchingSettings" }
+
+    NoticeState:
+      type: object
+      required: [notice_agreed_at]
+      additionalProperties: false
+      properties:
+        notice_agreed_at: { $ref: "#/components/schemas/Timestamp" }
+
+    SetCapRequest:
+      type: object
+      required: [cap_usd_cents]
+      additionalProperties: false
+      properties:
+        cap_usd_cents:
+          allOf: [{ $ref: "#/components/schemas/UsdCents" }]
+          maximum: 10000
+          description: The new matching_settings.cap_usd_micros, $0–$100 (AC-19); 0 pauses scoring
+
+    CvDraftRequest:
+      type: object
+      required: [file_name, media_type, content_base64]
+      additionalProperties: false
+      properties:
+        file_name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: The file's name, used only to name the kind in a message; never stored
+        media_type:
+          type: string
+          maxLength: 255
+          description: |
+            The browser's type for the file. The server reads application/pdf,
+            application/vnd.openxmlformats-officedocument.wordprocessingml.document and text/plain;
+            anything else answers MATCHING_CV_UNSUPPORTED (AC-08), not a schema error.
+        content_base64:
+          type: string
+          maxLength: 6990508
+          contentEncoding: base64
+          description: The file, base64-encoded; 6,990,508 characters is 5 MB of file (AC-08). Never stored (ADR-0007)
+
+    FieldSource:
+      type: string
+      enum: [from_cv, not_found]
+      description: '"from your CV" or "not found in your CV" (AC-07)'
+
+    ProfileDraft:
+      type: object
+      required: [skills, years, seniority, role_types, min_salary, engagement_forms]
+      additionalProperties: false
+      description: As Profile, but any part may be empty when the CV did not give it, and the core-skill rule is not applied yet
+      properties:
+        skills:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ProfileSkill" }
+        years: { $ref: "#/components/schemas/Profile/properties/years" }
+        seniority: { $ref: "#/components/schemas/Profile/properties/seniority" }
+        role_types: { $ref: "#/components/schemas/Profile/properties/role_types" }
+        min_salary: { $ref: "#/components/schemas/Profile/properties/min_salary" }
+        engagement_forms: { $ref: "#/components/schemas/Profile/properties/engagement_forms" }
+
+    CvDraft:
+      type: object
+      required: [draft, field_sources, not_mapped, removed, current]
+      additionalProperties: false
+      description: Not stored; confirmed with saveProfile or discarded (AC-07)
+      properties:
+        draft: { $ref: "#/components/schemas/ProfileDraft" }
+        field_sources:
+          type: object
+          required: [skills, years, seniority, role_types, min_salary, engagement_forms]
+          additionalProperties: false
+          properties:
+            skills: { $ref: "#/components/schemas/FieldSource" }
+            years: { $ref: "#/components/schemas/FieldSource" }
+            seniority: { $ref: "#/components/schemas/FieldSource" }
+            role_types: { $ref: "#/components/schemas/FieldSource" }
+            min_salary: { $ref: "#/components/schemas/FieldSource" }
+            engagement_forms: { $ref: "#/components/schemas/FieldSource" }
+        not_mapped:
+          type: array
+          items:
+            type: object
+            required: [field, value]
+            additionalProperties: false
+            properties:
+              field:
+                type: string
+                enum: [seniority, role_types, engagement_forms]
+              value:
+                type: string
+                description: The CV's wording that fits no entry of the fixed list; plain text
+          description: '"not mapped" values (AC-07)'
+        removed:
+          type: array
+          items:
+            type: object
+            required: [kind, text]
+            additionalProperties: false
+            properties:
+              kind:
+                type: string
+                enum: [name, email, phone, address, link]
+              text:
+                type: string
+                description: What was removed, shown to the owner only; never stored or sent
+          description: Personal details removed from the draft before the owner sees it (AC-09)
+        current:
+          oneOf:
+            - $ref: "#/components/schemas/Profile"
+            - type: "null"
+          description: The current profile shown beside the draft; null = none yet
+
+    ScoringProblem:
+      type: object
+      required: [kind, reason, since]
+      additionalProperties: false
+      properties:
+        kind:
+          type: string
+          enum: [provider_unreachable, rate_limited, key_missing, key_refused, cap_reached]
+          description: matching_settings.scoring_problem, or cap_reached computed from the ledger and the cap
+        reason:
+          type: string
+          description: Plain language; never contains the key
+        since: { $ref: "#/components/schemas/Timestamp" }
+
+    ScoringHealth:
+      type: object
+      required: [last_success_at, cap_usd_cents, spent_usd_cents, cap_reached, resumes_on, pending_count, oldest_pending_since, could_not_score_count, problem]
+      additionalProperties: false
+      properties:
+        last_success_at:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+          description: matching_settings.last_success_at; null = never
+        cap_usd_cents: { $ref: "#/components/schemas/MatchingSettings/properties/cap_usd_cents" }
+        spent_usd_cents: { $ref: "#/components/schemas/MatchingSettings/properties/spent_usd_cents" }
+        cap_reached:
+          type: boolean
+          description: The next attempt's largest possible cost does not fit in what is left of the cap (AC-12)
+        resumes_on:
+          type: [string, "null"]
+          format: date
+          description: The first day of next month in the machine's time zone, when cap_reached; else null
+        pending_count:
+          type: integer
+          minimum: 0
+          description: Postings in the owner's list with no current score that are not "could not be scored"
+        oldest_pending_since:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+          description: collector_postings.first_found_at of the oldest posting in the list with no score at all; stale scores are not counted. A posting that entered the list late (wider skills, filter off) shows its collection time (api-sync-report F-5); spec §6 Scoring freshness
+        could_not_score_count:
+          type: integer
+          minimum: 0
+          description: Postings that reached three strikes this month (matching_scores.last_failure_at, AC-18)
+        problem:
+          oneOf:
+            - $ref: "#/components/schemas/ScoringProblem"
+            - type: "null"
+          description: Set → the main-screen problem marker shows (AC-14)
+
+    MatchParts:
+      type: object
+      required: [skills, role_type, seniority, terms]
+      additionalProperties: false
+      description: Each part 0–100, or null for "not stated" (AC-01, AC-04)
+      properties:
+        skills: { type: [integer, "null"], minimum: 0, maximum: 100, description: matching_scores.skills_part }
+        role_type: { type: [integer, "null"], minimum: 0, maximum: 100, description: matching_scores.role_type_part }
+        seniority: { type: [integer, "null"], minimum: 0, maximum: 100, description: matching_scores.seniority_part }
+        terms: { type: [integer, "null"], minimum: 0, maximum: 100, description: matching_scores.terms_part }
+
+    Match:
+      type: object
+      required: [state, total, parts, note, claims, stale, reason]
+      additionalProperties: false
+      description: A posting's match score, or why it has none (CONTEXT Match score)
+      properties:
+        state:
+          type: string
+          enum: [scored, pending, not_scored, cap_reached, could_not_score]
+          description: |
+            scored — a score is shown, possibly stale.
+            pending — waiting its turn.
+            not_scored — the provider is unreachable or rate-limited, or the key is missing or refused (AC-14).
+            cap_reached — "not scored — monthly cap reached" (AC-12).
+            could_not_score — three unusable answers for this posting and profile (AC-18).
+            A stale score keeps state scored while the cap is reached or the provider is down.
+        total:
+          type: [integer, "null"]
+          minimum: 0
+          maximum: 100
+          description: matching_scores.total; set iff state is scored
+        parts:
+          oneOf:
+            - $ref: "#/components/schemas/MatchParts"
+            - type: "null"
+          description: Set iff state is scored
+        note:
+          type: [string, "null"]
+          description: matching_scores.note, at most 40 words; plain text, never markup (AC-03). Set iff state is scored
+        claims:
+          type: array
+          items: { type: string }
+          description: matching_scores.claims; each shown as "the posting says…" (AC-03, AC-05). Empty unless scored
+        stale:
+          type: [string, "null"]
+          enum: [posting_changed, profile_changed, null]
+          description: |
+            posting_changed — "scored against an earlier version of this posting" (text fingerprint differs, AC-06).
+            profile_changed — "scored against your previous profile" (profile or scorer version differs, AC-10).
+            When both differ, posting_changed. null when current or not scored.
+        reason:
+          type: [string, "null"]
+          description: Plain-language reason when state is not scored; null when scored
+
+    CountryCode:
+      type: string
+      pattern: "^[A-Z]{2}$"
+      description: ISO 3166-1 alpha-2 code from the ADR-0003 country list (XK for Kosovo); remote_filter_settings.country / .look_country
+
+    Country:
+      type: object
+      required: [code, name, flag]
+      additionalProperties: false
+      description: One entry of the country list (ADR-0003)
+      properties:
+        code: { $ref: "#/components/schemas/CountryCode" }
+        name:
+          type: string
+          description: English name from Intl.DisplayNames, or the list's preferred alias where Intl's is unusual (e.g. "Hong Kong")
+        flag:
+          type: string
+          description: The flag emoji derived from the code
+
+    LocationFilter:
+      type: object
+      required: [mode, country]
+      additionalProperties: false
+      description: The filter a list was built with (search asks remote-filter for the active filter of its visit)
+      properties:
+        mode:
+          type: string
+          enum: [none, own, look, off]
+          description: |
+            none — no country chosen and no look: every posting, with the prompt to choose (AC-04).
+            own — filtered for the owner's country. look — filtered for a one-off country (AC-06).
+            off — the owner switched the filter off: every posting, no check marks (AC-07).
+        country:
+          oneOf:
+            - $ref: "#/components/schemas/Country"
+            - type: "null"
+          description: The country the list was filtered for (own or look); the owner's country when off; null when none
+
+    LocationCheck:
+      type: string
+      enum: [exception, hours_only, not_recognised, not_stated]
+      description: |
+        Why a shown posting carries "check location" (AC-02), one reason in this priority:
+        mentions an exception > only working hours fit > location not recognised > location not stated.
+
+    ListOrder:
+      type: string
+      enum: [newest, best_match]
+      description: search_state.list_order; NULL in the table reads as newest (AC-11)
+
+    SearchRequest:
+      type: object
+      required: [skills]
+      additionalProperties: false
+      properties:
+        skills:
+          type: string
+          description: The skills field exactly as typed, comma-separated (search AC-05). Empty = no skills.
+        order:
+          allOf: [{ $ref: "#/components/schemas/ListOrder" }]
+          description: Set and keep the order; leave out to use the kept one (AC-11)
+
+    MarkedViewRequest:
+      type: object
+      required: [skills]
+      additionalProperties: false
+      description: As applied-skipped's SearchRequest; the marked view has no order choice
+      properties:
+        skills:
+          type: string
+          description: The skills field exactly as typed, comma-separated (search AC-05). Empty = no skills.
+
+    PageRequest:
+      type: object
+      required: [cursor]
+      additionalProperties: false
+      properties:
+        cursor: { $ref: "#/components/schemas/Cursor" }
+
+    Cursor:
+      type: string
+      pattern: "^[0-9]{1,6}$"
+      description: Opaque to the web; the snapshot position after the last id read, from the previous page's `next_cursor`
+
+    Skill:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: One skill as the owner spelled it, trimmed (search AC-05)
+
+    MatchedSkill:
+      type: object
+      required: [skill, in_title]
+      additionalProperties: false
+      properties:
+        skill: { $ref: "#/components/schemas/Skill" }
+        in_title:
+          type: boolean
+          description: True when a matched open listing's title has it
+
+    Listing:
+      type: object
+      required: [source_id, status, url, location_restriction]
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          pattern: "^[a-z0-9_]+$"
+          description: collector_listings.source_id
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_listings.status
+        url:
+          type: [string, "null"]
+          format: uri
+          description: collector_listings.url, only when the listing is open and the URL is http(s) (search AC-08, AC-09)
+        location_restriction:
+          type: [string, "null"]
+          description: collector_listings.location_restriction exactly as the source stated it, an explicit "Anywhere" included (AC-10); null = not stated
+
+    LookAlike:
+      type: object
+      required: [mark, marked_at, company]
+      additionalProperties: false
+      description: Unchanged from applied-skipped; computed only for shown postings, so a hidden look-alike carries none (AC-11)
+      properties:
+        mark:
+          type: string
+          enum: [applied, skipped]
+        marked_at:
+          type: string
+          format: date-time
+        company:
+          type: string
+
+    Posting:
+      type: object
+      required: [id, title, company, published_at, first_seen_at, is_new, matched_skills, listings, look_alike, location_check, match]
+      additionalProperties: false
+      description: A main-list posting; remote-filter's Posting plus `match`
+      properties:
+        id: { type: string, format: uuid, description: collector_postings.id }
+        title: { type: string, description: collector_postings.title; plain text }
+        company: { type: string, description: collector_postings.company; plain text }
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: Effective publication time (search AC-03)
+        first_seen_at:
+          type: string
+          format: date-time
+          description: collector_postings.first_found_at
+        is_new:
+          type: boolean
+          description: first_found_at later than the previous visit's start (search AC-14); a hidden posting shown after switching off is new too (AC-09)
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+          description: Every listing with its location as stated, so the mark's reason can be checked against each (AC-02)
+        look_alike:
+          oneOf:
+            - $ref: "#/components/schemas/LookAlike"
+            - type: "null"
+        location_check:
+          oneOf:
+            - $ref: "#/components/schemas/LocationCheck"
+            - type: "null"
+          description: The "check location" reason, or null when the posting fits or the list has no filter (mode none or off)
+        match:
+          oneOf:
+            - $ref: "#/components/schemas/Match"
+            - type: "null"
+          description: The posting's match, or null for every posting when there is no profile (AC-15)
+
+    PostingPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/Posting" }
+          description: Shown, unmarked postings in snapshot order
+        has_next:
+          type: boolean
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+
+    SearchResult:
+      type: object
+      required: [snapshot_id, skills, order, has_profile, total, new_count, marked_count, hidden_count, collection_empty, location_filter, items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        order:
+          allOf: [{ $ref: "#/components/schemas/ListOrder" }]
+          description: The order this snapshot is in (AC-11)
+        has_profile:
+          type: boolean
+          description: false → no scores and the "no scores yet — set up a profile" line (AC-15)
+        snapshot_id: { type: string, format: uuid }
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+        total:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings — "102 postings" (AC-07)
+        new_count:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings that are new (AC-09)
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Matching open postings that are marked (applied-skipped AC-13), whatever their location
+        hidden_count:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings not open to the filter's country — "38 hidden, not open to Poland" (AC-07, AC-08); 0 with mode none or off
+        collection_empty:
+          type: boolean
+          description: No open posting at all (search AC-11)
+        location_filter: { $ref: "#/components/schemas/LocationFilter" }
+        items: { $ref: "#/components/schemas/PostingPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/PostingPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/PostingPage/properties/next_cursor" }
+
+    Mark:
+      type: string
+      enum: [applied, skipped]
+      description: tracking_marks.mark (checked in tracking/domain, not by the DB)
+
+    MarkState:
+      type: object
+      required: [posting_id, mark, marked_at, change_id, at_risk, removed_after]
+      additionalProperties: false
+      description: A posting's current mark state, as tracking_marks holds it plus two computed fields
+      properties:
+        posting_id:
+          type: string
+          format: uuid
+          description: tracking_marks.posting_id
+        mark:
+          oneOf:
+            - $ref: "#/components/schemas/Mark"
+            - type: "null"
+          description: tracking_marks.mark; null = cleared, or no row (never marked, or a first mark undone)
+        marked_at:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+          description: tracking_marks.marked_at, when the current state was set (the mark's date, AC-05); null when there is no row
+        change_id:
+          type: [string, "null"]
+          format: uuid
+          description: tracking_marks.change_id, the id to send to undoMark; null when there is no row
+        at_risk:
+          type: boolean
+          description: |
+            The posting is past the collector's 60-day rule (collector/app/retention-outlook.ts), so
+            clean-up would remove it without the applied mark. The web shows the AC-07 warning
+            before clearing an applied posting with this flag, or changing it to skipped.
+        removed_after:
+          type: [string, "null"]
+          format: date
+          description: |
+            For a cleared closed posting, the last calendar day (owner's time zone) before clean-up
+            removes it. That is the later of the grace-day end (tracking_marks.applied_lost_at,
+            AC-07) and the retention date (the day before the counted age passes 60 days, never
+            before today). Shown as "Cleared, removed after <date>" (AC-05). Null otherwise, and
+            null while every source of the posting stays disabled (its age is frozen, so there is
+            no removal date; the web shows just "Cleared").
+
+    MarkedPosting:
+      type: object
+      required: [id, title, company, status, published_at, first_seen_at, matched_skills, listings, mark_state, match]
+      additionalProperties: false
+      description: A marked-view posting, open or closed; applied-skipped's MarkedPosting plus `match`
+      properties:
+        id: { type: string, format: uuid, description: collector_postings.id }
+        title: { type: string, description: collector_postings.title; plain text }
+        company: { type: string, description: collector_postings.company; plain text }
+        status:
+          type: string
+          enum: [open, closed]
+          description: collector_postings.status; closed → labelled "Closed" (AC-05)
+        published_at:
+          type: [string, "null"]
+          format: date-time
+          description: As Posting.published_at
+        first_seen_at:
+          $ref: "#/components/schemas/Timestamp"
+          description: collector_postings.first_found_at
+        matched_skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/MatchedSkill" }
+        listings:
+          type: array
+          minItems: 1
+          items: { $ref: "#/components/schemas/Listing" }
+          description: Every source named; links only for listings still open (AC-05)
+        mark_state: { $ref: "#/components/schemas/MarkState" }
+        match:
+          oneOf:
+            - $ref: "#/components/schemas/Match"
+            - type: "null"
+          description: The last score, with its stale mark if any; null if never scored. Never re-scored (AC-13 note)
+
+    MarkedPage:
+      type: object
+      required: [items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/MarkedPosting" }
+          description: In the marked snapshot's fixed order; postings removed since loading are left out
+        has_next: { type: boolean }
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+
+    MarkedResult:
+      type: object
+      required: [snapshot_id, skills, marked_count, cleared_count, items, has_next, next_cursor]
+      additionalProperties: false
+      properties:
+        snapshot_id: { type: string, format: uuid }
+        skills:
+          type: array
+          maxItems: 20
+          items: { $ref: "#/components/schemas/Skill" }
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Marked postings in the view, after the skills (AC-05)
+        cleared_count:
+          type: integer
+          minimum: 0
+          description: Cleared closed postings in the view — "and N cleared" (AC-05)
+        items: { $ref: "#/components/schemas/MarkedPage/properties/items" }
+        has_next: { $ref: "#/components/schemas/MarkedPage/properties/has_next" }
+        next_cursor: { $ref: "#/components/schemas/MarkedPage/properties/next_cursor" }
