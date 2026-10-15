@@ -45,8 +45,8 @@
 | T38 | Review fix R35: cap reached clears when the queue is empty and money is left | app | Volodymyr Kozlov | S | T37 | done |
 | T39 | Review fix R32: the web profile rules check in the server's order and refuse duplicates, from one shared table | ui | Volodymyr Kozlov | S | T38 | done |
 | T40 | Review fix R36: Spent this month follows the settings, not the value at mount | ui | Volodymyr Kozlov | S | T39 | done |
-| T41 | Review fix R40: openapi says how scalars are converted and which bodies still get VALIDATION_ERROR | docs | Volodymyr Kozlov | S | T40 | todo |
-| T42 | Review fix R39: the web refuses a postal address in a skill, from a shared table case | ui | Volodymyr Kozlov | S | T41 | todo |
-| T43 | Review fix R41: a CV draft refreshes the settings and scoring health | ui | Volodymyr Kozlov | S | T42 | todo |
+| T41 | Review fix R40: openapi says how scalars are converted and which bodies still get VALIDATION_ERROR | docs | Volodymyr Kozlov | S | T40 | done |
+| T42 | Review fix R39: the web refuses a postal address in a skill, from a shared table case | ui | Volodymyr Kozlov | S | T41 | done |
+| T43 | Review fix R41: a CV draft refreshes the settings and scoring health | ui | Volodymyr Kozlov | S | T42 | done |
 
 **Total:** 43 tasks, ~25 person-days (T23–T29 from review 2026-10-15; T30–T35 from re-review 2026-10-15; T36–T40 from review 2026-10-16; T41–T43 from re-review 2026-10-16).
