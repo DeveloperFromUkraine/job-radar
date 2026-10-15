@@ -137,7 +137,7 @@ export function validateProfile(p: Profile): FieldError[] {
     skills.length <= MAX_PROFILE_SKILLS &&
     skills.every((s) => typeof s.name === "string" && s.name.trim().length <= MAX_PROFILE_SKILL_LENGTH);
   const contact = sized
-    ? skills.flatMap((s) => findContactDetails(s.name)).find((c) => c.kind !== "name")
+    ? skills.flatMap((s) => findContactDetails(s.name.trim())).find((c) => c.kind !== "name")
     : undefined;
   if (skills.some((s) => typeof s.name !== "string" || s.name.trim() === "")) {
     fail("skills", "Skills: give every skill a name or remove it.");

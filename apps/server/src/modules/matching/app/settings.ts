@@ -42,6 +42,11 @@ export function saveProfile(
   profile: Profile,
 ): { changed: boolean; settings: SettingsView } {
   requireNotice(deps);
+  // Stored and sent trimmed: padding never reaches a scoring request (review R33).
+  profile = {
+    ...profile,
+    skills: profile.skills.map((s) => (typeof s.name === "string" ? { ...s, name: s.name.trim() } : s)),
+  };
   const [error] = validateProfile(profile);
   if (error) throw new AppError("MATCHING_INVALID_PROFILE", error.message, 400);
   const current = repo.readSettings(deps.db);

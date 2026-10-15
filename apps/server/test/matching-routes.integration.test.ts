@@ -141,6 +141,16 @@ describe("matching routes (contract)", () => {
     },
   );
 
+  it("saveProfile: stores skill names trimmed, so padding never reaches a scoring request (AC-16, review R33)", async () => {
+    await post("notice", {});
+    const padded = `${" ".repeat(100_000)}TypeScript\n\t `;
+    const res = await post("profile", {
+      profile: { ...profile, skills: [{ name: padded, core: true }, ...profile.skills.slice(1)] },
+    });
+    expect(res.statusCode).toBe(200);
+    expect((await get("settings")).json().profile.skills).toEqual(profile.skills);
+  });
+
   it("setScoringCap: saved in cents, 400 outside $0–$100 (AC-19)", async () => {
     const res = await post("cap", { cap_usd_cents: 800 });
     contract.expectContract("setScoringCap", 200, res.json());
