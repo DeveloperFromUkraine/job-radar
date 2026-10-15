@@ -310,29 +310,32 @@ ADR files live under `docs/features/match-score/adr/NNNN-<title>.md`.
 
 ## 10. Quality requirements
 
-<!-- 🎯 Why: the QUALITY TREE — take a goal from §1 and break it into concrete leaves: tests,
-     metrics, configs, drills. ⭐ Without §10, §1 is a manifesto. With §10 each declaration maps
-     to something PROVABLE.
-     📋 Write: per §1 goal — When / Then / How-verify. Numbers from spec §6 NFR VERBATIM (don't
-     round ≤250ms to ≤300ms — that's a critic F6 hit).
-     📌 e.g. «p95 ≤ 500 ms on a block update, verified by a 100 req/s load test». -->
+Each quality goal from §1 expanded into a full scenario; numbers from spec §6 verbatim.
 
-Each top-3 goal from §1 expanded into a full scenario:
+**QG-1. A score never costs the owner a posting**
+- **When:** the owner's list is built with scores present, low scores included, in either order.
+- **Then:** "0 postings left out of the list or its counts because of their score" (spec §6 Never a hide by score); every posting without a score carries its reason (pending, cap reached, could not be scored; no profile once for the list).
+- **How verify:** property test in `apps/server/test/`: for generated collections and score sets, the list with and without scores holds the same postings and the same total, hidden, "new" and marked counts; a stand-in `ScoreReader` returns every score state.
 
-**QG-1. <quality attribute>**
-- **When:** <trigger condition>
-- **Then:** <expected behaviour with numbers from spec §6 NFR>
-- **How verify:** <test / chaos drill / load test / metric>
+**QG-2. Spending stays within the owner's cap**
+- **When:** scoring and a CV draft run against a cap with little left, including charged failures and two attempts reserving at once.
+- **Then:** "the month's scoring and profile drafting never exceed the scoring cap (default $5); 0 attempts started after the cap is reached" (spec §6 Spending).
+- **How verify:** unit tests of the cap rule and the reserve-and-settle ledger (ADR-0006) with a stand-in provider that answers, fails after charging, times out and refuses; scoring health shows the month's spend.
 
-**QG-2. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-3. Personal data leaves only as agreed**
+- **When:** the owner uploads a CV full of contact details, then scoring runs; or anything would be sent before the notice is agreed.
+- **Then:** "0 scorings carry a name, email, phone number, address or profile link" (spec §6 No personal details sent); nothing is sent before the one-time notice is agreed (AC-20).
+- **How verify:** unit tests over what the stand-in provider receives for the draft and for scorings, with a CV holding an email, phone, address and links; an integration test that a draft or scoring before agreement sends nothing.
 
-**QG-3. <quality attribute>**
-- **When:** <trigger>
-- **Then:** <expected>
-- **How verify:** <how>
+**QG-4. The list stays fast and scores arrive fresh**
+- **When:** the list loads with 10,000 open postings, scores and a profile, in either order; postings enter the list at up to 50 an hour; a CV of up to 5 MB is uploaded.
+- **Then:** "≤ 1 s p95 to the first 50 postings shown, with 10,000 open postings, scores and a profile — unchanged from search, in either order" (spec §6 Search response with scores); "a posting with no score that enters the owner's list is scored within 15 minutes p95, also while stale scores are being redone" (spec §6 Scoring freshness); "the draft profile is shown ≤ 60 s p95 after a CV upload of up to 5 MB" (spec §6 Draft profile time).
+- **How verify:** the existing `search-nfr` integration test rerun with scores and best match first; an integration test with a stand-in provider feeding 50 postings an hour during a re-score, asserting the oldest pending age; an integration test of the draft path with a 5 MB file and a stand-in provider.
+
+**QG-5. Scores are stable and resist planted wording**
+- **When:** the same posting is scored repeatedly against the same profile; postings carry wording addressed to the scorer or location phrases in their description.
+- **Then:** "the same posting scored twice against the same profile differs by ≤ 10 points in 95% of cases" (spec §6 Score stability); over five scorings of each version, the median with planted wording is no more than 10 points above the median without it (AC-03), and a description location phrase moves the median by no more than 10 points (AC-05).
+- **How verify:** an evaluation run with the real model over a fixed set of postings and one profile — run by hand before `ship` and after any change to the prompt, the output schema or the model, not in the regular gate (it costs about $1–2 a run on Opus 5.5). The regular gate stays free and deterministic with a stand-in provider.
 
 ## 11. Risks and technical debt
 
