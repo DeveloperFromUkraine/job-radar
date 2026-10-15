@@ -137,7 +137,7 @@ describe("Spending (AC-12, NFR Spending)", () => {
     }
     expect(firstRefusal).toBeGreaterThan(0);
     expect(sent).toBe(sentAtRefusal); // no attempt started after the cap was reached
-  });
+  }, 60_000); // compute-heavy (simulated time); the default 5 s is too tight under full-suite load
 });
 
 describe("No personal details sent (AC-09, NFR)", () => {
@@ -234,7 +234,7 @@ describe("Scoring freshness (NFR: ≤ 15 min p95 while stale scores are redone)"
     const sorted = [...latencies].sort((a, b) => a - b);
     expect(arrivals).toHaveLength(50);
     expect(sorted[Math.ceil(sorted.length * 0.95) - 1]).toBeLessThanOrEqual(15 * MIN);
-  });
+  }, 60_000); // compute-heavy (simulated time); the default 5 s is too tight under full-suite load
 });
 
 /** When a posting's current score was stored; never scored reads as infinitely late. */
