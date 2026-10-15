@@ -2,8 +2,6 @@
 
 The main list now hides postings that are not open to the owner's country, counts what it hid, and never hides a posting whose location it can't read with confidence: those stay in the list, marked "check location" with the reason. The owner can look at another country for one visit or switch the filter off. The collector now keeps an explicit "Anywhere" as stated. Spec: [`docs/features/remote-filter/spec.md`](docs/features/remote-filter/spec.md). Changelog: [`changelog.md`](docs/features/remote-filter/changelog.md).
 
-**Stacked on #3** (`feature/applied-skipped`). Merge #3 first, or retarget this PR to `master` once it lands.
-
 ## Acceptance criteria
 
 - AC-01 — postings that name the country, a region containing it, Worldwide, or covering time zones are shown; the rest are hidden ✓
