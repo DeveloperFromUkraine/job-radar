@@ -2,8 +2,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { loadMatchingConfig } from "../src/core/config.js";
 import { type OpenPosting, postingsByIds } from "../src/modules/collector/app/open-postings.js";
 import type { MatchingDeps } from "../src/modules/matching/app/deps.js";
+import { getScoringHealth } from "../src/modules/matching/app/health.js";
+import { createScoreReader } from "../src/modules/matching/app/score-reader.js";
 import { createScorer, PROVIDER_RETRY_MS } from "../src/modules/matching/app/scorer.js";
-import { saveProfile } from "../src/modules/matching/app/settings.js";
+import { saveProfile, setCap } from "../src/modules/matching/app/settings.js";
 import { readSettings, scoresFor } from "../src/modules/matching/infra/repo.js";
 import { type FakeProvider, fakeProvider, problem, scoreAnswer } from "./helpers/fake-provider.js";
 import { AC01_PROFILE, seedProfile } from "./helpers/matching-fixtures.js";
@@ -104,6 +106,23 @@ describe("the scorer's queue (flow 1, AC-13, AC-21)", () => {
     list = addPostings(3);
     await scorer().pass();
     expect(provider.sent.length).toBeLessThan(3);
+  });
+
+  it("a refused reservation counts as cap reached on the cards and in health, until the cap is raised (AC-12, R1)", async () => {
+    // $0.10 left: above the no-input bound ($0.08), below any real request's reservation.
+    seedProfile(t.db, { capUsdMicros: 100_000 });
+    list = addPostings(2);
+    await scorer().pass();
+    expect(provider.sent).toHaveLength(0);
+    const states = () => [...createScoreReader(deps).matchesFor(list).values()].map((m) => m.state);
+    expect(states()).toEqual(["cap_reached", "cap_reached"]);
+    const health = getScoringHealth(deps, () => list);
+    expect(health.capReached).toBe(true);
+    expect(health.resumesOn).not.toBeNull();
+    expect(health.problem?.kind).toBe("cap_reached");
+
+    setCap(deps, 800); // $8
+    expect(states()).toEqual(["pending", "pending"]);
   });
 
   it("does nothing without a profile", async () => {

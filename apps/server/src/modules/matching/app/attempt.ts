@@ -34,16 +34,21 @@ export async function scoreOne(
   const text = scoredText(posting);
   const fingerprint = textFingerprint(text);
   const params = scoreRequest(cfg, profile, text);
+  const maxCost = maxCostMicros(requestBytes(params), cfg.scoreOutputLimit, cfg.price);
+  const monthStart = monthWindow(deps.now(), deps.timeZone).start;
   const reservation = repo.reserve(db, {
     kind: "score",
     postingId: posting.id,
     model: cfg.model,
-    cost: maxCostMicros(requestBytes(params), cfg.scoreOutputLimit, cfg.price),
+    cost: maxCost,
     cap: repo.readSettings(db).capUsdMicros,
-    monthStart: monthWindow(deps.now(), deps.timeZone).start,
+    monthStart,
     at: deps.now(),
   });
-  if (!reservation.ok) return { kind: "cap_reached" };
+  if (!reservation.ok) {
+    deps.capRefused = { monthStart, cost: maxCost };
+    return { kind: "cap_reached" };
+  }
 
   const outcome = await (deps.provider ?? createClaudeProvider(cfg)).send(params);
   const log = (o: object) =>

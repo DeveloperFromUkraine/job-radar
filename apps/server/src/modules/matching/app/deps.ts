@@ -19,4 +19,6 @@ export interface MatchingDeps {
   /** Wakes the scorer at once: after a profile change, a raised cap, or a new list (sad.md §5). */
   wakeScorer: () => void;
   log?: MatchingLog;
+  /** The last scoring reservation the cap refused this month; cap-state reads it (AC-12, review R1). */
+  capRefused?: { monthStart: number; cost: number };
 }
