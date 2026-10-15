@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { App } from "../App";
 import type { MatchingSettings, SaveProfileResult } from "../api/matching";
@@ -192,6 +192,11 @@ describe("SCR-03 scoring cap (AC-19)", () => {
       expect(bodies(fetchMock, "/api/v1/matching/cap")).toEqual([{ cap_usd_cents: cents }]),
     );
     expect(await cap.findByText(message)).toBeTruthy();
+    // The message stays once the saved settings reach the cache (review R27): look again at the field on screen.
+    await act(() => new Promise((r) => setTimeout(r, 20)));
+    const now = await capField();
+    expect(now.getByText(message)).toBeTruthy();
+    expect(now.getByLabelText("Cap in dollars")).toMatchObject({ value: (cents / 100).toFixed(2) });
   });
 
   it("shows the saved cap after leaving the screen and coming back (AC-19, review R16)", async () => {

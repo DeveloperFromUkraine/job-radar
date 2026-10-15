@@ -192,7 +192,6 @@ export function Profile() {
       </section>
       <div id="scoring-cap">
         <CapField
-          key={data.cap_usd_cents}
           settings={data}
           onSave={(cents) =>
             setScoringCap(cents).then((saved) => {

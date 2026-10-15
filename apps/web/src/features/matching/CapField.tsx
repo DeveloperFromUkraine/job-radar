@@ -47,6 +47,7 @@ export function CapField({
     onSave(cents).then(
       (after) => {
         setSaving(false);
+        setText(dollars(after.cap_usd_cents));
         setSpent(after.spent_usd_cents);
         setSaved(
           after.cap_usd_cents === 0
