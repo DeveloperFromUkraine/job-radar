@@ -194,6 +194,23 @@ describe("SCR-03 scoring cap (AC-19)", () => {
     expect(await cap.findByText(message)).toBeTruthy();
   });
 
+  it("shows the saved cap after leaving the screen and coming back (AC-19, review R16)", async () => {
+    const after = { ...withProfile(), cap_usd_cents: 800 };
+    open({
+      [SETTINGS]: [{ body: withProfile() }, { body: after }],
+      [CAP]: { body: after },
+    });
+    const cap = await capField();
+    fireEvent.change(cap.getByLabelText("Cap in dollars"), { target: { value: "8" } });
+    fireEvent.click(cap.getByRole("button", { name: "Save cap" }));
+    expect(await cap.findByText("Saved — scoring resumes.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("link", { name: "Home" }));
+    fireEvent.click(screen.getByRole("link", { name: "Profile" }));
+    const back = await capField();
+    expect(back.getByLabelText("Cap in dollars")).toMatchObject({ value: "8.00" });
+    await waitFor(() => expect(back.getByLabelText("Cap in dollars")).toMatchObject({ value: "8.00" }));
+  });
+
   it("refuses a cap outside $0–$100 without sending", async () => {
     const { fetchMock } = open({ [SETTINGS]: { body: withProfile() } });
     const cap = await capField();

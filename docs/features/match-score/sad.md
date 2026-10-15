@@ -505,7 +505,7 @@ sequenceDiagram
     alt provider unreachable, key missing or refused
         U-->>O: problem marker, leading to source health
     else cap reached
-        U-->>O: line above the list - scoring cap reached, resumes on the first of next month - and the problem marker
+        U-->>O: line above the list - scoring cap reached, resumes on the first of next month - and no problem marker
     else no scoring problem
         U-->>O: marker only if a source has a problem
     end
@@ -516,7 +516,7 @@ sequenceDiagram
     Note over O,M: Postcondition: cards keep showing not scored with the reason per posting (flow 2), nothing is hidden, and the collector is unchanged
 ```
 
-On opening the main screen, the web reads the collector's source problems as it does today, and matching's scoring health: last success, this month's spend and cap, pending count and oldest pending age, how many postings could not be scored this month, and the current problem. A provider or key problem raises the problem marker. A reached cap raises it too, and adds the line above the list saying when scoring resumes. With no scoring problem, the marker shows only for a source problem. The source health screen shows the scoring health block beside the sources. Cards still give each posting's own reason, nothing is hidden, and the collector does not change.
+On opening the main screen, the web reads the collector's source problems as it does today, and matching's scoring health: last success, this month's spend and cap, pending count and oldest pending age, how many postings could not be scored this month, and the current problem. A provider or key problem raises the problem marker. A reached cap does not: it has its own line above the list saying when scoring resumes (screens.md SCR-01; review 2026-10-15 R6). With no scoring problem, the marker shows only for a source problem. The source health screen shows the scoring health block beside the sources. Cards still give each posting's own reason, nothing is hidden, and the collector does not change.
 
 ### Coverage
 

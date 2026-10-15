@@ -29,7 +29,8 @@ import { noticeKey, UndoNotice } from "../features/tracking/UndoNotice";
 export function Home() {
   const problems = useProblems();
   const health = useScoringHealth(); // a failed read shows nothing: the list does not depend on it
-  const scoringProblem = Boolean(health.data?.problem);
+  // Cap reached has its own line (ScoringNotice), so it raises no marker (screens.md SCR-01).
+  const scoringProblem = Boolean(health.data?.problem && health.data.problem.kind !== "cap_reached");
   const visit = useVisit();
   const [skills, setSkills] = useState("");
   const [request, setRequest] = useState<SearchRequest | null>(null);

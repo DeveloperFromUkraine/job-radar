@@ -60,7 +60,7 @@ describe("SCR-01 order and scoring notices", () => {
     expect(screen.queryByText(/^Not scored/)).toBeNull();
   });
 
-  it("cap reached: says when scoring resumes, with Change cap, and raises the marker (AC-12)", async () => {
+  it("cap reached: says when scoring resumes, with Change cap, and no problem marker (AC-12, screens.md SCR-01, review R6)", async () => {
     mockApi({
       [PROBLEMS]: noProblems,
       [HEALTH]: capReached,
@@ -72,7 +72,7 @@ describe("SCR-01 order and scoring notices", () => {
       await screen.findByText("This month's scoring cap is reached. Scoring resumes on 1 November."),
     ).toBeTruthy();
     expect(screen.getByRole("link", { name: "Change cap" }).getAttribute("href")).toBe("/profile");
-    expect(screen.getByText("Scoring has a problem.")).toBeTruthy();
+    expect(screen.queryByText("Scoring has a problem.")).toBeNull();
   });
 
   it("a provider or key problem raises the marker, which names scoring and leads to source health (AC-14)", async () => {

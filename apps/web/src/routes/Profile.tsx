@@ -189,7 +189,17 @@ export function Profile() {
         )}
       </section>
       <div id="scoring-cap">
-        <CapField settings={data} onSave={(cents) => setScoringCap(cents)} />
+        <CapField
+          key={data.cap_usd_cents}
+          settings={data}
+          onSave={(cents) =>
+            setScoringCap(cents).then((saved) => {
+              queryClient.setQueryData(["matching", "settings"], saved);
+              void queryClient.invalidateQueries({ queryKey: ["matching", "health"] });
+              return saved;
+            })
+          }
+        />
       </div>
     </div>
   );

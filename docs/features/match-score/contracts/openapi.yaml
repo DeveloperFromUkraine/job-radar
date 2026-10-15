@@ -22,7 +22,8 @@ info:
       `getWaitingCount` are unchanged and not repeated here.
     - **collector**: no HTTP change. The main-screen problem marker shows when
       `GET /api/v1/collector/problems` reports a problem **or** `getScoringHealth.problem` is set
-      (sad.md §5, flow 9).
+      with a kind other than `cap_reached`, which has its own line instead (sad.md §5, flow 9;
+      screens.md SCR-01).
 
     Access (collector ADR-0007), unchanged: no accounts, loopback only, loopback `Host` headers only,
     a state-changing request is refused when `Sec-Fetch-Site` is `cross-site`, and a JSON body is
