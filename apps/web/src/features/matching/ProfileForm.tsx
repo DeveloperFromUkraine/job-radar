@@ -94,9 +94,21 @@ interface ProfileFormProps {
   footer?: ReactNode;
   /** Above the Save button: a server refusal or a save notice. */
   banner?: ReactNode;
+  /** "Use this profile" for a CV draft (DraftReview). */
+  submitLabel?: string;
+  /** Beside the submit button, e.g. Discard. */
+  secondary?: ReactNode;
 }
 
-export function ProfileForm({ initial, onSave, saving = false, footer, banner }: ProfileFormProps) {
+export function ProfileForm({
+  initial,
+  onSave,
+  saving = false,
+  footer,
+  banner,
+  submitLabel = "Save",
+  secondary,
+}: ProfileFormProps) {
   const id = useId();
   const [form, setForm] = useState<FormState>(() => fromProfile(initial));
   const [flagged, setFlagged] = useState(false);
@@ -311,9 +323,12 @@ export function ProfileForm({ initial, onSave, saving = false, footer, banner }:
       {footer ?? (
         <div className="flex flex-col gap-2">
           {initial && <p className="text-sm text-text-muted">Saving a change re-scores your postings.</p>}
-          <Button type="submit" pending={saving}>
-            Save
-          </Button>
+          <div className="flex flex-col gap-2 md:flex-row">
+            <Button type="submit" pending={saving}>
+              {submitLabel}
+            </Button>
+            {secondary}
+          </div>
         </div>
       )}
     </form>
