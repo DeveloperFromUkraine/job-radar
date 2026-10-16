@@ -1,7 +1,14 @@
 // The source registry: intervals and published limits (spec §6 Source request rate).
 // One read = one request to the source, pages and failed requests included.
 
-export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit" | "nofluffjobs";
+export type SourceId =
+  | "jobicy"
+  | "himalayas"
+  | "remotive"
+  | "weworkremotely"
+  | "justjoinit"
+  | "nofluffjobs"
+  | "bulldogjob";
 
 export interface RateLimits {
   perMinute?: number;
@@ -199,6 +206,33 @@ export const SOURCES: readonly SourceDefinition[] = [
       "business-analyst",
       "ux",
       "erp",
+    ],
+  },
+  {
+    id: "bulldogjob",
+    name: "Bulldogjob",
+    siteUrl: "https://bulldogjob.pl",
+    // One request per owner role a run; no published limit, so hourly and at most 6 an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 6 },
+    // Roles of https://bulldogjob.pl/companies/jobs/s/city,Remote/role,<role> that held jobs on
+    // 2026-10-17 (an unknown role answers with none, so only roles seen with jobs are listed).
+    publishedCategories: [
+      "frontend",
+      "fullstack",
+      "backend",
+      "devops",
+      "tester",
+      "qa",
+      "mobile",
+      "analyst",
+      "architect",
+      "project_manager",
+      "support",
+      "data",
+      "designer",
+      "embedded",
+      "ai",
     ],
   },
 ];

@@ -269,4 +269,57 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
   });
+
+  describe("Bulldogjob", () => {
+    const fetchBulldogjob = (categories: string[]) =>
+      createAdapters({ baseUrl: fake.baseUrl }).bulldogjob.fetchLatest({
+        http: createSourceHttp(db.db, sourceById("bulldogjob"), { now: () => NOW }),
+        now: NOW,
+        categories,
+      });
+
+    it("reads one remote search per owner role, complete when the page holds them all", async () => {
+      fake.route("/companies/jobs/s/city,Remote/role,frontend", xml(fixture("bulldogjob/frontend.html")));
+
+      const result = await fetchBulldogjob(["frontend"]);
+
+      expect(fake.requests).toEqual(["/companies/jobs/s/city,Remote/role,frontend"]);
+      expect(result).toMatchObject({
+        completeness: "complete",
+        itemsReturned: 3,
+        coversPublishedAfter: null,
+      });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "900001-example-offer-1",
+        url: "https://bulldogjob.pl/companies/jobs/900001-example-offer-1",
+        company: "Example Co",
+        title: "Senior Frontend Developer (React + React Native)",
+        description:
+          "<p>Level: senior</p>\n<p>Contract: b2b, employment</p>\n<p>Technologies: React Native, TypeScript, Redux, GraphQL</p>",
+        locationRestriction: "Poland",
+        categories: ["frontend"],
+        // The list gives no publication time: age counts from when job-radar first found it.
+        publishedAt: null,
+        expiresAt: null,
+        payField: "20 000 - 24 000 PLN",
+      });
+      expect(result.listings[2]?.payField).toBe("");
+    });
+
+    it("is capped when the role has more jobs than the page holds", async () => {
+      fake.route(
+        "/companies/jobs/s/city,Remote/role,frontend",
+        xml(fixture("bulldogjob/frontend-capped.html")),
+      );
+      expect(await fetchBulldogjob(["frontend"])).toMatchObject({ completeness: "capped", itemsReturned: 3 });
+    });
+
+    it("fails a page without the job data", async () => {
+      fake.route("/companies/jobs/s/city,Remote/role,frontend", xml("<html>Just a moment...</html>"));
+      expect(await fetchBulldogjob(["frontend"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+    });
+  });
 });

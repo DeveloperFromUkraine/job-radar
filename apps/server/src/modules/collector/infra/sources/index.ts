@@ -1,4 +1,5 @@
 import type { SourceId } from "../../domain/sources.js";
+import { bulldogjobAdapter } from "./bulldogjob.js";
 import { himalayasAdapter } from "./himalayas.js";
 import { jobicyAdapter } from "./jobicy.js";
 import { justJoinItAdapter } from "./justjoinit.js";
@@ -17,5 +18,6 @@ export function createAdapters(options: { baseUrl?: string } = {}): Record<Sourc
     weworkremotely: weWorkRemotelyAdapter(baseUrl),
     justjoinit: justJoinItAdapter(baseUrl),
     nofluffjobs: noFluffJobsAdapter(baseUrl),
+    bulldogjob: bulldogjobAdapter(baseUrl),
   };
 }

@@ -248,6 +248,12 @@ describe("finalize a run (Flow 7)", () => {
     // Only No Fluff Jobs' first page answers, short of its total, so its read stays capped too.
     for (const category of ["frontend", "fullstack"])
       fake.route(`/pl/praca-zdalna/${category}`, xml(fixture("nofluffjobs/frontend-page1.html")));
+    // Bulldogjob answers with more jobs than its page holds, so its read stays capped too.
+    for (const role of ["frontend", "fullstack"])
+      fake.route(
+        `/companies/jobs/s/city,Remote/role,${role}`,
+        xml(fixture("bulldogjob/frontend-capped.html")),
+      );
 
     const run = await fullRun(T0);
 
@@ -256,6 +262,7 @@ describe("finalize a run (Flow 7)", () => {
         `select source_id, outcome from collector_run_sources where run_id = '${run.runId}' order by source_id`,
       ),
     ).toEqual([
+      { source_id: "bulldogjob", outcome: "capped" },
       { source_id: "himalayas", outcome: "capped" },
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "justjoinit", outcome: "capped" },
