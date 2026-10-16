@@ -286,6 +286,173 @@ sequenceDiagram
     Web-->>Owner: posting leaves the list as before
 ```
 
+### Flow 4: collection keeps the realness facts (AC-06, AC-08, AC-09; ADR-0004)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SCH as client (collection schedule)
+    participant S as service (collector)
+    participant X as external-system (job source)
+    participant D as data-store
+    Note over SCH,S: Trigger: a source is due in a collection run
+    SCH->>S: read the source
+    S->>X: fetch listings
+    X-->>S: listings with the board's own pay data
+    S->>S: check idempotency key: listing is keyed by source and item, so a repeat fetch updates, never duplicates
+    S->>S: map the board's pay data to a pay field, empty when the board states nothing or has no field
+    S->>D: write each listing with its pay field, even when nothing else changed
+    Note over S,D: persists listing pay field (never NULL after this fetch)
+    S->>D: merge listings into postings as today
+    alt a closed posting is offered again
+        S->>D: reopen it and keep when it reopened
+        Note over S,D: persists posting reopening time (repost signal)
+    end
+    alt only the pay field changed
+        S->>S: not an updated posting, source-health counts unchanged
+    end
+    Note over S,X: a failed or partial fetch is retried at the source's next due time
+    alt fetch failed
+        S->>D: record the source outcome only, no listing or posting change
+        Note over S,D: failed fetch never closes or rewrites anything (CONTEXT invariant)
+    end
+    Note over SCH,D: Postcondition: the next list load or refresh works out signals from these facts, a disabled source stops counting at once (AC-09)
+```
+
+### Flow 5: reason lines in newest first, and asking for more (AC-02, AC-03, AC-04, AC-07)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as user (owner)
+    participant UI as ui (main screen SCR-01)
+    participant S as service (search)
+    participant R as service (realness)
+    participant D as data-store
+    Note over U,UI: Precondition: realness on, list in newest first
+    U->>UI: opens the list
+    UI->>S: build a snapshot for the saved skills
+    S->>D: read open postings, verdicts, marks as today
+    D-->>S: postings
+    S->>S: order newest first exactly as without realness
+    S->>R: assess every shown posting with switch-on rules
+    R->>D: read enabled sources, pay-field boards, closed look-alike postings
+    D-->>R: facts
+    R->>R: age from publication time capped at first found, posted or first found basis
+    R->>R: larger of age and many boards, repost, no salary, cap 30
+    R-->>S: signals and penalty per posting
+    S->>S: keep signals in the snapshot, order unchanged
+    S-->>UI: first 50, same postings, counts and match as with realness off
+    UI-->>U: cards with signals show Signals line, never Lowered
+    U->>UI: asks for more
+    UI->>S: next page of the same snapshot
+    S-->>UI: next 50 with their kept signals
+    UI-->>U: same order, no posting repeated or skipped
+    alt a posting has no signal, or realness is off
+        UI-->>U: no reason line on that card
+    else realness facts cannot be read
+        S->>S: log a warning, build the list with no signals
+        UI-->>U: the list as without realness
+    end
+    Note over U,S: Postcondition: newest-first order, counts and scores identical to realness off
+```
+
+### Flow 6: the day's first opening keeps the daily lowered share (AC-14)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as user (owner)
+    participant UI as ui (main screen SCR-01)
+    participant S as service (search)
+    participant R as service (realness)
+    participant D as data-store
+    Note over U,UI: Precondition: the owner opens the list on a calendar day with no share kept yet
+    U->>UI: opens the list
+    UI->>S: build a snapshot for the saved skills and the owner's own filter
+    S->>R: assess every shown posting with switch-on rules
+    R-->>S: penalties
+    S->>R: note the day's list: postings and how many had a penalty
+    R->>D: keep the share for today if today has none
+    Note over R,D: persists daily lowered share keyed by calendar day
+    S-->>UI: the list
+    alt a later opening the same day
+        R->>D: today already has a share, nothing written
+    else a one-off look at another country
+        S->>R: list shown under a look
+        R->>R: ignored, no share written
+    else realness is off
+        R->>D: share still kept from switch-on rules
+    else the share cannot be written
+        R->>R: log a warning, the list is shown as usual
+    end
+    Note over U,D: Postcondition: at most one share per calendar day, a day without an opening has none
+```
+
+### Flow 7: changing, clearing or undoing a mark updates its realness record (AC-14)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as user (owner)
+    participant UI as ui (main screen SCR-01)
+    participant T as service (tracking)
+    participant R as service (realness)
+    participant D as data-store
+    Note over U,UI: Precondition: a posting has a mark and a realness record
+    U->>UI: changes the mark from applied to skipped
+    UI->>T: set the mark
+    T->>D: write the mark
+    T->>R: mark changed
+    R->>R: assess the posting with switch-on rules now
+    R->>D: replace the record with the latest mark, penalty and signals
+    Note over R,D: persists realness mark record keyed by posting, latest mark only
+    T-->>UI: mark state
+    alt the owner clears the mark, or undoes the only mark
+        T->>R: mark cleared
+        R->>D: remove the posting's record
+    else the owner undoes a change to an earlier mark
+        T->>R: mark changed back
+        R->>D: record the restored mark with its signals now
+    else the record cannot be written
+        R->>R: log a warning, the mark stands
+    end
+    alt the posting is removed by clean-up
+        D->>D: its record goes with it
+    end
+    Note over U,D: Postcondition: one record per marked posting, matching its current mark
+```
+
+### Coverage (use cases and acceptance criteria)
+
+| Item | Shown by |
+|---|---|
+| US-01 See live roles first | Flow 1, Flow 4 |
+| US-02 Know why a posting is lower | Flow 1 (Lowered line), Flow 5 (Signals line) |
+| US-03 Switch realness off and on | Flow 2 |
+| US-04 Realness without a score | Flow 1 (alt: no profile or unreadable scores) |
+| US-05 Keep newest first and nothing hidden | Flow 5, Flow 3, Flow 6, Flow 7 |
+| AC-01 order by score minus penalty, own score on card | Flow 1 |
+| AC-02 reason line wording in both orders | Flow 1, Flow 5 |
+| AC-03 same postings, counts, scores, cap 30 | Flow 5 (postcondition), Flow 1 |
+| AC-04 newest first untouched, Signals never Lowered | Flow 5 |
+| AC-05 unscored block by penalty, no profile, scoring problem | Flow 1 (alt branch) |
+| AC-06 stated pay from pay field or text, unknown counts as stated | Flow 4 (pay field written), Flow 5 (no-salary rule) |
+| AC-07 age basis, posted vs first found | Flow 5 |
+| AC-08 repost by reopening or earlier closed look-alike | Flow 4 (reopening time), Flow 5 (closed look-alike read) |
+| AC-09 enabled sources only, changes from next load | Flow 4 (postcondition), Flow 5 |
+| AC-10 switch off and on, kept | Flow 2 |
+| AC-11 save failure reverts | Flow 2 (else branch) |
+| AC-12 visitor or other site refused | N/A — enforced for every request by the existing access guard (`core/access.ts`: loopback Host, same-origin JSON), not a realness runtime path |
+| AC-13 filter, marks, scores unchanged, no provider call | Flow 5 (order, counts and scores unchanged); provider calls N/A — realness has no outbound call to draw, checked by a unit test (SAD §10 QG-3) |
+| AC-14 record with the mark, daily share | Flow 3, Flow 7, Flow 6 |
+
+### Flags from the runtime view
+
+- Flow 1 – 3 (written by `design`) name modules as participants; flows 4 – 7 use the generic roles with the module in brackets, as match-score's §6 does. No new participant beyond §5.
+- Flow 4 runs on the collector's existing schedule: its idempotency is the existing listing key (source + item) and its retry is the next due time. No new retry or dead-letter mechanism is needed.
+- Persist notes for `data-model`: listing pay field; posting reopening time; daily lowered share keyed by calendar day; realness mark record keyed by posting (cascade with the posting). The repost read needs closed postings by look-alike key — today the look-alike key is computed on read (applied-skipped ADR-0004), so `data-model` decides whether an index on the collector's match key is enough.
+
 ## 7. Deployment view
 
 No new deployment unit. The `realness` module runs in the existing server process on the owner's machine and is registered in `app.ts` before tracking, so tracking can be given its hook. One new migration (`0007`) adds the two collector columns and the three realness tables. It runs with the existing `db:migrate`, which backs up the database first. No new configuration and no new dependency. Listings collected before this ships keep a NULL pay field until their next fetch; one full collection run fills them in.
