@@ -1,5 +1,7 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { RealnessDeps } from "../src/modules/realness/app/deps.js";
+import { noteListShown } from "../src/modules/realness/app/records.js";
 import { setOn } from "../src/modules/realness/app/settings.js";
 import { createRealness } from "../src/modules/realness/index.js";
 import type { TrackingDeps } from "../src/modules/tracking/app/deps.js";
@@ -17,6 +19,7 @@ describe("mark records and daily shares (realness-score T09)", () => {
   let t: TempDb;
   let clock: number;
   let warned: object[];
+  let deps: RealnessDeps;
   let realness: ReturnType<typeof createRealness>;
   let tracking: TrackingDeps;
 
@@ -24,12 +27,13 @@ describe("mark records and daily shares (realness-score T09)", () => {
     t = createTempDb();
     clock = NOW;
     warned = [];
-    realness = createRealness({
+    deps = {
       db: t.db,
       now: () => clock,
       timeZone: TZ,
-      log: { warn: (o) => warned.push(o) },
-    });
+      log: { warn: (o, msg) => warned.push({ ...o, msg }) },
+    };
+    realness = createRealness(deps);
     tracking = { db: t.db, now: () => clock, timeZone: TZ, onMarkChanged: realness.onMarkChanged };
   });
   afterEach(() => t.cleanup());
@@ -68,7 +72,7 @@ describe("mark records and daily shares (realness-score T09)", () => {
     });
 
     it("uses switch-on rules even with the switch off", () => {
-      setOn(realness.deps, false);
+      setOn(deps, false);
       const id = stale();
       setMark(tracking, id, "applied");
       expect(records()).toMatchObject([{ penalty: 15 }]);
@@ -108,7 +112,10 @@ describe("mark records and daily shares (realness-score T09)", () => {
       refuse("realness_mark_records");
       const id = stale();
       expect(setMark(tracking, id, "applied").mark).toBe("applied");
-      expect(warned).toEqual([{ module: "realness", postingId: id }]);
+      // Only the id and the error, never a title (review F-12).
+      expect(warned).toEqual([
+        { module: "realness", postingId: id, err: expect.any(String), msg: expect.stringMatching(/\S/) },
+      ]);
     });
 
     it("a record goes with its posting at clean-up", () => {
@@ -128,24 +135,26 @@ describe("mark records and daily shares (realness-score T09)", () => {
       ]);
 
     it("keeps the day's first share of lowered postings in the owner's list", () => {
-      realness.noteListShown(list(), "own");
+      noteListShown(deps, list(), "own");
       clock = NOW + 60 * 60 * 1000;
-      realness.noteListShown(new Map(), "off");
+      noteListShown(deps, new Map(), "off");
       expect(shares()).toEqual([{ day: "2026-10-16", postings: 3, lowered: 2, recorded_at: NOW }]);
     });
 
     it("ignores a one-off look; the next day gets its own share", () => {
-      realness.noteListShown(list(), "look");
+      noteListShown(deps, list(), "look");
       expect(shares()).toEqual([]);
       clock = Date.UTC(2026, 9, 16, 22, 30); // 00:30 on the 17th in Warsaw
-      realness.noteListShown(list(), "none");
+      noteListShown(deps, list(), "none");
       expect(shares()).toMatchObject([{ day: "2026-10-17" }]);
     });
 
     it("a share that cannot be written is logged with the day", () => {
       refuse("realness_daily_shares");
-      expect(() => realness.noteListShown(list(), "own")).not.toThrow();
-      expect(warned).toEqual([{ module: "realness", day: "2026-10-16" }]);
+      expect(() => noteListShown(deps, list(), "own")).not.toThrow();
+      expect(warned).toEqual([
+        { module: "realness", day: "2026-10-16", err: expect.any(String), msg: expect.stringMatching(/\S/) },
+      ]);
     });
   });
 });

@@ -138,7 +138,12 @@ export function realnessOf(deps: SearchDeps): RealnessReader {
     db: deps.db,
     now: deps.now,
     timeZone: machineTimeZone(),
-    log: deps.log?.warn ? { warn: (o: object) => deps.log?.warn?.(o, "realness not kept") } : undefined,
+    log: deps.log?.warn
+      ? {
+          warn: (o: object, msg?: string) =>
+            deps.log?.warn?.(o, msg ? `realness not kept: ${msg}` : "realness not kept"),
+        }
+      : undefined,
   };
   return {
     assess: (postings) => assess(realness, postings, deps.now()),

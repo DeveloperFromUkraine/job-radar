@@ -47,7 +47,8 @@ export const effectiveTime = ({ publishedAt, firstFoundAt }: Timed) =>
 
 // Building an Intl formatter is costly; a list build asks for two days per posting.
 const formatters = new Map<string, Intl.DateTimeFormat>();
-const dayNumber = (at: number, timeZone: string) => {
+/** The calendar day of `at` in `timeZone`, as YYYY-MM-DD. */
+export const calendarDay = (at: number, timeZone: string): string => {
   let format = formatters.get(timeZone);
   if (!format) {
     format = new Intl.DateTimeFormat("en-CA", {
@@ -58,7 +59,10 @@ const dayNumber = (at: number, timeZone: string) => {
     });
     formatters.set(timeZone, format);
   }
-  const day = format.format(at).split("-").map(Number) as [number, number, number];
+  return format.format(at);
+};
+const dayNumber = (at: number, timeZone: string) => {
+  const day = calendarDay(at, timeZone).split("-").map(Number) as [number, number, number];
   return Date.UTC(day[0], day[1] - 1, day[2]) / (24 * 60 * 60 * 1000);
 };
 

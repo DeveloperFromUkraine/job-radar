@@ -23,6 +23,6 @@
 | R02 | [Server failure paths: no 0-of-0 share, last-known switch, 503 on a failed switch read (review F-03, F-04, F-05)](../_review/review-2026-10-16.md) | app | Volodymyr Kozlov | S | — | done |
 | R03 | [Switch keeps the saved state while the list reloads (review F-06)](../_review/review-2026-10-16.md) | ui | Volodymyr Kozlov | S | — | done |
 | R04 | [Close the test-plan gaps: AC-07/08/09/10/14 rows, SCR-01 loading + marked, AC-13 provider check, latency 50 + closed look-alikes (review F-07..F-10)](../_review/review-2026-10-16.md) | tests | Volodymyr Kozlov | S | R02, R03 | done |
-| R05 | [Tidy: unused realness exports, error detail in write logs, one day formatter (review F-11..F-13)](../_review/review-2026-10-16.md) | app | Volodymyr Kozlov | S | R02 | todo |
+| R05 | [Tidy: unused realness exports, error detail in write logs, one day formatter (review F-11..F-13)](../_review/review-2026-10-16.md) | app | Volodymyr Kozlov | S | R02 | done |
 
 **Total:** 14 tasks, ~11.5 person-days + 5 review follow-ups.
