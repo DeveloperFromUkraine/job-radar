@@ -21,7 +21,7 @@ Committed approach: **a realness penalty that only lowers a posting's place in t
 
 Why this: competitive research (2026-10-16) found that the closest products either remove ghost postings (OfferRun Job Radar, Hiring Cafe) or score one board at a time (Skip This Job, ShouldApply). None lowers a posting beside an unchanged fit score, and none uses history across many boards, which only a collector reading many boards has. The published age tiers (30 days stale, 60 days likely inactive) seed the fixed thresholds. The sharpest failure the adversarial pass found is a wrong reason: a "no salary" reason next to a fit note that quotes the salary, or a repost reason on a real new headcount. After a few of those the owner stops trusting every reason and switches the feature off. So each signal is defined narrowly, every lowered card names every signal behind its penalty, and the owner's test (§7) checks the reasons by hand.
 
-Traceability: the list, its counts, paging, the "new" mark and the newest-first order come from search (search AC-01, AC-10, AC-14, AC-15, AC-16). The best-match order and the card's match summary come from match-score (match-score AC-01, AC-11). Listings, merging, reopening, first fill and clean-up come from the collector (collector AC-04, AC-10, AC-11, AC-19). Marks and look-alike hints come from applied-skipped. The remote filter alone hides postings for location. This feature adds the realness signals, the penalty and the reason line. Match-score rule it amends: AC-11 (in best match first, the order uses the score minus the realness penalty, and within the unscored block less-lowered postings come first). Collector rules it amends: a listing also keeps whether its board stated pay, and a posting keeps when it last reopened (collector AC-11), counted from when this ships. Both upstream specs carry a back-reference to this spec until `design` writes the amended wording.
+Traceability: the list, its counts, paging, the "new" mark and the newest-first order come from search (search AC-01, AC-10, AC-14, AC-15, AC-16). The best-match order and the card's match summary come from match-score (match-score AC-01, AC-11). Listings, merging, reopening, first fill and clean-up come from the collector (collector AC-04, AC-10, AC-11, AC-19). Marks and look-alike hints come from applied-skipped. The remote filter alone hides postings for location. This feature adds the realness signals, the penalty and the reason line. Match-score rule it amends: AC-11 (in best match first, the order uses the score minus the realness penalty, and within the unscored block less-lowered postings come first). Collector rules it amends: a listing also keeps whether its board stated pay, written on every fetch of the listing even when nothing else changed, and a posting keeps when it last reopened (collector AC-11), counted from when this ships. A listing collected before this ships has an unknown pay state until its next fetch, and an unknown pay state never counts as "no salary" (AC-06). Both upstream specs carry a back-reference to this spec until `design` writes the amended wording.
 
 ## 2. Goals
 
@@ -77,13 +77,13 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 **When** the owner opens the list
 **Then** they see A (88), then C (70), then B (92 minus 25 is 67); each card still shows its own match score, A 88, C 70 and B 92; postings with an equal score after the penalty keep their newest-first order
 
-> Penalty points: posted or first found 30–59 days ago 10; 60 or more days ago 20; open at three or more enabled sources and first found 45 or more days ago 15 (the larger of this and age counts, not both); reposted 10; no stated salary 5. The total is capped at 30.
+> Penalty points: posted or first found 30–59 days ago 10; 60 or more days ago 20; open at three or more enabled sources and first found 45 or more days ago 15 (the larger of this and age counts, not both); reposted 10; no stated salary 5. The total is capped at 30. "N days ago" counts calendar days in the owner's time zone between the time and today, for both the thresholds and the number on the card.
 
 ### AC-02 (US-02) — happy
 
 **Given** realness is on and a posting in the owner's list was reposted, states no salary and was first found 47 days ago, with no publication time from its sources
 **When** the owner sees its card, in either order
-**Then** the card shows one line naming every signal behind the penalty, for example "Lowered: first found 47 days ago · reposted · no salary listed" in best match first, and the same signals as "Signals: …" in newest first, where nothing was lowered; an age says "posted N days ago" when a source gives a publication time and "first found N days ago" when none does; a long life on many boards says "on 4 boards · first found 50 days ago"; when both time signals apply, the line names only the one that counts (AC-01); a posting with no signal shows no line
+**Then** the card shows one line naming every signal behind the penalty, for example "Lowered: first found 47 days ago · reposted · no salary listed" in best match first, and the same signals as "Signals: …" in newest first, where nothing was lowered; an age says "posted N days ago" only when the time it counts from is the publication time (AC-07), and "first found N days ago" otherwise, including when a source gives a publication time later than when job-radar first found the posting; a long life on many boards says "on 4 boards · first found 50 days ago"; when both time signals apply, the line names only the one that counts (AC-01); a posting with no signal shows no line
 
 ### AC-03 (US-01, US-05) — domain invariant
 
@@ -105,21 +105,21 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 
 ### AC-06 (US-01, US-02) — domain invariant
 
-**Given** a posting states its pay — any of its open listings has an amount in its board's own pay field, or its text gives an amount of money as pay, such as "$120k", "120–150K USD", "PLN 20 000–25 000 net B2B", "18 000 zł/mies.", "€60,000 a year" or "30k/month"
+**Given** a posting states its pay — any of its open listings from an enabled source has an amount in its board's own pay field, or the title or description of any of those listings gives an amount of money as pay, such as "$120k", "120–150K USD", "PLN 20 000–25 000 net B2B", "18 000 zł/mies.", "€60,000 a year" or "30k/month"
 **When** job-radar works out its realness signals
-**Then** the posting has no "no salary" signal; wording without an amount ("competitive", "DOE", "attractive package", "market rate") counts as no stated salary, and amounts that are not pay ("$5M Series A", "$2,000 learning budget", "$1B ARR") are never read as a salary
+**Then** the posting has no "no salary" signal; wording without an amount ("competitive", "DOE", "attractive package", "market rate") counts as no stated salary, and amounts that are not pay ("$5M Series A", "$2,000 learning budget", "$1B ARR") are never read as a salary; a listing whose pay state is unknown (collected before this shipped and not fetched since, §1) on a board that has a pay field counts as stating pay until its next fetch
 
 ### AC-07 (US-01, US-02) — domain invariant
 
 **Given** a posting whose age is worked out from its time as search orders it — its publication time, but never later than when job-radar first found it — including postings collected in the collector's first fill
 **When** that time is 30 days ago or more
-**Then** it has the age signal; a posting collected in the first fill with no publication time counts from when it was first found and its reason says "first found N days ago", never "posted"; a posting reopened by the collector keeps the time search orders it by, and also has the repost signal (AC-08)
+**Then** it has the age signal; a posting collected in the first fill with no publication time counts from when it was first found and its reason says "first found N days ago", never "posted"; so does a posting whose publication time is later than when it was first found; a posting reopened by the collector keeps the time search orders it by, and also has the repost signal (AC-08)
 
 ### AC-08 (US-01) — cross-context
 
-**Given** the collector reopened a posting after it had closed (a reopening since this shipped), or the owner's collection holds an earlier posting — open, closed or marked — that this posting is a look-alike of by the look-alike matching (CONTEXT "Look-alike posting"), whose time as search orders it (publication time, never later than first found) is more than 7 days before this posting's
+**Given** the collector reopened a posting after it had closed (a reopening since this shipped), or the owner's collection holds an earlier, closed posting (marked or not) that matches this posting by the look-alike matching rule (company and title as in CONTEXT "Look-alike posting", applied here to any earlier posting, not only a marked one), whose time as search orders it (publication time, never later than first found) is more than 7 days before this posting's
 **When** job-radar works out the posting's realness signals
-**Then** it has the repost signal; a posting merged from listings within 7 days of each other (collector AC-04) is one posting and is not a repost; two copies collected on the same day in the first fill, published more than 7 days apart, are a repost; a posting whose earlier copy was already removed by clean-up has no repost signal; a look-alike posting keeps its look-alike hint (applied-skipped) next to the reason line
+**Then** it has the repost signal; a posting merged from listings within 7 days of each other (collector AC-04) is one posting and is not a repost; two copies collected on the same day in the first fill, published more than 7 days apart, are a repost; a posting whose earlier copy was already removed by clean-up has no repost signal; while the earlier matching posting is still open, the two are read as parallel hires and neither has the repost signal; a look-alike posting keeps its look-alike hint (applied-skipped) next to the reason line
 
 ### AC-09 (US-01) — cross-context
 
@@ -131,7 +131,7 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 
 **Given** realness is on
 **When** the owner switches it off
-**Then** best match first orders by match score alone (match-score AC-11), no card shows a reason line, and the choice is kept for the next opening; switching it on again restores the penalty and the reason lines at once; realness is on when the owner first opens the list after this ships
+**Then** best match first orders by match score alone (match-score AC-11), no card in either order shows a "Lowered" or a "Signals" line, and the choice is kept for the next opening; switching it on again restores the penalty and the reason lines at once; realness is on when the owner first opens the list after this ships
 
 ### AC-11 (US-03) — error
 
@@ -155,7 +155,7 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 
 **Given** a posting in the owner's list, with realness on or off and in either order
 **When** the owner marks it applied or skipped
-**Then** job-radar keeps, with the mark, the posting's penalty and signals at that moment as realness would work them out with the switch on, so the §7 checks can compare marks on lowered and not-lowered postings; once a day it also keeps the share of postings in the owner's list that had a penalty; clearing or changing the mark keeps the record of the latest mark only
+**Then** job-radar keeps, with the mark, the posting's penalty and signals at that moment as realness would work them out with the switch on, so the §7 checks can compare marks on lowered and not-lowered postings; the first time the owner opens the list on a calendar day of their time zone, it also keeps the share of postings in that list that had a penalty, counted on the list as the owner's saved skills and remote filter give it (a one-off look is ignored); a day the list is not opened has no share; changing the mark keeps the record of the latest mark only, and clearing the mark removes its record
 
 ## 6. Non-functional requirements
 
@@ -182,13 +182,13 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 ## 7. Metrics / KPIs
 
 - **Reason precision** — baseline: 0 (new); target: in a hand check of 20 lowered cards against their boards within 14 days of shipping, at least 18 have every named signal true (pay really absent, age right within 1 day, the repost or the board count real).
-- **Applications go to live roles** — baseline: TBD, the average daily share of postings with a penalty in the owner's list over the first 7 days after shipping (AC-14); target: within 30 days of shipping, the share of postings the owner marks applied that were lowered when marked is at most half that baseline share.
+- **Applications go to live roles** — baseline: TBD, the average of the daily shares kept on the days in the first 7 days after shipping that have one (AC-14); target: within 30 days of shipping, the share of postings the owner marks applied that were lowered when marked is at most half that baseline share.
 - **Lowered postings get skipped** — baseline: 0 (new); target: within 30 days of shipping, postings that were lowered when marked are marked skipped at least 1.5 times as often (as a share of their marks) as postings that were not lowered.
 - **Trust** — baseline: 0 (new); target: realness is still on 30 days after shipping.
 
 ## 8. Open questions
 
-- [ ] Which boards state pay in their own field, and in what form? Default now: Himalayas, Remotive and Jobicy are assumed to have a pay field and We Work Remotely none; the collector keeps "pay stated" per listing where the board gives it. — owner: Volodymyr Kozlov, due: before `/sdd:design realness-score`
+- [ ] Which boards state pay in their own field, and in what form? Default now: Himalayas, Remotive, Jobicy and Remote OK are assumed to have a pay field and We Work Remotely none; the collector keeps "pay stated" per listing where the board gives it. — owner: Volodymyr Kozlov, due: before `/sdd:design realness-score`
 - [ ] Are the thresholds and points right (30/60 days, 3 boards for 45 days, 10/20/15/10/5, cap 30)? Default now: as in AC-01, taken from the published age tiers. — owner: Volodymyr Kozlov, due: 2026-11-30, after the §7 hand check
 - [ ] Should job-radar learn about employer replies so the success can be measured directly? Default now: no; §7 uses marks and a hand check. — owner: Volodymyr Kozlov, due: when roadmap step 7 (alerts) is specified
 - [ ] When company boards exist (roadmap step 9), does "not on the company's careers site" become a fifth signal? Default now: yes, as its own spec. — owner: Volodymyr Kozlov, due: when step 9 is specified
