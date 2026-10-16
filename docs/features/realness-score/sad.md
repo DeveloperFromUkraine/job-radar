@@ -369,7 +369,7 @@ ADR files live under `docs/features/realness-score/adr/NNNN-<title>.md`.
 | Realness penalty | The points a posting's signals take off its place in the best-match order, at most 30; the card keeps its honest match score (CONTEXT) |
 | Effective time | A posting's publication time, never later than when job-radar first found it; the time newest first orders by and age counts from (search `order.ts`) |
 | Repost | A posting that reopened since this shipped, or that matches an earlier closed, not-removed posting by the look-alike key with an effective time more than 7 days earlier |
-| Pay field | A board's own statement of pay for a listing, kept as text on the listing; empty when the board states nothing or has no field; unknown (NULL) until the listing's first fetch after this ships *(not in CONTEXT — `glossary` follow-up)* |
-| Reason line | The one line on a card naming every signal: "Lowered: …" in best match first, "Signals: …" in newest first, built from fixed phrases *(not in CONTEXT — `glossary` follow-up)* |
-| Daily lowered share | The share of postings in the owner's list that had a penalty, kept once per calendar day on the first opening of that day; the baseline for the spec §7 "applications go to live roles" KPI *(not in CONTEXT — `glossary` follow-up)* |
+| Pay field | A board's own statement of pay for a listing, kept as text on the listing; empty when the board states nothing or has no field; unknown (NULL) until the listing's first fetch after this ships (CONTEXT) |
+| Reason line | The one line on a card naming every signal: "Lowered: …" in best match first, "Signals: …" in newest first, built from fixed phrases (CONTEXT) |
+| Daily lowered share | The share of postings in the owner's list that had a penalty, kept once per calendar day on the first opening of that day; the baseline for the spec §7 "applications go to live roles" KPI (CONTEXT) |
 | Look-alike posting | Same company and title by the collector's merge matching, bracketed non-region parts dropped, Sr/Jr read as Senior/Junior (CONTEXT; here applied to any earlier posting) |
