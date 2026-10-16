@@ -32,7 +32,9 @@ target_surfaces: [backend-service, web-frontend]  # decided in §4 — subset of
 | Tech Lead | SAD approval | Yes |
 | Security Lead | No new boundary; the new setting is protected like the existing ones | No |
 
-<!-- Decision overrides (¶4) — populated by the critic resolution loop, empty otherwise. -->
+<!-- Decision overrides (¶4) — populated by the critic resolution loop. -->
+
+- Decision override: keep size S although the feature adds a module, a route and a migration — rationale: the module follows the repo's one-roadmap-step-one-module convention (project ADR 0002), the one route mirrors `remote-filter/filter`, and migration `0007` is additive only; the work stays within ~1 week and 2–5 PRs (critic F2, owner decision 2026-10-16).
 
 ## 2. Constraints
 
@@ -122,7 +124,7 @@ C4Context
 **Resolves spec §8 Q1** ("Which boards state pay in their own field?"), from the recorded payloads in `apps/server/test/fixtures/sources/`:
 - Himalayas: `minSalary`/`maxSalary` with `salaryPeriod`.
 - Remotive: the free-text `salary` field, often empty, sometimes like "$50-$75 /hour".
-- Jobicy: `annualSalaryMin`/`annualSalaryMax` with `salaryCurrency`, per its API documentation. These fields are absent from the recorded payloads and are checked against the live API in `implement` (§11).
+- Jobicy: `salaryMin`/`salaryMax` with `salaryCurrency`, checked against the live v2 API on 2026-10-16 (filled on 12 of 20 jobs). The recorded fixtures predate these fields; `implement` re-records them.
 - We Work Remotely: no pay field.
 - Remote OK: not a source in this repo.
 
@@ -133,7 +135,7 @@ C4Context
 - Assumed: a new collector export of closed postings' heads (`id`, `company`, `title`, `publishedAt`, `firstFoundAt`) for the repost rule — because removed postings must not count, and only the collector knows what still exists.
 - Assumed: boards are counted from `enabledSourceIds` — because the remote filter already counts only enabled sources that way.
 - Assumed: "N days" is worked out on the server in `machineTimeZone()` and sent as structured signals. The web builds the line from fixed phrases and never from posting text — because of the spec §6.1 abuse case.
-- Assumed: search assesses every shown posting at snapshot build in both orders and keeps the result in the snapshot — because the newest-first line, the daily share and stable paging all need it.
+- Assumed: search assesses every shown posting at snapshot build in both orders and keeps the result in the snapshot — because the newest-first line, the daily share and stable paging all need it. `assess` always uses switch-on rules; search alone applies `isOn()` to the order and to the cards (critic F1), so the daily share and mark records never depend on the switch.
 - Assumed: the order is amended in `search/domain/order.ts` (`bestMatchOrder` takes a penalty).
 - Assumed: the switch is a `realness_settings` singleton (NULL = on) behind `POST /api/v1/realness/settings {on}`, mirroring `remote-filter/filter`. The web saves first, then reruns search; on failure the switch reverts, the list keeps its order, and an inline error offers a retry.
 - Assumed: AC-14 mark records go in `realness_mark_records` (one row per marked posting, removed with the posting). They are written through tracking's injected `onMarkChanged` hook after the mark is saved, computed with switch-on rules, and deleted on clear. A failed write is logged and never fails the mark.
@@ -153,7 +155,8 @@ Layered, as every module in the repo (project ADR 0002): `domain/` holds pure ru
 apps/server/src/modules/realness/
 ├── domain/       signals (age basis, many boards, repost, no salary), penalty (points, larger-of-time rule, cap 30),
 │                 amount parser (pay vs non-pay amounts) + labelled fixture set (≥ 100 postings), calendar-day count
-├── app/          assess(postings, now) → Map<id, {penalty, signals}>; isOn(); setOn(); noteListShown(day, assessments, filterMode);
+├── app/          assess(postings, now) → Map<id, {penalty, signals}> with switch-on rules, never reading the switch; isOn(); setOn();
+│                 noteListShown(day, assessments, filterMode) from those switch-on values;
 │                 onMarkChanged(postingId, mark | null)
 ├── infra/        schema (realness_settings singleton, realness_mark_records, realness_daily_shares), repo
 ├── ports/        routes: GET + POST /api/v1/realness/settings
@@ -219,18 +222,20 @@ sequenceDiagram
     Search->>Realness: assess the shown postings now
     Realness->>Collector: enabled sources, pay-field boards, closed posting heads
     Collector-->>Realness: facts
-    Realness->>DB: read the switch
-    Realness-->>Search: penalty and signals per posting, switch on
-    Search->>Search: order by score minus penalty, unscored block by penalty
-    Search->>Realness: note the day's share for the owner's list
+    Realness-->>Search: penalty and signals per posting, by switch-on rules
+    Search->>Realness: note the day's share from these switch-on values
     Realness->>DB: keep the share if the day has none
+    Search->>Realness: is realness on
+    Realness->>DB: read the switch
+    Realness-->>Search: on
+    Search->>Search: order by score minus penalty, unscored block by penalty
     Search-->>Web: first 50 with match and realness per card
     Web-->>Owner: honest scores, Lowered lines on lowered cards
     alt scores cannot be read or no profile
         Search->>Search: every posting is unscored, ordered by penalty
     end
     alt realness off
-        Search->>Search: penalty 0, no realness on cards
+        Search->>Search: order ignores the penalty, no realness on cards, share still kept
     end
 ```
 
@@ -348,7 +353,6 @@ ADR files live under `docs/features/realness-score/adr/NNNN-<title>.md`.
 |---|---|---|---|
 | A wrong reason (pay shown on the board, a real new headcount read as a repost) makes the owner distrust every reason and switch realness off | Medium | Narrow signal rules (§4); labelled salary fixture set (QG-2); spec §7 hand check of 20 lowered cards within 14 days; reason line names every signal so each can be checked | Volodymyr Kozlov |
 | The salary-text check over up to 10,000 postings' text pushes the list past search's p95 | Medium | The search NFR integration test runs with realness on in both orders; fallback is an in-process memo of the per-listing pay decision (§7) | Volodymyr Kozlov |
-| Jobicy's pay field names are taken from its API documentation, not from a recorded payload | Low | `implement` records a live Jobicy payload with pay fields into the fixtures; if Jobicy has no pay field, its `hasPayField` is false and only text decides | Volodymyr Kozlov |
 | Thresholds and points (30/60 days, 3 boards for 45 days, 10/20/15/10/5, cap 30) are unvalidated (spec §8 Q2) | Low | Fixed in `realness/domain` as named constants; revisit after the §7 hand check, due 2026-11-30 | Volodymyr Kozlov |
 | "Best match first" without a profile orders by realness alone, which may read oddly | Low | `screens` adds a short hint under the order switch when there is no profile (ADR-0003) | Volodymyr Kozlov |
 | `docs/architecture-map.md` is stale (reflects 133499e) | Low | Run `/sdd:survey` to refresh it | Volodymyr Kozlov |

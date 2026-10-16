@@ -15,7 +15,7 @@ ticket: "roadmap step 12 — realness-score"
 
 ## Context
 
-AC-06 says a posting states pay when any open listing's board pay field, or its title or description, gives an amount of money as pay. Wording such as "competitive" does not count. A listing collected before this ships has an unknown pay state, which counts as stating pay on a board that has a pay field. Boards differ: Himalayas has numeric `minSalary`/`maxSalary`, Remotive a free-text `salary` that may say "competitive", Jobicy optional annual amounts, and We Work Remotely nothing. `RawListing` and `collector_listings` keep no pay data today.
+AC-06 says a posting states pay when any open listing's board pay field, or its title or description, gives an amount of money as pay. Wording such as "competitive" does not count. A listing collected before this ships has an unknown pay state, which counts as stating pay on a board that has a pay field. Boards differ: Himalayas has numeric `minSalary`/`maxSalary`, Remotive a free-text `salary` that may say "competitive", Jobicy optional `salaryMin`/`salaryMax`/`salaryCurrency` (live API, 2026-10-16), and We Work Remotely nothing. `RawListing` and `collector_listings` keep no pay data today.
 
 ## Decision drivers
 
@@ -41,7 +41,7 @@ AC-06 says a posting states pay when any open listing's board pay field, or its 
 
 **Negative**
 - A text column per listing instead of a flag (a few bytes per listing).
-- Jobicy's field names come from its API documentation and are checked against a live payload in `implement` (SAD §11).
+- The recorded Jobicy fixtures predate its pay fields and are re-recorded in `implement`.
 
 **Neutral**
 - A pay-field change alone does not make a posting an "Updated posting"; source-health counts do not move.
