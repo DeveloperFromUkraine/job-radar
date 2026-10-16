@@ -9,6 +9,15 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 const stagedDir = fileURLToPath(
   new URL("../../../docs/features/remote-boards-collector/migrations/", import.meta.url),
 );
+// Later features' staged changes to collector tables (realness-score 01–02: pay_field, reopened_at).
+const laterDeltas = [
+  fileURLToPath(new URL("../../../docs/features/realness-score/migrations/", import.meta.url)),
+].flatMap((dir) =>
+  readdirSync(dir)
+    .filter((f) => f.endsWith(".up.sql") && f.includes("collector"))
+    .sort()
+    .map((f) => `${dir}${f}`),
+);
 
 type Row = Record<string, unknown>;
 
@@ -61,6 +70,7 @@ describe("collector schema", () => {
       const ddl = readFileSync(`${stagedDir}${file}`, "utf8").replaceAll("--> statement-breakpoint", "");
       ref.exec(ddl);
     }
+    for (const file of laterDeltas) ref.exec(readFileSync(file, "utf8"));
 
     const expected = describeSchema((q) => ref.prepare(q).all() as Row[]);
     expect(expected.map((t) => t.table)).toHaveLength(10);
