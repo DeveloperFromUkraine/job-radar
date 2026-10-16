@@ -85,6 +85,24 @@ describe("SCR-01 realness switch", () => {
     expect(realnessSwitch().checked).toBe(false);
   });
 
+  it("after the reload, follows what a later list reports (re-review G-05)", async () => {
+    mockApi({
+      ...base,
+      // The third list: the switch was turned back on elsewhere (another tab) before this search.
+      [SEARCH]: [{ body: lowered() }, { body: off() }, { body: { ...lowered(), order: "newest" } }],
+      [SAVE]: { body: { realness_on: false } },
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("Lowered: posted 65 days ago · no salary listed");
+    fireEvent.click(realnessSwitch());
+    await waitFor(() => expect(screen.queryByText(/^Lowered:/)).toBeNull());
+    await waitFor(() => expect(realnessSwitch().disabled).toBe(false));
+    expect(realnessSwitch().checked).toBe(false);
+    fireEvent.click(screen.getByRole("radio", { name: "Newest first" }));
+    expect(await screen.findByText("Signals: posted 65 days ago · no salary listed")).toBeTruthy();
+    expect(realnessSwitch().checked).toBe(true);
+  });
+
   it("a failed save puts the switch back, keeps the list and offers a retry of the same change (AC-11)", async () => {
     const { fetchMock } = mockApi({
       ...base,

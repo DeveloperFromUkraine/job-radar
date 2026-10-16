@@ -3,7 +3,7 @@ import { useSetRealnessOn } from "./queries";
 
 /**
  * SCR-01 NEW: RealnessSwitch — "Lower stale postings" (realness-score AC-10, AC-11), the MarkedToggle
- * pattern. `on` is the list's realness_on; while saving it shows the asked-for state, once saved the saved one, and a failed save
+ * pattern. `on` is the list's realness_on; while saving it shows the asked-for state, until the list reloads the saved one, and a failed save
  * shows the previous one again with a banner whose Retry repeats the same change.
  */
 export function RealnessSwitch({
@@ -16,8 +16,13 @@ export function RealnessSwitch({
   onSaved: () => void;
 }) {
   const save = useSetRealnessOn(onSaved);
-  // After a save the confirmed state stays shown: the list holds the old realness_on until it reloads.
-  const shown = save.isPending ? (save.variables as boolean) : save.isSuccess ? save.data.realness_on : on;
+  // While the list reloads after a save it still holds the old realness_on, so the saved state is shown;
+  // once it has reloaded the list is the truth again (re-review G-05). `disabled` is the list fetching.
+  const shown = save.isPending
+    ? (save.variables as boolean)
+    : save.isSuccess && disabled
+      ? save.data.realness_on
+      : on;
   return (
     <>
       <label className="inline-flex min-h-11 items-center gap-2 self-start">
