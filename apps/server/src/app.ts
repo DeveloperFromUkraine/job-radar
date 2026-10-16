@@ -10,6 +10,7 @@ import { type CollectorModuleOptions, collectorModule } from "./modules/collecto
 import { healthModule } from "./modules/health/index.js";
 import { createMatching } from "./modules/matching/index.js";
 import type { Provider } from "./modules/matching/infra/claude.js";
+import { createRealness } from "./modules/realness/index.js";
 import { createRemoteFilter } from "./modules/remote-filter/index.js";
 import { ownerList } from "./modules/search/app/owner-list.js";
 import { searchModule } from "./modules/search/index.js";
@@ -42,7 +43,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     // finishes on an open handle.
     const handle = openDb(options.collector.databaseFile);
     app.addHook("onClose", async () => handle.close());
-    // Tracking first: the collector's clean-up asks its ProtectedPostings port what to keep.
+    // Realness before tracking: tracking reports mark changes to it (realness-score ADR-0001).
+    const realness = createRealness({
+      db: handle.db,
+      now: options.collector.now ?? Date.now,
+      timeZone: machineTimeZone(),
+    });
+    // Tracking next: the collector's clean-up asks its ProtectedPostings port what to keep.
     const tracking = createTracking({
       db: handle.db,
       now: options.collector.now ?? Date.now,
@@ -54,6 +61,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     await app.register(tracking.plugin);
     const remoteFilter = createRemoteFilter({ db: handle.db, now: options.collector.now ?? Date.now });
     await app.register(remoteFilter.plugin);
+    await app.register(realness.plugin);
     // Matching scores search's owner list and search reads matching's scores (match-score ADR-0004):
     // both are wired here, so neither module imports the other.
     const now = options.collector.now ?? Date.now;

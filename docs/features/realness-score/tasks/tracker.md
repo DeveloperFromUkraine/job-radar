@@ -11,7 +11,7 @@
 | T04 | [Let search's bestMatchOrder take a realness penalty](./t04-best-match-order-with-penalty.md) | domain | Volodymyr Kozlov | S | — | done |
 | T05 | [Keep each board's pay field on every fetch and the reopening time in the collector](./t05-collector-keeps-pay-field-and-reopening.md) | infra | Volodymyr Kozlov | M | T01, T02 | done |
 | T06 | [Export the realness facts from collector/app: reopening, pay fields, closed heads, pay-field boards](./t06-collector-realness-exports.md) | app | Volodymyr Kozlov | S | T01 | done |
-| T07 | [Add the realness module with its switch: settings repo, GET/POST /api/v1/realness/settings, registration](./t07-realness-module-and-switch.md) | ports | Volodymyr Kozlov | M | T01 | todo |
+| T07 | [Add the realness module with its switch: settings repo, GET/POST /api/v1/realness/settings, registration](./t07-realness-module-and-switch.md) | ports | Volodymyr Kozlov | M | T01 | done |
 | T08 | [Implement assess(): work out penalty and signals for a set of postings with switch-on rules](./t08-realness-assess.md) | app | Volodymyr Kozlov | M | T02, T03, T06, T07 | todo |
 | T09 | [Keep realness with every mark and once a day: mark records, daily share, tracking's onMarkChanged hook](./t09-mark-records-and-daily-share.md) | app | Volodymyr Kozlov | M | T08 | todo |
 | T10 | [Assess at snapshot build, order by penalty, and present realness and realness_on in search](./t10-search-orders-and-presents-realness.md) | app | Volodymyr Kozlov | L | T04, T08, T09 | todo |
