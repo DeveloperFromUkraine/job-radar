@@ -1,6 +1,8 @@
 // Does a text state pay as an amount of money? (spec AC-06, ADR-0004). One rule for board pay fields,
 // titles and descriptions. Pure: no I/O, no locale library.
-// ponytail: hand-written patterns tuned on pay-fixtures.ts; widen them when the §7 hand check finds misses.
+// ponytail: hand-written patterns tuned on pay-fixtures.ts and pay-probes.ts; widen them when the §7 hand
+// check finds misses. Known gap: Indian digit grouping ("₹15,00,000", "15 LPA") in descriptions; board
+// fields carry plain digits.
 
 const CURRENCY = String.raw`US\$|CA\$|A\$|C\$|\$|€|£|USD|EUR|PLN|GBP|CAD|AUD|CHF|CZK|zł|Kč`;
 const NUMBER = String.raw`\d{1,3}(?:[ ,.\u00a0\u202f]\d{3})+(?:[.,]\d{1,2})?|\d+(?:[.,]\d+)?`;
@@ -22,7 +24,7 @@ const ADJECTIVE_PERIOD = /^(annual|monthly|yearly|hourly)$/i;
 
 // Words that make a nearby amount not a salary: company money, budgets and perks.
 const NON_PAY =
-  /\b(series|seed|raised?|funding|funded|valuation|valued|worth|revenue|arr|mrr|gmv|spend|spent|transacted|paid out|earned|credit|assets|budget|stipend|allowance|reimburse\w*|meal|mobility|learning|education|training|development|professional|conference|equipment|workstation|internet|referral|relocation|bonus|equity|refresh|grant|initiative|million|billion|customer|client|business owner)s?\b|voucher/i;
+  /\b(series|seed|raised?|funding|funded|valuation|valued|worth|revenue|arr|mrr|gmv|spend|spent|transacted|paid out|earned|credit|assets|budget|stipend|allowance|reimburse\w*|meal|mobility|learning|education|training|development|professional|conference|equipment|workstation|internet|referral|relocation|wellness|health|gym|co-?working|home office|sign-?on|phone|travel|bonus|equity|refresh|grant|initiative|million|billion|customer|client|business owner)s?\b|voucher/i;
 const PAY =
   /\b(salary|salaries|compensation|pay|paid|wage|wages|rate|rates|earnings|earn|ote|base|range|band|gross|net|b2b|brutto|netto|wynagrodzenie|stawka|mzda|plat)\b/i;
 
@@ -71,60 +73,80 @@ const AMOUNTS_ONLY = new RegExp(
 export const fieldStatesPay = (field: string): boolean =>
   (AMOUNTS_ONLY.test(field) && /\d{2}/.test(field) && /[1-9]/.test(field)) || statesPay(field);
 
+// A currency's ISO code beside a number is a currency in text too ("SGD 8,000", "50 000 SEK per month")
+// (re-review 2 H-02). A list, not any three capitals: "ISO 27001" and "SOC 2" are not money.
+const ISO_CODES = new Set(
+  "USD EUR GBP CHF CAD AUD NZD SGD HKD JPY CNY INR KRW SEK NOK DKK ISK PLN CZK HUF RON BGN UAH TRY ILS AED SAR BRL MXN ARS CLP COP PEN ZAR NGN KES EGP PHP IDR MYR THB VND TWD".split(
+    " ",
+  ),
+);
+const CODE_BEFORE = /(?:^|[^A-Za-z])([A-Z]{3})\s?$/;
+const CODE_AFTER = /^\s?([A-Z]{3})(?![A-Za-z])/;
+const isCode = (c: string | undefined): c is string => c !== undefined && ISO_CODES.has(c);
+// Nouns that name an amount as a perk even further along the clause ("$2,000, for your learning budget").
+const PERK_NOUN = /\b(budget|stipend|allowance|reimburse\w*|voucher)s?\b/i;
+
+// Biased to pay (re-review 2): a wrong "no salary" is the sharpest failure (spec §1), a false pay only
+// avoids a lowering (spec §6.1). So a pay word before the amount always wins; only the words right after
+// it can name it a perk; a perk noun later in the clause counts only with no period and no pay word; and
+// add-ons after a salary ("and equity", "with a bonus") never cancel it.
 function judge(text: string): boolean {
   const t = text.replace(NOT_AMOUNTS, " ");
   for (const m of t.matchAll(AMOUNT)) {
     const [whole, pre, num = "", mag, post] = m;
     const start = m.index;
     const end = start + whole.length;
-    const rest = t.slice(end, end + 80); // only the next few words decide
+    let rest = t.slice(end, end + 80); // only the next few words decide
     if (/^\s*%/.test(rest)) continue; // "100% remote"
     if (mag && BIG.test(mag)) continue; // salaries are never millions
-    const currency = pre ?? post;
+    const codeBefore = CODE_BEFORE.exec(t.slice(Math.max(0, start - 5), start))?.[1];
+    const codeAfter = post || pre ? undefined : CODE_AFTER.exec(rest)?.[1];
+    if (isCode(codeAfter)) rest = rest.replace(CODE_AFTER, " ");
+    const currency =
+      pre ?? post ?? (isCode(codeBefore) ? codeBefore : isCode(codeAfter) ? codeAfter : undefined);
     const value = toNumber(num) * (mag ? 1000 : 1);
     // "$40-60/hr": the period after a range's upper end belongs to both ends.
     const hasPeriod = PERIOD.test(rest) || PERIOD.test(rest.replace(RANGE_END, ""));
+    // A range's upper end ("20 000 – 25 000 PLN …") or lower end: perk amounts are single figures.
+    const inRange =
+      RANGE_END.test(rest) || /[-–—]\s*(?:[$€£]\s?)?$/.test(t.slice(Math.max(0, start - 3), start));
+
+    // The nearest cue before it in the same clause: "Salary: $150,000 and equity" is pay.
+    const before =
+      t
+        .slice(Math.max(0, start - 70), start)
+        .split(/[.!?•;,]\s|\n/)
+        .pop() ?? "";
+    const cue = nearestCue(before);
+    if (cue === "pay" && (currency || value >= 1000)) return true; // "Salary: 120,000", "salary: $1"
+    if (cue === "non_pay") continue; // "budget of USD 2,000 per year"
     if (!currency && !(mag || hasPeriod)) continue; // a bare number: "280 doctors", "7 years"
     if (!currency && value < 1000) continue; // "7 years", "3 days"
 
     // The words right after the amount name what it is: "$2,000 learning budget", "$5M Series A",
-    // "$150k base salary". After a period the amount is already pay, so ", equity" or "with a … budget"
-    // only adds to it (re-review G-03); without one, "home office and learning budget" still names it.
+    // "$150k base salary". "annual" before a noun describes it ("$1,500 annual wellness stipend"); before a
+    // break or at the end it is the period ("€60,000 annual, plus bonus").
     const named = rest.replace(new RegExp(`^\\s*(?:${CURRENCY})(?![a-z])`, "i"), " ");
-    // "annual" before a noun describes it ("$1,500 annual wellness and learning stipend"); before a break
-    // or at the end it is the period ("€60,000 annual, plus bonus").
     const period = PERIOD.exec(named);
     const afterPeriod =
       period !== null &&
       (!ADJECTIVE_PERIOD.test(period[1] ?? "") ||
-        /^\s*(?:$|[,;.!?()]|(?:\+|plus|and|with)\s)/i.test(named.slice(period[0].length)));
-    const after = (
-      named
-        .replace(PERIOD, " ")
-        .split(
-          afterPeriod
-            ? /[.,;!?()]|[$€£]\s?\d|\s(?:\+|plus|and|with)\s/i
-            : /[.;!?()]|[$€£]\s?\d|\s(?:\+|plus)\s|,\s*(?:and|with)\s/i,
-        )[0] ?? ""
-    )
+        /^\s*(?:$|[,;.!?()\n]|(?:\+|plus|and|with)\s)/i.test(named.slice(period[0].length)));
+    const clause = named.replace(PERIOD, " ").split(/[.;!?()\n•]|[$€£]\s?\d/)[0] ?? "";
+    const [head = "", ...tail] = clause.split(/,|\s(?:\+|plus|and|with)\s/i);
+    const headWords = head
       .split(/[^\p{L}\d-]+/u)
       .filter(Boolean)
       .slice(0, 6);
-    const namedAs = firstCue(after);
+    const namedAs = firstCue(headWords);
     if (namedAs === "non_pay") continue;
     // A pay word names the amount only when it follows it directly; after a period it starts the next
     // thought ("budget of USD 2,000 per year Annual compensation review").
     if (namedAs === "pay" && !afterPeriod) return true;
+    // Nothing named the amount before the conjunction: a perk noun further on does ("$5,000 with a laptop
+    // and conference budget"); "$120k for this role, and a training budget" stays pay.
+    if (!afterPeriod && !inRange && headWords.length === 0 && PERK_NOUN.test(tail.join(" "))) continue;
 
-    // Otherwise the nearest cue before it in the same sentence decides.
-    const before =
-      t
-        .slice(Math.max(0, start - 70), start)
-        .split(/[.!?•]\s/)
-        .pop() ?? "";
-    const cue = nearestCue(before);
-    if (cue === "non_pay") continue;
-    if (cue === "pay") return true; // "Base Salary Range 1 130 000 Kč" is a salary in koruna
     // "$3,000,000 of transactions": uncued millions with no period are company money; "¥6,000,000 per
     // year" and "1 130 000 Kč per year" are pay (re-review G-02, G-04).
     if (value >= 1_000_000 && !hasPeriod) continue;
@@ -139,13 +161,18 @@ function nearestCue(before: string): "pay" | "non_pay" | null {
       .split(/[^\p{L}\d-]+/u)
       .filter(Boolean)
       .reverse(),
+    true,
   );
 }
 
-/** The first pay or non-pay word in `words`, in order. */
-function firstCue(words: readonly string[]): "pay" | "non_pay" | null {
-  for (const w of words) {
-    if (NON_PAY.test(w)) return "non_pay";
+/** The first pay or non-pay word in `words`, in order; two-word perks too ("home office", "paid out"). */
+function firstCue(words: readonly string[], reversed = false): "pay" | "non_pay" | null {
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i] as string;
+    const next = words[i + 1];
+    const pair = next === undefined ? "" : reversed ? `${next} ${w}` : `${w} ${next}`;
+    if (NON_PAY.test(w) || (pair && /^(?:home office|paid out|business owner)$/i.test(pair)))
+      return "non_pay";
     if (PAY.test(w)) return "pay";
   }
   return null;

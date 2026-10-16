@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fieldStatesPay, statesPay } from "./pay.js";
 import { PAY_FIXTURES } from "./pay-fixtures.js";
+import { PAY_PROBES } from "./pay-probes.js";
 
 describe("statesPay — AC-06 examples", () => {
   it.each([
@@ -129,6 +130,15 @@ describe("fieldStatesPay — a board's own pay field (review F-02, re-review G-0
     "does not read %j as pay",
     (field) => {
       expect(fieldStatesPay(field)).toBe(false);
+    },
+  );
+});
+
+describe("the review probes (re-review 2 resolution): every one decided right", () => {
+  it.each(PAY_PROBES.map((p) => [p.kind, p.text, p.statesPay] as const))(
+    "%s %j → %s",
+    (kind, text, expected) => {
+      expect((kind === "pay_field" ? fieldStatesPay : statesPay)(text)).toBe(expected);
     },
   );
 });

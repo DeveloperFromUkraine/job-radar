@@ -27,5 +27,6 @@
 | R06 | [No realness when the switch or the facts cannot be read (re-review G-01)](../_review/review-2026-10-16-2.md) | app | Volodymyr Kozlov | S | — | done |
 | R07 | [Salary rule: any ISO code in pay fields, million skip only without a period, split only right after the amount, ≥2-digit field amounts (re-review G-02, G-03, G-04, G-06)](../_review/review-2026-10-16-2.md) | domain | Volodymyr Kozlov | S | — | done |
 | R08 | [Switch shows the saved state only while the list reloads (re-review G-05)](../_review/review-2026-10-16-2.md) | ui | Volodymyr Kozlov | S | — | done |
+| R09 | [Salary rule biased to pay; review probes as a must-pass set (re-review 2 H-01..H-03)](../_review/review-2026-10-16-3.md) | domain | Volodymyr Kozlov | S | — | done |
 
-**Total:** 14 tasks, ~11.5 person-days + 8 review follow-ups.
+**Total:** 14 tasks, ~11.5 person-days + 9 review follow-ups.

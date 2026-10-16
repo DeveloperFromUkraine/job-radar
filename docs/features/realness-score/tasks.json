@@ -453,6 +453,23 @@
         "apps/web/src/routes/Home.realness.test.tsx"
       ],
       "file": "docs/features/realness-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "R09",
+      "title": "Salary rule biased to pay: a pay cue wins, only the head names a perk, add-ons never reject, line breaks end a clause; other ISO codes; more perk nouns; probes as a must-pass set (re-review 2 H-01..H-03)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-02"
+      ],
+      "dod": "Every row of pay-probes.ts decided right; labelled set unchanged at 0 misses; gate green.",
+      "files_hint": [
+        "apps/server/src/modules/realness/domain/pay.ts",
+        "apps/server/src/modules/realness/domain/pay-probes.ts",
+        "apps/server/src/modules/realness/domain/pay.test.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16-3.md"
     }
   ]
 }
