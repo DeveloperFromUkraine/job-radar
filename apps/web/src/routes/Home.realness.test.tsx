@@ -60,6 +60,31 @@ describe("SCR-01 realness switch", () => {
     expect(realnessSwitch().checked).toBe(false);
   });
 
+  it("keeps showing the saved state while the list reloads, not the old one (review F-06)", async () => {
+    const { fetchMock } = mockApi({
+      ...base,
+      [SEARCH]: [{ body: lowered() }, { body: off() }],
+      [SAVE]: { body: { realness_on: false } },
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("Lowered: posted 65 days ago · no salary listed");
+    let release = () => {};
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    const answer = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/v1/search/snapshots") await held;
+      return (answer as NonNullable<typeof answer>)(input, init);
+    });
+    fireEvent.click(realnessSwitch());
+    await waitFor(() => expect(searches(fetchMock)).toBe(2));
+    expect(realnessSwitch().checked).toBe(false); // the list still holds realness_on: true
+    release();
+    await waitFor(() => expect(screen.queryByText(/^Lowered:/)).toBeNull());
+    expect(realnessSwitch().checked).toBe(false);
+  });
+
   it("a failed save puts the switch back, keeps the list and offers a retry of the same change (AC-11)", async () => {
     const { fetchMock } = mockApi({
       ...base,
