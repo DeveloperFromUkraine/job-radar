@@ -1,7 +1,7 @@
 // The source registry: intervals and published limits (spec §6 Source request rate).
 // One read = one request to the source, pages and failed requests included.
 
-export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely";
+export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit";
 
 export interface RateLimits {
   perMinute?: number;
@@ -129,6 +129,44 @@ export const SOURCES: readonly SourceDefinition[] = [
       "Management and Finance",
       "Product",
       "Sales and Marketing",
+    ],
+  },
+  {
+    id: "justjoinit",
+    name: "Just Join IT",
+    siteUrl: "https://justjoin.it",
+    // One request per owner category a run (each page holds that category's newest 50); no
+    // published limit, so hourly and at most 6 pages an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 6 },
+    closesByExpiry: true,
+    // The category slugs of https://justjoin.it/job-offers/all-locations/<slug>, read 2026-10-17.
+    publishedCategories: [
+      "javascript",
+      "html",
+      "php",
+      "ruby",
+      "python",
+      "java",
+      "net",
+      "scala",
+      "c",
+      "mobile",
+      "testing",
+      "devops",
+      "admin",
+      "ux",
+      "pm",
+      "game",
+      "analytics",
+      "security",
+      "data",
+      "go",
+      "support",
+      "erp",
+      "architecture",
+      "other",
+      "ai",
     ],
   },
 ];

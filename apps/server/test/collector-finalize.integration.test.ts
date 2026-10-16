@@ -10,7 +10,7 @@ import { openRun } from "../src/modules/collector/app/open-run.js";
 import { startUp } from "../src/modules/collector/app/startup.js";
 import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
-import { type FakeSources, json, startFakeSources, xml } from "./helpers/fake-sources.js";
+import { type FakeSources, fixture, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -243,6 +243,8 @@ describe("finalize a run (Flow 7)", () => {
       "/api/remote-jobs",
       json(JSON.stringify({ ...JSON.parse(remotivePage([1])), "total-job-count": 50 })),
     );
+    for (const category of ["javascript", "html"])
+      fake.route(`/job-offers/all-locations/${category}`, xml(fixture("justjoinit/javascript.html")));
 
     const run = await fullRun(T0);
 
@@ -253,10 +255,11 @@ describe("finalize a run (Flow 7)", () => {
     ).toEqual([
       { source_id: "himalayas", outcome: "capped" },
       { source_id: "jobicy", outcome: "capped" },
+      { source_id: "justjoinit", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
       { source_id: "weworkremotely", outcome: "capped" },
     ]);
-    // Himalayas and WWR close by expiry, so a capped read re-checks every closure; the others' cannot.
+    // Himalayas, WWR and Just Join IT close by expiry, so a capped read re-checks every closure; the others' cannot.
     expect(
       rows("select source_id from collector_source_flags where kind = 'held_back' order by source_id"),
     ).toEqual([{ source_id: "jobicy" }, { source_id: "remotive" }]);

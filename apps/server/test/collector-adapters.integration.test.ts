@@ -146,4 +146,64 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
   });
+
+  describe("Just Join IT", () => {
+    const html = (body: string) => xml(body); // the adapter reads the body as text whatever its type
+    const fetchJustJoinIt = (categories: string[]) =>
+      createAdapters({ baseUrl: fake.baseUrl }).justjoinit.fetchLatest({
+        http: createSourceHttp(db.db, sourceById("justjoinit"), { now: () => NOW }),
+        now: NOW,
+        categories,
+      });
+
+    it("reads one remote page per owner category, capped, from the offers inside the page", async () => {
+      fake.route("/job-offers/all-locations/javascript", html(fixture("justjoinit/javascript.html")));
+
+      const result = await fetchJustJoinIt(["javascript"]);
+
+      expect(fake.requests).toEqual(["/job-offers/all-locations/javascript?remote=yes"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 3, coversPublishedAfter: null });
+      expect(result.listings).toHaveLength(3);
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "00000000-0000-4000-8000-000000000001",
+        url: "https://justjoin.it/job-offer/example-offer-1",
+        company: "Example Co",
+        title: "Senior Full Stack Engineer",
+        locationRestriction: "Poland",
+        categories: ["javascript"],
+        publishedAt: Date.parse("2026-10-16T16:00:11.504Z"),
+        expiresAt: Date.parse("2026-10-31T22:59:59.999Z"),
+        payField: "b2b EUR 60000–80000 per year",
+      });
+      expect(result.listings[0]?.description).toContain("<b>markup</b>");
+      expect(result.listings[0]?.description).toContain("<p>Level: senior</p>");
+      expect(result.listings[0]?.description).toContain("<p>Contract: b2b</p>");
+      expect(result.listings[0]?.description).toMatch(/Required skills: .+/);
+      // No amount stated: no pay field; a monthly PLN range keeps its period.
+      expect(result.listings[1]?.payField).toBe("");
+      expect(result.listings[2]?.payField).toBe("b2b PLN 17500–25500 per month");
+    });
+
+    it("keeps an offer found in two categories once", async () => {
+      fake.route("/job-offers/all-locations/javascript", html(fixture("justjoinit/javascript.html")));
+      fake.route("/job-offers/all-locations/html", html(fixture("justjoinit/javascript.html")));
+
+      const result = await fetchJustJoinIt(["javascript", "html"]);
+
+      expect(fake.requests).toHaveLength(2);
+      expect(result.listings.map((l) => l.sourceItemId)).toEqual([
+        "00000000-0000-4000-8000-000000000001",
+        "00000000-0000-4000-8000-000000000002",
+        "00000000-0000-4000-8000-000000000003",
+      ]);
+    });
+
+    it("fails a page without an offer list", async () => {
+      fake.route("/job-offers/all-locations/javascript", html("<html>Just a moment...</html>"));
+      expect(await fetchJustJoinIt(["javascript"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+    });
+  });
 });

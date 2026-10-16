@@ -75,7 +75,11 @@ export async function ingestSource(
 ): Promise<FetchVerdict> {
   const { db } = deps;
   const http = createSourceHttp(db, sourceById(sourceId), { now: deps.now, signal: deps.signal });
-  const fetched = await deps.adapters[sourceId].fetchLatest({ http, now: deps.now() });
+  const fetched = await deps.adapters[sourceId].fetchLatest({
+    http,
+    now: deps.now(),
+    categories: run.settings.sources[sourceId].categories,
+  });
   const verdict: FetchVerdict = {
     sourceId,
     completeness: fetched.completeness,

@@ -48,6 +48,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         himalayas: fine("himalayas", { completeness: "capped" }),
         remotive: fine("remotive"),
         weworkremotely: fine("weworkremotely"),
+        justjoinit: fine("justjoinit", { completeness: "capped" }),
       },
       timeZone: "Europe/Warsaw",
     };
@@ -84,6 +85,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
     ).toEqual([
       { source_id: "himalayas", outcome: "capped", failure_reason: null },
       { source_id: "jobicy", outcome: "complete", failure_reason: null },
+      { source_id: "justjoinit", outcome: "capped", failure_reason: null },
       {
         source_id: "remotive",
         outcome: "failed",

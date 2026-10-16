@@ -8,8 +8,14 @@ const DAY = 24 * HOUR;
 const T0 = Date.UTC(2026, 9, 2, 0, 0, 0);
 
 describe("source registry", () => {
-  it("knows the four sources with their intervals (spec §6)", () => {
-    expect(SOURCES.map((s) => s.id)).toEqual(["jobicy", "himalayas", "remotive", "weworkremotely"]);
+  it("knows the sources with their intervals (spec §6)", () => {
+    expect(SOURCES.map((s) => s.id)).toEqual([
+      "jobicy",
+      "himalayas",
+      "remotive",
+      "weworkremotely",
+      "justjoinit",
+    ]);
     expect(sourceById("jobicy").intervalMs).toBe(HOUR);
     expect(sourceById("remotive").intervalMs).toBe(6 * HOUR);
     expect(sourceById("himalayas").intervalMs).toBe(6 * HOUR);
