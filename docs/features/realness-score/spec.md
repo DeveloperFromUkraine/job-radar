@@ -192,6 +192,7 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 - [ ] Are the thresholds and points right (30/60 days, 3 boards for 45 days, 10/20/15/10/5, cap 30)? Default now: as in AC-01, taken from the published age tiers. — owner: Volodymyr Kozlov, due: 2026-11-30, after the §7 hand check
 - [ ] Should job-radar learn about employer replies so the success can be measured directly? Default now: no; §7 uses marks and a hand check. — owner: Volodymyr Kozlov, due: when roadmap step 7 (alerts) is specified
 - [ ] When company boards exist (roadmap step 9), does "not on the company's careers site" become a fifth signal? Default now: yes, as its own spec. — owner: Volodymyr Kozlov, due: when step 9 is specified
+- [ ] Salary-rule residuals left after the review rounds of 2026-10-16 ([review 5](./_review/review-2026-10-16-5.md)). Do they show up in real postings? Default now: unread as listed. Harmful (a stated salary read as "no salary"): "This position pays $52,000 …" (no "pays" pay word); pipe-separated headers with no pay word ("Acme | Senior Engineer | Remote | $150k | Health insurance"); intern stipends ("Stipend: $2,500 per month for interns"); Indian digit grouping ("₹15,00,000", "15 LPA"). Harmless (a perk read as pay): "We pay $100/month for your phone", "Competitive salary plus $1,200 per year for wellness", "Our earnings grew to $40,000,000". — owner: Volodymyr Kozlov, due: 2026-11-30, at the §7 hand check (count each in the hand-checked postings; widen pay.ts only for those found)
 
 ## Test plan
 
