@@ -6,6 +6,7 @@ import { SkeletonRow } from "../components/SkeletonRow";
 import { OrderSwitch } from "../features/matching/OrderSwitch";
 import { useScoringHealth } from "../features/matching/queries";
 import { ScoringNotice } from "../features/matching/ScoringNotice";
+import { RealnessSwitch } from "../features/realness/RealnessSwitch";
 import { LocationFilterBar } from "../features/remote-filter/LocationFilterBar";
 import { useFilterSwitch, useRemoteFilterSettings } from "../features/remote-filter/queries";
 import { MarkedList } from "../features/search/MarkedList";
@@ -67,6 +68,12 @@ export function Home() {
     setExpired(false);
     marks.closeNotice();
     setRequest((r) => ({ skills, run: (r?.run ?? 0) + 1, order }));
+  };
+  // realness-score AC-10: once the switch is saved, the list is built again with or without reasons.
+  const realnessSaved = () => {
+    setExpired(false);
+    marks.closeNotice();
+    setRequest((r) => ({ skills, run: (r?.run ?? 0) + 1 }));
   };
   const showMarked = () => openMarked(skills);
   const switchMarked = (on: boolean) => {
@@ -169,8 +176,12 @@ export function Home() {
       />
       {!markedView && <LocationFilterBar filter={result?.location_filter} onChange={filterChanged} />}
       <div className="flex flex-wrap items-center gap-2">
-        {!markedView && result?.has_profile && (
+        {/* Best match first is offered without a profile too (realness-score ADR-0003). */}
+        {!markedView && result && (
           <OrderSwitch order={result.order} disabled={list.isFetching} onChange={switchOrder} />
+        )}
+        {!markedView && result && (
+          <RealnessSwitch on={result.realness_on} disabled={list.isFetching} onSaved={realnessSaved} />
         )}
         <MarkedToggle
           on={markedView}
@@ -178,7 +189,9 @@ export function Home() {
           onChange={switchMarked}
         />
       </div>
-      {!markedView && result && <ScoringNotice hasProfile={result.has_profile} health={health.data} />}
+      {!markedView && result && (
+        <ScoringNotice hasProfile={result.has_profile} health={health.data} order={result.order} />
+      )}
       {markedView && (
         <>
           {markedFailed && (

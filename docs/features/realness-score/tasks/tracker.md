@@ -16,7 +16,7 @@
 | T09 | [Keep realness with every mark and once a day: mark records, daily share, tracking's onMarkChanged hook](./t09-mark-records-and-daily-share.md) | app | Volodymyr Kozlov | M | T08 | done |
 | T10 | [Assess at snapshot build, order by penalty, and present realness and realness_on in search](./t10-search-orders-and-presents-realness.md) | app | Volodymyr Kozlov | L | T04, T08, T09 | done |
 | T11 | [Show the reason line on posting cards (ReasonLine + api types)](./t11-web-reason-line.md) | ui | Volodymyr Kozlov | S | — | done |
-| T12 | [Add the realness switch to the main screen and offer best match first without a profile](./t12-web-realness-switch.md) | ui | Volodymyr Kozlov | M | T11 | todo |
+| T12 | [Add the realness switch to the main screen and offer best match first without a profile](./t12-web-realness-switch.md) | ui | Volodymyr Kozlov | M | T11 | done |
 | T13 | [Prove no loss, unchanged speed, zero cost and refused outsiders end to end](./t13-no-loss-nfr-and-access-tests.md) | tests | Volodymyr Kozlov | M | T10 | todo |
 | T14 | [Write the amended match-score AC-11 and collector AC-11 into their specs](./t14-upstream-amendments.md) | docs | Volodymyr Kozlov | S | T05, T10 | todo |
 
