@@ -3,7 +3,7 @@ slug: match-score
 date: 2026-10-16
 triage: regression
 acs: [AC-12, AC-14]
-commit: <filled after commit>
+commit: 0093306
 recurrence_of: none
 ---
 
