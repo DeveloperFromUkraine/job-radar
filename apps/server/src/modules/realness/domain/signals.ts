@@ -42,19 +42,23 @@ interface Timed {
 }
 
 /** Search's effective time: publication time, never later than first found. */
-const effectiveTime = ({ publishedAt, firstFoundAt }: Timed) =>
+export const effectiveTime = ({ publishedAt, firstFoundAt }: Timed) =>
   publishedAt === null ? firstFoundAt : Math.min(publishedAt, firstFoundAt);
 
+// Building an Intl formatter is costly; a list build asks for two days per posting.
+const formatters = new Map<string, Intl.DateTimeFormat>();
 const dayNumber = (at: number, timeZone: string) => {
-  const day = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  })
-    .format(at)
-    .split("-")
-    .map(Number) as [number, number, number];
+  let format = formatters.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat("en-CA", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+    formatters.set(timeZone, format);
+  }
+  const day = format.format(at).split("-").map(Number) as [number, number, number];
   return Date.UTC(day[0], day[1] - 1, day[2]) / (24 * 60 * 60 * 1000);
 };
 

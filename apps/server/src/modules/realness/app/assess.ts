@@ -7,7 +7,7 @@ import type { OpenListing, OpenPosting } from "../../collector/app/open-postings
 import { closedPostingHeads, hasPayField, openPostingHeads } from "../../collector/app/realness-facts.js";
 import { lookAlikeKey } from "../../tracking/app/look-alike.js";
 import { statesPay } from "../domain/pay.js";
-import { type Realness, realnessOf, repostByLookAlike } from "../domain/signals.js";
+import { effectiveTime, type Realness, realnessOf, repostByLookAlike } from "../domain/signals.js";
 
 export interface AssessDeps {
   db: Db;
@@ -21,31 +21,46 @@ const listingStatesPay = (l: OpenListing) =>
   statesPay(l.title ?? "") ||
   statesPay(l.description ?? "");
 
+type Head = ReturnType<typeof closedPostingHeads>[number];
+type Keyed = Head & { status: "open" | "closed" };
+interface Group {
+  closed: Keyed | null;
+  open: Keyed[];
+}
+
 export function assess(
   deps: AssessDeps,
   postings: readonly OpenPosting[],
   now: number,
 ): Map<string, Realness> {
   const enabled: ReadonlySet<string> = enabledSourceIds(deps.db);
-  const byKey = new Map<
-    string,
-    { id: string; status: "open" | "closed"; publishedAt: number | null; firstFoundAt: number }[]
-  >();
-  const index = (heads: ReturnType<typeof closedPostingHeads>, status: "open" | "closed") => {
-    for (const h of heads) {
-      const key = lookAlikeKey(h.company, h.title);
-      const group = byKey.get(key) ?? [];
-      group.push({ ...h, status });
-      byKey.set(key, group);
-    }
+  // Per look-alike key only the heads the repost rule can turn on: the earliest closed copy, and the two
+  // earliest open ones (one may be the posting itself). Keeps a build O(n) with large look-alike groups.
+  const groups = new Map<string, Group>();
+  const group = (h: Head) => {
+    const key = lookAlikeKey(h.company, h.title);
+    const g = groups.get(key) ?? { closed: null, open: [] };
+    groups.set(key, g);
+    return g;
   };
-  index(closedPostingHeads(deps.db), "closed");
-  index(openPostingHeads(deps.db), "open");
+  for (const h of closedPostingHeads(deps.db)) {
+    const g = group(h);
+    if (!g.closed || effectiveTime(h) < effectiveTime(g.closed)) g.closed = { ...h, status: "closed" };
+  }
+  for (const h of openPostingHeads(deps.db)) {
+    const g = group(h);
+    g.open = [...g.open, { ...h, status: "open" as const }]
+      .sort((a, b) => effectiveTime(a) - effectiveTime(b))
+      .slice(0, 2);
+  }
 
   const result = new Map<string, Realness>();
   for (const p of postings) {
     const live = p.listings.filter((l) => l.status === "open" && enabled.has(l.sourceId));
-    const sameKey = (byKey.get(lookAlikeKey(p.company, p.title)) ?? []).filter((h) => h.id !== p.id);
+    const g = groups.get(lookAlikeKey(p.company, p.title));
+    const sameKey = g
+      ? [...(g.closed ? [g.closed] : []), ...g.open.filter((h) => h.id !== p.id).slice(0, 1)]
+      : [];
     result.set(
       p.id,
       realnessOf(

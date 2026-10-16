@@ -10,7 +10,8 @@ import { fakeScoreReader, notScored, scored } from "./helpers/score-reader.js";
 import { seedOpenPostings } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
-const contract = loadContract("match-score");
+// The main list as restated by realness-score (adds realness and realness_on).
+const contract = loadContract("realness-score");
 let t: TempDb;
 let snapshots: SnapshotStore;
 let deps: SearchDeps;
@@ -120,22 +121,25 @@ describe("a score never hides a posting (AC-02)", () => {
 });
 
 describe("no profile (AC-15)", () => {
-  it("works as before: no matches, newest first, has_profile false", () => {
-    seedOpenPostings(t.db, 3);
+  // realness-score ADR-0003: best match first is kept without a profile; every posting is unscored.
+  it("works as before: no matches, all unscored in newest order, has_profile false", () => {
+    const ids = seedOpenPostings(t.db, 3);
     const r = search("best_match");
-    expect(r).toMatchObject({ has_profile: false, order: "newest" });
+    expect(r).toMatchObject({ has_profile: false, order: "best_match" });
+    expect(r.items.map((p) => p.id)).toEqual(newestFirst(ids));
     expect(r.items.every((p) => p.match === null)).toBe(true);
   });
 });
 
 describe("scores that cannot be read (api-sync F-3)", () => {
-  it("fail open: newest first, no matches, no error", () => {
+  // realness-score ADR-0003: the order stays best match first; every posting is unscored.
+  it("fail open: all unscored in newest order, no matches, no error", () => {
     const ids = seedOpenPostings(t.db, 3);
     deps.scores = fakeScoreReader(new Map(), { unreadable: true });
     const r = search("best_match");
     expect(r.items.map((p) => p.id)).toEqual(newestFirst(ids));
     expect(r.items.every((p) => p.match === null)).toBe(true);
-    expect(r.order).toBe("newest");
+    expect(r.order).toBe("best_match");
     expect(r.has_profile).toBe(true); // no misleading "set up a profile" line
   });
 });

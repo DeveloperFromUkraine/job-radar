@@ -27,6 +27,7 @@ const NOT_AMOUNTS = /\b401\s?\(?k\)?/gi; // the US retirement plan, never money
 const toNumber = (n: string) => Number(n.replace(/[ ,.\u00a0\u202f](?=\d{3}\b)/g, "").replace(",", "."));
 
 export function statesPay(text: string): boolean {
+  if (!/\d/.test(text)) return false; // fast path: no number, no amount
   const t = text.replace(NOT_AMOUNTS, " ");
   for (const m of t.matchAll(AMOUNT)) {
     const [whole, pre, num = "", mag, post] = m;

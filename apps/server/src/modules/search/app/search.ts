@@ -1,6 +1,7 @@
 // Flow 3: run a skills search (or the feed) and keep its ordered result as a snapshot.
 import { AppError } from "../../../core/errors.js";
 import type { OpenPosting } from "../../collector/app/open-postings.js";
+import type { Realness } from "../../realness/domain/signals.js";
 import type { LocationCheck } from "../../remote-filter/app/verdicts.js";
 import { compileMatcher, type MatchedSkill } from "../domain/match.js";
 import { bestMatchOrder, compareNewestFirst } from "../domain/order.js";
@@ -16,6 +17,7 @@ import {
   type MatchView,
   marksOf,
   NO_SCORES,
+  realnessOf,
   type SearchDeps,
 } from "./deps.js";
 import { presentMatch, presentPosting, walkUnmarked } from "./present.js";
@@ -83,6 +85,7 @@ export function presentPage(
   previousVisitStartedAt: number | null,
   checks: ReadonlyMap<string, LocationCheck> = new Map(),
   known?: Map<string, MatchView> | null,
+  realness: ReadonlyMap<string, Realness> = new Map(),
 ) {
   const hints = readMarks((m) => m.hintsFor(page.map((f) => f.posting)), deps);
   const matches =
@@ -96,7 +99,28 @@ export function presentPage(
     ...presentPosting(f.posting, f.matched, previousVisitStartedAt, hints.get(f.posting.id) ?? null),
     location_check: checks.get(f.posting.id) ?? null,
     match: presentMatch(matches?.get(f.posting.id)),
+    realness: presentRealness(realness.get(f.posting.id)),
   }));
+}
+
+const presentRealness = (r: Realness | undefined) => (r && r.signals.length > 0 ? r : null);
+
+/**
+ * Realness for the shown postings, with switch-on rules, and the switch (realness-score ADR-0002). Fail-open
+ * like scores: realness only orders and informs, so when it cannot be read the list is built without it.
+ */
+export function readRealness(
+  deps: SearchDeps,
+  postings: readonly OpenPosting[],
+): { assessments: Map<string, Realness>; on: boolean } {
+  try {
+    const reader = realnessOf(deps);
+    return { assessments: reader.assess(postings), on: reader.isOn() };
+  } catch (error) {
+    deps.log?.warn?.({ module: "search", err: (error as Error).name }, "realness unreadable");
+    // ponytail: true, not the last known value — no state kept across builds; keep it if the owner notices.
+    return { assessments: new Map(), on: true };
+  }
 }
 
 /**
@@ -195,14 +219,40 @@ export function runSearch(
           shown.map((f) => f.posting),
         )
       : readScores(deps, []);
-  const order: ListOrder = wanted === "best_match" && scores.matches ? "best_match" : "newest";
+  // Best match first is kept with no profile or unreadable scores: every posting is then unscored (ADR-0003).
+  const order: ListOrder = wanted;
+  const realnessStarted = performance.now();
+  const { assessments, on: realnessOn } = readRealness(
+    deps,
+    shown.map((f) => f.posting),
+  );
+  const realnessMs = Math.round(performance.now() - realnessStarted);
+  // The day's share counts the owner's list: shown and unmarked, switch-on values (AC-14).
+  try {
+    realnessOf(deps).noteListShown(
+      new Map(
+        unmarked.flatMap((f) => {
+          const r = assessments.get(f.posting.id);
+          return r ? [[f.posting.id, r] as const] : [];
+        }),
+      ),
+      filter.mode,
+    );
+  } catch {
+    // best-effort: never costs the owner the list
+  }
+  const kept = realnessOn ? assessments : new Map<string, Realness>();
   const newestIds = shown.map((f) => f.posting.id);
   const ids =
     order === "best_match"
-      ? bestMatchOrder(newestIds, (id) => {
-          const m = scores.matches?.get(id);
-          return m?.state === "scored" ? m.total : null;
-        })
+      ? bestMatchOrder(
+          newestIds,
+          (id) => {
+            const m = scores.matches?.get(id);
+            return m?.state === "scored" ? m.total : null;
+          },
+          (id) => kept.get(id)?.penalty ?? 0,
+        )
       : newestIds;
 
   const snapshot = snapshots.create({
@@ -214,6 +264,7 @@ export function runSearch(
     filterCountry,
     hiddenCount,
     checks,
+    realness: kept,
   });
   const { picked, ...page } = walkUnmarked(snapshot.ids, 0, marked);
   const byId = new Map(found.map((f) => [f.posting.id, f]));
@@ -242,6 +293,8 @@ export function runSearch(
       country: filterCountry,
       hidden: hiddenCount,
       checked: unmarked.filter((f) => checks.has(f.posting.id)).length,
+      lowered: [...kept.values()].filter((r) => r.penalty > 0).length,
+      realnessMs,
     },
     "search",
   );
@@ -250,13 +303,14 @@ export function runSearch(
     skills,
     order,
     has_profile: scores.hasProfile,
+    realness_on: realnessOn,
     total: unmarked.length,
     new_count: newCount,
     marked_count: markedCount,
     hidden_count: hiddenCount,
     collection_empty: open.length === 0,
     location_filter: filter,
-    items: presentPage(deps, pagePostings, previousVisitStartedAt, checks, pageMatches),
+    items: presentPage(deps, pagePostings, previousVisitStartedAt, checks, pageMatches, kept),
     ...page,
   };
 }
