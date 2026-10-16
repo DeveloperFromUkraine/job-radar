@@ -140,7 +140,8 @@ function judge(text: string): boolean {
     const bareAmount =
       value >= 1000 &&
       !/^(19|20)\d\d$/.test(num) &&
-      (!nextWord || /^(to|and|or|with|plus)$/i.test(nextWord) || PAY.test(nextWord) || hasPeriod) &&
+      // only a counted plural ("10,000 requests") stops it: "Salary: 90,000 DOE" is pay (K-02).
+      (!nextWord || !/^\p{L}+s$/u.test(nextWord) || PAY.test(nextWord) || hasPeriod) &&
       (value < 1_000_000 || hasPeriod);
     // A perk noun right after the amount names it even after a pay word ("Competitive pay and a $2,000
     // learning budget"); an add-on there does not cancel a salary ("Salary: $120k equity 0.1%").
@@ -149,7 +150,10 @@ function judge(text: string): boolean {
       headWords.some((w) => ADD_ON.test(w)) &&
       headWords.every((w) => !NON_PAY.test(w) || ADD_ON.test(w)) &&
       !/home office/i.test(head);
-    if (namedAs === "non_pay" && !(cue === "pay" && addOnOnly)) continue;
+    // After a pay word it does so only for a perk-sized amount with no period: "Salary: $95,000 for this
+    // Business Development role" stays pay (K-01).
+    const perkWins = value < 10_000 && !afterPeriod;
+    if (namedAs === "non_pay" && !(cue === "pay" && (addOnOnly || !perkWins))) continue;
     if (cue === "pay" && (currency || bareAmount)) return true; // "Salary: 120,000", "salary: $1"
     // A role or company noun before a range is the job, not a perk ("Senior Engineer, Health Platform —
     // $140k-$170k"): perk amounts are single figures (J-01).

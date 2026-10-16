@@ -486,6 +486,22 @@
         "apps/server/src/modules/realness/domain/pay-probes.ts"
       ],
       "file": "docs/features/realness-score/_review/review-2026-10-16-4.md"
+    },
+    {
+      "id": "R11",
+      "title": "Salary rule: a word after the amount overrides a pay word only for perk-sized amounts with no period; a bare amount rejects only a plural next word (final re-review K-01, K-02)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-02"
+      ],
+      "dod": "The reviewer's tested two-line change exactly; the 29 K-01/K-02 cases in pay-probes.ts; labelled set 0/153; gate green.",
+      "files_hint": [
+        "apps/server/src/modules/realness/domain/pay.ts",
+        "apps/server/src/modules/realness/domain/pay-probes.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16-5.md"
     }
   ]
 }

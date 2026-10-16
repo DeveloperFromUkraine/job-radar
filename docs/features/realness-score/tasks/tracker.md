@@ -29,5 +29,6 @@
 | R08 | [Switch shows the saved state only while the list reloads (re-review G-05)](../_review/review-2026-10-16-2.md) | ui | Volodymyr Kozlov | S | — | done |
 | R09 | [Salary rule biased to pay; review probes as a must-pass set (re-review 2 H-01..H-03)](../_review/review-2026-10-16-3.md) | domain | Volodymyr Kozlov | S | — | done |
 | R10 | [Salary rule: earlier pay word wins, perk nouns only under 10,000, years skipped (re-review 3 J-01..J-03)](../_review/review-2026-10-16-4.md) | domain | Volodymyr Kozlov | S | — | done |
+| R11 | [Salary rule: perk-after-amount gated by size and period; bare amount rejects only plurals (final re-review K-01, K-02)](../_review/review-2026-10-16-5.md) | domain | Volodymyr Kozlov | S | — | done |
 
-**Total:** 14 tasks, ~11.5 person-days + 10 review follow-ups.
+**Total:** 14 tasks, ~11.5 person-days + 11 review follow-ups.
