@@ -115,4 +115,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 6 · Applied / skipped marks | 2026-10-14 | [PR #3](https://github.com/DeveloperFromUkraine/job-radar/pull/3) (stacked on #2), [changelog](features/applied-skipped/changelog.md) |
 | 5 · Remote filter | 2026-10-15 | [PR #5](https://github.com/DeveloperFromUkraine/job-radar/pull/5), [changelog](features/remote-filter/changelog.md) |
 | 4 · Match score | 2026-10-16 | [PR #7](https://github.com/DeveloperFromUkraine/job-radar/pull/7), [changelog](features/match-score/changelog.md) |
-| 12 · Realness score | 2026-10-16 | branch `feature/realness-score` (PR to open), [changelog](features/realness-score/changelog.md) |
+| 12 · Realness score | 2026-10-16 | [PR #8](https://github.com/DeveloperFromUkraine/job-radar/pull/8), [changelog](features/realness-score/changelog.md) |
