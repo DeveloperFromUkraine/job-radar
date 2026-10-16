@@ -100,6 +100,24 @@ export const PAY_PROBES: PayFixture[] = [
     "Salary: 45,000 negotiable",
     "Salary: 55,000 basic plus commission",
   ),
+  // A bare salary, then "plus": "plus" ends in "s" but is not a counted plural (fix 2026-10-16-plus).
+  ...text(
+    true,
+    "Salary: 45,000 plus benefits",
+    "Base salary 95,000 plus equity",
+    "Salary: 70,000 Plus bonus",
+    "SALARY: 80,000 PLUS BONUS",
+    "Compensation: 120,000 plus stock options",
+    "Salary: 45,000 plus",
+    // Guards: the fix must not touch upper-case words after a bare salary.
+    "SALARY: 75,000 EUROS",
+    "SALARY: 60,000 DOLLARS",
+  ),
+  ...text(
+    false,
+    "Rate limit of 10,000 requests plus bursts",
+    "Salary data from 5,000 companies plus surveys",
+  ),
   // A perk after a salary-sized amount adds to it (J-02).
   ...text(
     true,

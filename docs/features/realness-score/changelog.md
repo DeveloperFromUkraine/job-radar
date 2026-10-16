@@ -53,7 +53,7 @@ Search results now carry `realness_on`, and every posting carries `realness` (it
 - the salary rule right on 153 of 153 hand-labelled real postings, at least 95% required;
 - zero provider requests from realness.
 
-The change went through six review passes on 2026-10-16 (follow-up tasks R01–R11). Review 6 passed. The known salary-rule residuals are open in [spec §8](spec.md#8-open-questions) (owner Volodymyr Kozlov):
+The change went through six review passes on 2026-10-16 (follow-up tasks R01–R11). Review 6 passed. The salary-rule residuals are tracked in [spec §8](spec.md#8-open-questions) (owner Volodymyr Kozlov):
 
-- **Fix first after merge.** A bare salary followed by "plus" ("Salary: 45,000 plus benefits") reads as no salary. The tested one-line fix is in §8.
-- **Due 2026-11-30, at the §7 hand check.** The other shapes listed there: "pays $52,000", pipe-separated headers, stipends, Indian digit grouping, and bare salaries followed by a plural or currency word.
+- **Fixed before merge.** A bare salary followed by "plus" ("Salary: 45,000 plus benefits") read as no salary; see the [fix record](_fixes/2026-10-16-plus-after-bare-salary.md).
+- **Due 2026-11-30, at the §7 hand check.** The other shapes listed there: "pays $52,000", pipe-separated headers, stipends, Indian digit grouping, and bare salaries followed by a plural, a currency word or "bonus".

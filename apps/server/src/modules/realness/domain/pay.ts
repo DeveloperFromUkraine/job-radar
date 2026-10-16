@@ -140,8 +140,13 @@ function judge(text: string): boolean {
     const bareAmount =
       value >= 1000 &&
       !/^(19|20)\d\d$/.test(num) &&
-      // only a counted plural ("10,000 requests") stops it: "Salary: 90,000 DOE" is pay (K-02).
-      (!nextWord || !/^\p{L}+s$/u.test(nextWord) || PAY.test(nextWord) || hasPeriod) &&
+      // only a counted plural ("10,000 requests") stops it: "Salary: 90,000 DOE" is pay (K-02), and so is
+      // "Salary: 45,000 plus benefits" ("plus" ends in "s" but counts nothing).
+      (!nextWord ||
+        !/^\p{L}+s$/u.test(nextWord) ||
+        /^plus$/i.test(nextWord) ||
+        PAY.test(nextWord) ||
+        hasPeriod) &&
       (value < 1_000_000 || hasPeriod);
     // A perk noun right after the amount names it even after a pay word ("Competitive pay and a $2,000
     // learning budget"); an add-on there does not cancel a salary ("Salary: $120k equity 0.1%").
