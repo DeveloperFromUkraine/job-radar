@@ -18,6 +18,6 @@
 | T11 | [Show the reason line on posting cards (ReasonLine + api types)](./t11-web-reason-line.md) | ui | Volodymyr Kozlov | S | — | done |
 | T12 | [Add the realness switch to the main screen and offer best match first without a profile](./t12-web-realness-switch.md) | ui | Volodymyr Kozlov | M | T11 | done |
 | T13 | [Prove no loss, unchanged speed, zero cost and refused outsiders end to end](./t13-no-loss-nfr-and-access-tests.md) | tests | Volodymyr Kozlov | M | T10 | done |
-| T14 | [Write the amended match-score AC-11 and collector AC-11 into their specs](./t14-upstream-amendments.md) | docs | Volodymyr Kozlov | S | T05, T10 | todo |
+| T14 | [Write the amended match-score AC-11 and collector AC-11 into their specs](./t14-upstream-amendments.md) | docs | Volodymyr Kozlov | S | T05, T10 | done |
 
 **Total:** 14 tasks, ~11.5 person-days.
