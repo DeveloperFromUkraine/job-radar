@@ -106,9 +106,8 @@ export function readPostingHeads(db: Db, ids: readonly string[]) {
   return result;
 }
 
-/** Every closed (not removed) posting's head, for the repost rule (realness-score AC-08). */
-export function readClosedPostingHeads(db: Db) {
-  return db
+const headsWhere = (db: Db, status: "open" | "closed") =>
+  db
     .select({
       id: postings.id,
       company: postings.company,
@@ -117,7 +116,11 @@ export function readClosedPostingHeads(db: Db) {
       firstFoundAt: postings.firstFoundAt,
     })
     .from(postings)
-    .where(eq(postings.status, "closed"))
+    .where(eq(postings.status, status))
     .orderBy(asc(postings.id))
     .all();
-}
+
+/** Every closed (not removed) posting's head, for the repost rule (realness-score AC-08). */
+export const readClosedPostingHeads = (db: Db) => headsWhere(db, "closed");
+/** Every open posting's head: an earlier open copy means parallel hires (realness-score AC-08). */
+export const readOpenPostingHeads = (db: Db) => headsWhere(db, "open");

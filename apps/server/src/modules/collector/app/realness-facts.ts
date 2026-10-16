@@ -2,7 +2,10 @@
 // that still exist (removed ones cannot cause a repost) and which boards have their own pay field.
 import type { SourceId } from "../domain/sources.js";
 
-export { readClosedPostingHeads as closedPostingHeads } from "../infra/repo/open-postings.js";
+export {
+  readClosedPostingHeads as closedPostingHeads,
+  readOpenPostingHeads as openPostingHeads,
+} from "../infra/repo/open-postings.js";
 
 const PAY_FIELD_BOARDS: ReadonlySet<string> = new Set<SourceId>(["himalayas", "remotive", "jobicy"]);
 
