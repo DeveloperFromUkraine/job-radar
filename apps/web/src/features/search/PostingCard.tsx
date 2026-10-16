@@ -101,20 +101,29 @@ interface PostingCardProps {
 }
 
 /** SCR-01 posting (screens.md NEW: PostingCard; applied-skipped: look-alike line, marked variant,
- * actions slot; match-score: the match above the actions; realness-score: the reason line under the match). Only the source names are links. Phones stack the parts in wireframe order; from md:
+ * actions slot; match-score: the match above the actions; realness-score: the reason line under the match). The title links to the first open listing; the source names link to each. Phones stack the parts in wireframe order; from md:
  * time and sources move to a second column. */
 export function PostingCard({ posting, now = Date.now(), banner, actions, order }: PostingCardProps) {
   const marked = "mark_state" in posting ? posting : null;
   const hint = marked ? null : (posting as Posting).look_alike;
   const check = marked ? null : (posting as Posting).location_check;
   const realness = marked || !order ? null : (posting as Posting).realness;
+  const applyUrl = posting.listings.find((l) => l.status === "open" && l.url !== null)?.url;
   return (
     <article
       id={`posting-${posting.id}`}
       className="grid gap-1 break-words rounded-card border border-border p-3 md:grid-cols-[minmax(0,1fr)_16rem] md:gap-x-4"
     >
       <div className="flex min-w-0 items-start justify-between gap-2 md:col-start-1">
-        <h3 className="min-w-0 font-medium">{posting.title}</h3>
+        <h3 className="min-w-0 font-medium">
+          {applyUrl ? (
+            <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="text-accent underline">
+              {posting.title}
+            </a>
+          ) : (
+            posting.title
+          )}
+        </h3>
         {marked ? (
           <MarkBadges posting={marked} />
         ) : (
