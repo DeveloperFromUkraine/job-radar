@@ -54,6 +54,15 @@ export function statesPay(text: string): boolean {
   return verdict;
 }
 
+// A board's structured pay field holds only amounts ("60000–80000", "USD 50–70 per hour"): any amount is pay.
+const AMOUNTS_ONLY = new RegExp(
+  String.raw`^\s*(?:(?:${CURRENCY})\s?)?[\d\s,.–-]*\d[\d\s,.–-]*(?:\s?(?:${CURRENCY}))?(?:\s*per\s+\w+)?\s*$`,
+  "i",
+);
+
+/** statesPay for a board's own pay field: a bare amount there is pay even without a currency (review F-02). */
+export const fieldStatesPay = (field: string): boolean => AMOUNTS_ONLY.test(field) || statesPay(field);
+
 function judge(text: string): boolean {
   const t = text.replace(NOT_AMOUNTS, " ");
   for (const m of t.matchAll(AMOUNT)) {
@@ -71,16 +80,17 @@ function judge(text: string): boolean {
     if (!currency && value < 1000) continue; // "7 years", "3 days"
 
     // The words right after the amount name what it is: "$2,000 learning budget", "$5M Series A".
-    const after =
+    // "+ equity", ", and a training budget", "with a … budget" add to the pay, they don't name it.
+    const after = (
       rest
         .replace(PERIOD, " ")
         .replace(new RegExp(`^\\s*(?:${CURRENCY})(?![a-z])`, "i"), " ")
-        .split(/[.;!?()]|[$€£]\s?\d|\s(?:\+|plus)\s/)[0] ??
-      "" // "+ equity" adds to the pay, it doesn't name it
-        .trim()
-        .split(/\s+/)
-        .slice(0, 4)
-        .join(" ");
+        .split(/[.,;!?()]|[$€£]\s?\d|\s(?:\+|plus|and|with)\s/i)[0] ?? ""
+    )
+      .trim()
+      .split(/\s+/)
+      .slice(0, 4)
+      .join(" ");
     if (NON_PAY.test(after)) continue;
 
     // Otherwise the nearest cue before it in the same sentence decides.
@@ -91,7 +101,8 @@ function judge(text: string): boolean {
         .pop() ?? "";
     const cue = nearestCue(before);
     if (cue === "non_pay") continue;
-    if (cue === "pay") return true;
+    if (cue === "pay") return true; // "Base Salary Range 1 130 000 Kč" is a salary in koruna
+    if (value >= 1_000_000) continue; // "$3,000,000 of transactions": uncued millions are company money
     if (value >= 1000 || hasPeriod || mag) return true;
   }
   return false;

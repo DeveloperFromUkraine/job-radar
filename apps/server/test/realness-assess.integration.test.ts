@@ -45,6 +45,10 @@ describe("assess (realness-score T08)", () => {
       ["an empty pay field on a board with a field", { sourceId: "jobicy", payField: "" }, true],
       ["an amount in the pay field", { sourceId: "remotive", payField: "$50-$75 /hour" }, false],
       ["vague wording in the pay field", { sourceId: "remotive", payField: "competitive" }, true],
+      // Review F-02: the board's structured pay with no currency or period is still an amount.
+      ["a structured amount with no currency", { sourceId: "jobicy", payField: "60000–80000" }, false],
+      ["a small structured range with no period", { sourceId: "himalayas", payField: "50–70" }, false],
+      ["a bare number in free text", { sourceId: "remotive", payField: "5 days a week" }, true],
       ["a pay field not read since this shipped, on a board with a field", { sourceId: "jobicy" }, false],
       ["no pay field ever, We Work Remotely", { sourceId: "weworkremotely" }, true],
     ])("%s", (_label, listing, noSalary) => {

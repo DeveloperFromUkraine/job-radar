@@ -29,6 +29,28 @@ describe("statesPay — AC-06 examples", () => {
     expect(statesPay(text)).toBe(false);
   });
 
+  // Review F-01: only the words right after the amount name it; a perk later in the clause doesn't.
+  it.each([
+    "Salary: $120,000 per year with a professional development budget",
+    "€60,000 a year and great equipment",
+    "$120k for this role, and a training budget",
+    "Compensation is $95,000, plus a $2,000 learning budget",
+    "USD 80,000 per year, equity and a home office stipend",
+    "Base Salary Range 1 130 000 Kč—1 410 000 Kč CZK", // a cued million is a salary in koruna
+  ])("reads %j as pay despite a perk later in the clause", (text) => {
+    expect(statesPay(text)).toBe(true);
+  });
+
+  it.each([
+    "The team handles $3,000,000 of transactions",
+    "We processed €12,500,000 last year",
+    "$500 home office stipend",
+    "$1,000 per year for equipment",
+    "a $2,000 annual learning budget",
+  ])("does not read %j as pay", (text) => {
+    expect(statesPay(text)).toBe(false);
+  });
+
   it("finds pay inside a longer description and ignores non-pay amounts around it", () => {
     expect(
       statesPay(

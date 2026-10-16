@@ -6,7 +6,7 @@ import { enabledSourceIds } from "../../collector/app/location.js";
 import type { OpenListing, OpenPosting } from "../../collector/app/open-postings.js";
 import { closedPostingHeads, hasPayField, openPostingHeads } from "../../collector/app/realness-facts.js";
 import { lookAlikeKey } from "../../tracking/app/look-alike.js";
-import { statesPay } from "../domain/pay.js";
+import { fieldStatesPay, statesPay } from "../domain/pay.js";
 import { effectiveTime, type Realness, realnessOf, repostByLookAlike } from "../domain/signals.js";
 
 export interface AssessDeps {
@@ -17,7 +17,7 @@ export interface AssessDeps {
 /** Unknown pay state (not read since this shipped) on a board with a pay field counts as stated (AC-06). */
 const listingStatesPay = (l: OpenListing) =>
   (l.payField === null && hasPayField(l.sourceId)) ||
-  statesPay(l.payField ?? "") ||
+  fieldStatesPay(l.payField ?? "") ||
   statesPay(l.title ?? "") ||
   statesPay(l.description ?? "");
 
