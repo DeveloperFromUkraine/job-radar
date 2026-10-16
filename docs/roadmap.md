@@ -22,7 +22,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 1 | Project skeleton — an empty project that builds, runs and has a working test suite | idea-brief.md §7 Recommendation | S | shipped |
 | 2 | Collect postings from remote job boards on a per-source schedule (Jobicy hourly for freshness, Himalayas, Remotive, We Work Remotely), keeping publication time and candidate-location restrictions, merging the same role across boards, closing only on reliable signals, and showing source health | idea-brief.md §7 Recommendation, [`spec`](features/remote-boards-collector/spec.md) | M | shipped |
 | 3 | Search on request — the owner enters skills and gets a list of postings with links, newest first | idea-brief.md §2 Problem, [`spec`](features/search-postings/spec.md) | S | shipped |
-| 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem, [`spec`](features/match-score/spec.md) | M | spec'd |
+| 4 | Match score with a short "why it fits" note; the owner can upload a CV instead of typing skills | idea-brief.md §2 Problem, [`spec`](features/match-score/spec.md) | M | shipped |
 | 5 | Remote filter in two modes — "can work from my country" and "open to country X" (no source states a company's own country) | idea-brief.md §2 Problem, [`spec`](features/remote-filter/spec.md) | S | shipped |
 | 6 | Mark each posting "applied" or "skipped" so it doesn't come back | idea-brief.md §5 Out of scope, [`spec`](features/applied-skipped/spec.md) | S | shipped |
 | 7 | Saved searches that notify the owner about new matches | idea-brief.md §8 Open questions | S | idea |
