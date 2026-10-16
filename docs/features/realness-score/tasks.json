@@ -406,6 +406,53 @@
         "apps/server/src/modules/realness/domain/signals.ts"
       ],
       "file": "docs/features/realness-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "R06",
+      "title": "No realness when the switch or the facts cannot be read (re-review G-01)",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-10",
+        "AC-14"
+      ],
+      "dod": "A switch-read failure builds the list with penalty 0 and realness: null, realness_on true; the day's share is still kept when facts were read; test asserts the contract's fail-open wording.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/test/search-realness.integration.test.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "R07",
+      "title": "Salary rule: any ISO code in pay fields, million skip only without a period, split only right after the amount, ≥2-digit field amounts (re-review G-02, G-03, G-04, G-06)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-06"
+      ],
+      "dod": "Every probe from both reviews decided as listed in pay.test.ts and the assess table; labelled set still ≥ 95%.",
+      "files_hint": [
+        "apps/server/src/modules/realness/domain/pay.ts",
+        "apps/server/src/modules/realness/domain/pay.test.ts",
+        "apps/server/test/realness-assess.integration.test.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "R08",
+      "title": "Switch shows the saved state only while the list reloads (re-review G-05)",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "After the reload the switch follows the list's realness_on again; test with a later list reporting a different value.",
+      "files_hint": [
+        "apps/web/src/features/realness/RealnessSwitch.tsx",
+        "apps/web/src/routes/Home.realness.test.tsx"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16-2.md"
     }
   ]
 }

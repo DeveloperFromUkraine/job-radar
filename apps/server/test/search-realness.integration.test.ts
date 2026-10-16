@@ -143,19 +143,34 @@ describe("best match first with realness (AC-01)", () => {
     expect(noted).toEqual([]);
   });
 
-  it("an unreadable switch alone still presents realness, as on (contract: true if never read)", () => {
-    add("00000000-0000-7000-8000-000000000001", 1);
+  it("an unreadable switch builds the list without realness, yet keeps the day's share (contract fail-open, re-review G-01)", () => {
+    const newer = "00000000-0000-7000-8000-000000000001";
+    const older = "00000000-0000-7000-8000-000000000002";
+    add(newer, 1);
+    add(older, 2);
+    const noted: number[] = [];
     deps.realness = {
       assess: (postings) =>
-        new Map(postings.map((p) => [p.id, { penalty: 10, signals: [{ kind: "no_salary" as const }] }])),
+        new Map(
+          postings.map((p) => [
+            p.id,
+            p.id === newer
+              ? { penalty: 10, signals: [{ kind: "no_salary" as const }] }
+              : { penalty: 0, signals: [] },
+          ]),
+        ),
       isOn: () => {
         throw new Error("disk");
       },
-      noteListShown: () => {},
+      noteListShown: (assessments) => {
+        noted.push(assessments.size);
+      },
     };
     const r = search("best_match");
-    expect(r.realness_on).toBe(true);
-    expect(r.items[0]?.realness?.signals).toEqual([{ kind: "no_salary" }]);
+    expect(r.realness_on).toBe(true); // last known: true if never read
+    expect(ids(r).filter((id) => id === newer || id === older)).toEqual([newer, older]); // penalty 0: not lowered
+    expect(r.items.every((p) => p.realness === null)).toBe(true);
+    expect(noted).toEqual([r.items.length]); // the facts were read, so the share is still kept (AC-14)
   });
 });
 

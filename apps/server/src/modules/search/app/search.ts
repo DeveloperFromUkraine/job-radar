@@ -112,20 +112,23 @@ const presentRealness = (r: Realness | undefined) => (r && r.signals.length > 0 
 export function readRealness(
   deps: SearchDeps,
   postings: readonly OpenPosting[],
-): { assessments: Map<string, Realness>; on: boolean; read: boolean } {
+): { assessments: Map<string, Realness>; on: boolean; factsRead: boolean; switchRead: boolean } {
   const reader = realnessOf(deps);
-  // The switch is read on its own, so a facts failure never shows a saved "off" as on (review F-04).
+  // Read apart, so a facts failure never shows a saved "off" as on (review F-04), and facts read while
+  // the switch is not still keep the day's share. The list uses realness only when both were read.
   let on = true;
+  let switchRead = true;
   try {
     on = reader.isOn();
   } catch (error) {
+    switchRead = false;
     deps.log?.warn?.({ module: "search", err: (error as Error).name }, "realness switch unreadable");
   }
   try {
-    return { assessments: reader.assess(postings), on, read: true };
+    return { assessments: reader.assess(postings), on, factsRead: true, switchRead };
   } catch (error) {
     deps.log?.warn?.({ module: "search", err: (error as Error).name }, "realness unreadable");
-    return { assessments: new Map(), on, read: false };
+    return { assessments: new Map(), on, factsRead: false, switchRead };
   }
 }
 
@@ -231,7 +234,8 @@ export function runSearch(
   const {
     assessments,
     on: realnessOn,
-    read: realnessRead,
+    factsRead,
+    switchRead,
   } = readRealness(
     deps,
     shown.map((f) => f.posting),
@@ -240,7 +244,7 @@ export function runSearch(
   // The day's share counts the owner's list: shown and unmarked, switch-on values (AC-14). An unread list
   // keeps no share: a 0-of-0 row would hold the day's slot (review F-03).
   try {
-    if (realnessRead)
+    if (factsRead)
       realnessOf(deps).noteListShown(
         new Map(
           unmarked.flatMap((f) => {
@@ -253,7 +257,8 @@ export function runSearch(
   } catch {
     // best-effort: never costs the owner the list
   }
-  const kept = realnessOn ? assessments : new Map<string, Realness>();
+  // Fail-open (contract runSearch): an unread switch or unread facts build the list without realness.
+  const kept = realnessOn && switchRead ? assessments : new Map<string, Realness>();
   const newestIds = shown.map((f) => f.posting.id);
   const ids =
     order === "best_match"
