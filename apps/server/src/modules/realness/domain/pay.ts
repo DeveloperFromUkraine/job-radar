@@ -26,14 +26,41 @@ const NOT_AMOUNTS = /\b401\s?\(?k\)?/gi; // the US retirement plan, never money
 
 const toNumber = (n: string) => Number(n.replace(/[ ,.\u00a0\u202f](?=\d{3}\b)/g, "").replace(",", "."));
 
+// ponytail: process-wide memo of verdicts for long texts (sad §7 scaling threshold), dropped whole at 50k
+// entries. Keyed by length and two independent 32-bit hashes, so a collision is negligible; a verdict is
+// pure in the text, so it never goes stale. A list build reads the same descriptions every time.
+const verdicts = new Map<string, boolean>();
+function textKey(text: string): string {
+  let fnv = 0x811c9dc5;
+  let djb = 5381;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    fnv = Math.imul(fnv ^ c, 0x01000193);
+    djb = (Math.imul(djb, 33) + c) | 0;
+  }
+  return `${text.length}:${fnv >>> 0}:${djb >>> 0}`;
+}
+
 export function statesPay(text: string): boolean {
   if (!/\d/.test(text)) return false; // fast path: no number, no amount
+  if (text.length < 200) return judge(text);
+  const key = textKey(text);
+  let verdict = verdicts.get(key);
+  if (verdict === undefined) {
+    if (verdicts.size >= 50_000) verdicts.clear();
+    verdict = judge(text);
+    verdicts.set(key, verdict);
+  }
+  return verdict;
+}
+
+function judge(text: string): boolean {
   const t = text.replace(NOT_AMOUNTS, " ");
   for (const m of t.matchAll(AMOUNT)) {
     const [whole, pre, num = "", mag, post] = m;
     const start = m.index;
     const end = start + whole.length;
-    const rest = t.slice(end);
+    const rest = t.slice(end, end + 80); // only the next few words decide
     if (/^\s*%/.test(rest)) continue; // "100% remote"
     if (mag && BIG.test(mag)) continue; // salaries are never millions
     const currency = pre ?? post;

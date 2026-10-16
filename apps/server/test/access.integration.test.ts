@@ -1,7 +1,9 @@
+import { sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
 import { buildApp } from "../src/app.js";
 import { assertLoopbackHost } from "../src/core/access.js";
+import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 // ADR-0007: loopback only, Host allowlist, same-origin state changes with a JSON body.
 const PORT = 3000;
@@ -97,5 +99,52 @@ describe("access guard", () => {
 
   it.each(["0.0.0.0", "192.168.1.20", "::"])("refuses to start on %s", (host) => {
     expect(() => assertLoopbackHost(host)).toThrow(/loopback/);
+  });
+});
+
+// realness-score AC-12: the switch and the list with its reasons, like every other route.
+describe("access to realness and the list with its reasons", () => {
+  let app: FastifyInstance;
+  let t: TempDb;
+
+  afterEach(async () => {
+    await app?.close();
+    t?.cleanup();
+  });
+
+  async function realApp() {
+    t = createTempDb();
+    app = await buildApp({ port: PORT, collector: { databaseFile: t.file, scheduler: false } });
+    await app.ready();
+    return app;
+  }
+  const realnessRow = () => t.db.all(sql`select realness_on from realness_settings`);
+
+  it.each([
+    ["GET", "/api/v1/realness/settings", undefined],
+    ["POST", "/api/v1/realness/settings", { on: false }],
+    ["POST", "/api/v1/search/snapshots", { skills: "" }],
+  ] as const)("refuses %s %s from a foreign Host", async (method, url, payload) => {
+    const a = await realApp();
+    const res = await a.inject({ method, url, headers: { host: "evil.example.test:3000" }, payload });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("FORBIDDEN_HOST");
+    expect(realnessRow()).toEqual([]);
+  });
+
+  it.each([
+    ["/api/v1/realness/settings", { on: false }],
+    ["/api/v1/search/snapshots", { skills: "" }],
+  ])("refuses a cross-site POST %s", async (url, payload) => {
+    const a = await realApp();
+    const res = await a.inject({
+      method: "POST",
+      url,
+      headers: { ...ok, "sec-fetch-site": "cross-site" },
+      payload,
+    });
+    expect(res.statusCode).toBe(403);
+    expect(res.json().error.code).toBe("CROSS_SITE_REQUEST");
+    expect(realnessRow()).toEqual([]);
   });
 });
