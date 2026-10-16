@@ -1,7 +1,11 @@
 import { machineTimeZone } from "../../../core/config.js";
 import type { Db } from "../../../core/db.js";
 import { type OpenPosting, openPostings, postingsByIds } from "../../collector/app/open-postings.js";
-import { type ActiveFilter, activeFilter } from "../../remote-filter/app/settings.js";
+import { assess } from "../../realness/app/assess.js";
+import { noteListShown } from "../../realness/app/records.js";
+import { isOn } from "../../realness/app/settings.js";
+import type { Realness } from "../../realness/domain/signals.js";
+import { type ActiveFilter, activeFilter, type FilterMode } from "../../remote-filter/app/settings.js";
 import { type Verdict, verdictsFor } from "../../remote-filter/app/verdicts.js";
 import type { MarkState } from "../../tracking/app/mark-state.js";
 import {
@@ -69,6 +73,13 @@ export const NO_SCORES: ScoreReader = {
   listRead: () => {},
 };
 
+/** Realness's answers search needs (realness-score ADR-0001): switch-on assessments and the switch. */
+export interface RealnessReader {
+  assess(postings: readonly OpenPosting[]): Map<string, Realness>;
+  isOn(): boolean;
+  noteListShown(assessments: ReadonlyMap<string, Realness>, filterMode: FilterMode): void;
+}
+
 export interface SearchLog {
   info(obj: object, msg: string): void;
   warn?(obj: object, msg: string): void;
@@ -86,6 +97,8 @@ export interface SearchDeps {
   location?: LocationReader;
   /** Default: no scores. app.ts wires matching's reader (match-score ADR-0004). */
   scores?: ScoreReader;
+  /** Default: realness's app exports on `db`. Replaced in tests to simulate unreadable realness. */
+  realness?: RealnessReader;
   log?: SearchLog;
 }
 
@@ -116,5 +129,25 @@ export function locationOf(deps: SearchDeps): LocationReader {
   return {
     activeFilter: (visitStartedAt) => activeFilter(remoteFilter, visitStartedAt),
     verdictsFor: (postings, country, date) => verdictsFor(remoteFilter, postings, country, date),
+  };
+}
+
+export function realnessOf(deps: SearchDeps): RealnessReader {
+  if (deps.realness) return deps.realness;
+  const realness = {
+    db: deps.db,
+    now: deps.now,
+    timeZone: machineTimeZone(),
+    log: deps.log?.warn
+      ? {
+          warn: (o: object, msg?: string) =>
+            deps.log?.warn?.(o, msg ? `realness not kept: ${msg}` : "realness not kept"),
+        }
+      : undefined,
+  };
+  return {
+    assess: (postings) => assess(realness, postings, deps.now()),
+    isOn: () => isOn(realness),
+    noteListShown: (assessments, filterMode) => noteListShown(realness, assessments, filterMode),
   };
 }

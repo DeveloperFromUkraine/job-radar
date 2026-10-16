@@ -13,7 +13,8 @@ const contract = loadContract("search-postings");
 // shapes, superseding applied-skipped's (which superseded search-postings').
 const listContract = loadContract("remote-filter");
 // runSearch and getNextPage as restated by match-score (it supersedes remote-filter's).
-const scoredListContract = loadContract("match-score");
+// The main list as restated by realness-score (adds realness and realness_on).
+const scoredListContract = loadContract("realness-score");
 const headers = { host: "127.0.0.1:3000" };
 
 let dir: string;

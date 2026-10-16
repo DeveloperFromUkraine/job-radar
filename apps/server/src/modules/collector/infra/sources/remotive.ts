@@ -42,6 +42,7 @@ function toListing(job: unknown): RawListing | null {
     publication_date,
     candidate_required_location,
     description,
+    salary,
   } = job;
   if ((typeof id !== "number" && typeof id !== "string") || typeof url !== "string") return null;
   if (typeof title !== "string" || typeof company_name !== "string") return null;
@@ -57,5 +58,6 @@ function toListing(job: unknown): RawListing | null {
     categories: typeof category === "string" ? [category] : [],
     publishedAt: Number.isNaN(published) ? null : published,
     expiresAt: null,
+    payField: typeof salary === "string" ? salary : "",
   };
 }

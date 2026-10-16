@@ -12,6 +12,8 @@ export interface ListingSeed {
   title?: string;
   description?: string;
   locationRestriction?: string | null;
+  /** Default null: not read since realness-score shipped. */
+  payField?: string | null;
 }
 
 export interface PostingSeed {
@@ -22,6 +24,7 @@ export interface PostingSeed {
   publishedAt?: number | null;
   firstFoundAt?: number;
   status?: "open" | "closed";
+  reopenedAt?: number | null;
   /** Default: one open Jobicy listing carrying the posting's title and description. */
   listings?: ListingSeed[];
 }
@@ -31,9 +34,9 @@ export function addPosting(db: Db, seed: PostingSeed = {}): string {
   const title = seed.title ?? "Software Engineer";
   const description = seed.description ?? "A role.";
   db.run(
-    sql`insert into collector_postings (id, match_key, title, company, published_at, first_found_at, status, last_offered_at)
+    sql`insert into collector_postings (id, match_key, title, company, published_at, first_found_at, status, last_offered_at, reopened_at)
         values (${id}, ${id}, ${title}, ${seed.company ?? "Example Co"}, ${seed.publishedAt ?? null},
-          ${seed.firstFoundAt ?? 1}, ${seed.status ?? "open"}, 1)`,
+          ${seed.firstFoundAt ?? 1}, ${seed.status ?? "open"}, 1, ${seed.reopenedAt ?? null})`,
   );
   for (const l of seed.listings ?? [{}]) {
     const listingId = newId();
@@ -41,11 +44,11 @@ export function addPosting(db: Db, seed: PostingSeed = {}): string {
     db.run(sql`insert or ignore into collector_sources (id, fill_status) values (${sourceId}, 'complete')`);
     db.run(
       sql`insert into collector_listings (id, posting_id, source_id, source_item_id, url, title, company, description,
-            location_restriction, categories, first_collected_at, is_first_fill, last_seen_at, last_seen_run_id, status)
+            location_restriction, categories, first_collected_at, is_first_fill, last_seen_at, last_seen_run_id, status, pay_field)
           values (${listingId}, ${id}, ${sourceId}, ${listingId}, ${l.url ?? `https://jobs.example.test/${listingId}`},
             ${l.title ?? title}, ${seed.company ?? "Example Co"}, ${l.description ?? description},
             ${l.locationRestriction === undefined ? "Worldwide" : l.locationRestriction}, '[]',
-            ${seed.firstFoundAt ?? 1}, 0, 1, 'r1', ${l.status ?? "open"})`,
+            ${seed.firstFoundAt ?? 1}, 0, 1, 'r1', ${l.status ?? "open"}, ${l.payField ?? null})`,
     );
   }
   return id;

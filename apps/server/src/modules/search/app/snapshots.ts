@@ -1,5 +1,6 @@
 // In-memory result snapshots (ADR-0003): at most 20, least recently used evicted first, 2 h idle expiry.
 import { newId } from "../../../core/id.js";
+import type { Realness } from "../../realness/domain/signals.js";
 import type { LocationCheck } from "../../remote-filter/app/verdicts.js";
 
 export interface Snapshot {
@@ -16,6 +17,8 @@ export interface Snapshot {
   hiddenCount?: number;
   /** Each shown posting's "check location" reason, decided when the snapshot was built. */
   checks?: ReadonlyMap<string, LocationCheck>;
+  /** Each shown posting's realness when realness was on, fixed with the snapshot (realness-score ADR-0002). */
+  realness?: ReadonlyMap<string, Realness>;
   /** A marked-view snapshot (applied-skipped AC-05); paged only by its own route. */
   marked?: true;
 }

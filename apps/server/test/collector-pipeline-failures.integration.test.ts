@@ -163,6 +163,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
               categories: ["Developer"],
               publishedAt: T0 - 2 * HOUR,
               expiresAt: null,
+              payField: "",
             },
           ],
         }),

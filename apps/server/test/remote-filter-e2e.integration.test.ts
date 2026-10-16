@@ -18,6 +18,8 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 // AC-10 and AC-11 end to end: real source readers, merge and routes; only the boards are fake.
 // runSearch as restated by match-score (it supersedes remote-filter's).
 const contract = loadContract("match-score");
+// The main list as restated by realness-score (adds realness and realness_on).
+const listContract = loadContract("realness-score");
 const T0 = Date.UTC(2026, 9, 14, 8);
 const headers = { host: "127.0.0.1:3000" };
 
@@ -115,7 +117,7 @@ describe("remote-filter end to end", () => {
 
     expect((await post("/api/v1/remote-filter/country", { name: "Poland" })).statusCode).toBe(200);
     const list = (await post("/api/v1/search/snapshots", { skills: "" })).json();
-    contract.expectContract("runSearch", 200, list);
+    listContract.expectContract("runSearch", 200, list);
     expect(titleOf(list)).toEqual(["Backend Engineer", "Platform Engineer"]);
     expect(list).toMatchObject({ total: 2, hidden_count: 1, marked_count: 1 });
     for (const p of list.items) {

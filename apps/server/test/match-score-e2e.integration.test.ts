@@ -12,6 +12,8 @@ import { type FakeProvider, fakeProvider, scoreAnswer } from "./helpers/fake-pro
 import { addPosting } from "./helpers/search-fixtures.js";
 
 const contract = loadContract("match-score");
+// The main list as restated by realness-score (adds realness and realness_on).
+const listContract = loadContract("realness-score");
 const headers = { host: "127.0.0.1:3000" };
 const profile = {
   skills: [
@@ -74,7 +76,7 @@ const call = async (method: "GET" | "POST", url: string, payload?: object) => {
 };
 const search = async (skills: string, order?: "newest" | "best_match") => {
   const body = await call("POST", "/api/v1/search/snapshots", order ? { skills, order } : { skills });
-  contract.expectContract("runSearch", 200, body);
+  listContract.expectContract("runSearch", 200, body);
   return body;
 };
 const health = () => call("GET", "/api/v1/matching/health");

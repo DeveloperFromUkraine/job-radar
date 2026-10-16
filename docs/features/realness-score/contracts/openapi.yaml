@@ -1,0 +1,1044 @@
+openapi: 3.1.0
+info:
+  title: job-radar Realness API (realness-score)
+  version: 0.1.0
+  description: |
+    A high match score says a role fits; it does not say the role is still being filled. Postings open
+    for months, reposted, on every board for weeks or stating no pay get the owner's applications
+    first and no reply (spec §1). Realness lowers them in best match first by at most 30 points, names
+    every signal on the card, and never hides anything (ADR-0001 – ADR-0004).
+
+    Scope of this document:
+    - **realness** (new): read and switch the realness setting (AC-10, AC-11).
+    - **search** (changed): `runSearch` and `getNextPage` restated with `realness_on` on the result and
+      `realness` on every posting, and best match first available without a profile (ADR-0003). These
+      restatements supersede the ones in `docs/features/match-score/contracts/openapi.yaml`.
+      `openVisit`, `getWaitingCount`, `runMarkedView` and `getNextMarkedPage` are unchanged: the marked
+      view shows no reason line.
+    - **tracking**: no HTTP change. Setting, changing, clearing or undoing a mark also keeps or removes
+      the posting's realness record in-process (sad.md §6 flows 3, 7); the responses are unchanged.
+    - **collector**: no HTTP change. Listings now keep their board's pay field (ADR-0004), read only by
+      realness.
+
+    Access (collector ADR-0007), unchanged: no accounts, loopback only, loopback `Host` headers only, a
+    state-changing request is refused when `Sec-Fetch-Site` is `cross-site`, and a JSON body is
+    required. No CORS headers are sent, so another site cannot read the list or the setting. The 403
+    responses are what AC-12 rests on. Errors use the repo's single envelope
+    `{ "error": { "code", "message" } }` (core/errors.ts). Realness makes no provider request (AC-13).
+servers:
+  - url: http://127.0.0.1:3000
+    description: The owner's machine (loopback only); in development the Vite server proxies /api here
+security: []
+tags:
+  - name: realness
+    description: The owner's realness switch
+  - name: search
+    description: Main list, with match scores and realness
+paths:
+  /api/v1/realness/settings:
+    get:
+      tags:
+        - realness
+      summary: Read whether realness is on
+      description: |
+        Read on opening the main screen to set the switch. No saved choice reads as on (AC-10:
+        realness is on the first time the owner opens the list after this ships). Reading creates
+        nothing.
+      operationId: getRealnessSettings
+      responses:
+        "200":
+          description: The current setting
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RealnessSettings"
+              example:
+                realness_on: true
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          $ref: "#/components/responses/Internal"
+    post:
+      tags:
+        - realness
+      summary: Switch realness off or on
+      description: |
+        Saves the choice for the next opening (AC-10, sad.md §6 flow 2). The web then builds a new
+        snapshot, as switching the order does: with realness off, best match first orders by match
+        score alone and no posting carries `realness`. Saving the current state again is a no-op.
+        If the choice cannot be saved the answer is 503 and nothing changed; the web returns the
+        switch to its previous state, keeps the list, says the choice was not saved and offers a
+        retry (AC-11).
+      operationId: setRealnessOn
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RealnessOnRequest"
+            examples:
+              off:
+                summary: Switch realness off
+                value:
+                  on: false
+              on:
+                summary: Switch it on again
+                value:
+                  on: true
+      responses:
+        "200":
+          description: The setting after the change
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RealnessSettings"
+              example:
+                realness_on: false
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "500":
+          $ref: "#/components/responses/Internal"
+        "503":
+          $ref: "#/components/responses/RealnessNotSaved"
+  /api/v1/search/snapshots:
+    post:
+      tags:
+        - search
+      summary: Run a skills search (or the feed) and return its first 50 shown postings, with match scores and realness
+      description: |
+        As in match-score (skills checked and saved, location filter applied, marks dropped as each
+        page loads, `order` kept for the next opening). What changes (ADR-0002, ADR-0003, sad.md §6
+        flows 1, 5, 6):
+        - Realness assesses every shown posting when the snapshot is built, in either order, with
+          switch-on rules; penalties and signals are fixed with the snapshot.
+        - With realness on, best match first orders scored postings by score minus penalty (high to
+          low) and, within the unscored block that comes first, postings with no penalty first, then
+          by penalty from smallest to largest; equal values keep newest first (match-score AC-11 as
+          amended in sad.md §4, spec AC-01, AC-05). Newest first is exactly as without realness (AC-04).
+        - Best match first can be chosen without a profile and stays best match first when scores
+          cannot be read: every posting is then unscored (ADR-0003). `has_profile` still reports the
+          profile.
+        - Each posting's `match` is unchanged by realness (AC-03). Each posting carries `realness` with
+          its penalty and every signal when realness is on and it has at least one signal; otherwise
+          `realness: null`. The web shows "Lowered: …" in best match first and "Signals: …" in newest
+          first, built from fixed phrases, never from posting text (AC-02, spec §6.1).
+        - Realness never changes which postings are listed or any count: `total`, `new_count`,
+          `marked_count` and `hidden_count` are the same with realness on or off (AC-03).
+        - The day's first build of the owner's list (not a one-off look) keeps the daily lowered share
+          in-process (AC-14); nothing about it is returned.
+
+        Realness is read fail-open: if its facts or the switch cannot be read, the list is built with
+        penalty 0, `realness_on` as last known (true if never read) and `realness: null` on every
+        posting (sad.md §8).
+      operationId: runSearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchRequest"
+            examples:
+              kept_order:
+                summary: Use the kept order
+                value:
+                  skills: TypeScript, React
+              best_match:
+                summary: Switch to best match first
+                value:
+                  skills: TypeScript, React
+                  order: best_match
+      responses:
+        "200":
+          description: The snapshot's first page of shown postings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResult"
+              examples:
+                best_match_lowered:
+                  summary: Best match first with realness on; B (92) lowered by 25 sits below C (70) (spec AC-01)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000b1
+                    skills:
+                      - TypeScript
+                    order: best_match
+                    has_profile: true
+                    realness_on: true
+                    total: 3
+                    new_count: 0
+                    marked_count: 0
+                    hidden_count: 0
+                    collection_empty: false
+                    location_filter:
+                      mode: none
+                      country: null
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000a1
+                        title: Backend Engineer
+                        company: Example Co
+                        published_at: 2026-10-10T08:00:00Z
+                        first_seen_at: 2026-10-10T08:20:00Z
+                        is_new: false
+                        matched_skills:
+                          - skill: TypeScript
+                            in_title: false
+                        listings:
+                          - source_id: himalayas
+                            status: open
+                            url: https://jobs.example.test/himalayas/1
+                            location_restriction: null
+                        look_alike: null
+                        location_check: null
+                        match:
+                          state: scored
+                          total: 88
+                          parts:
+                            skills: 90
+                            role_type: 90
+                            seniority: 80
+                            terms: 85
+                          note: Fits your TypeScript backend work at senior level.
+                          claims: []
+                          stale: null
+                          reason: null
+                        realness: null
+                      - id: 01926a00-0000-7000-8000-0000000000a3
+                        title: Fullstack Engineer
+                        company: Example Co
+                        published_at: 2026-10-12T08:00:00Z
+                        first_seen_at: 2026-10-12T08:20:00Z
+                        is_new: false
+                        matched_skills:
+                          - skill: TypeScript
+                            in_title: false
+                        listings:
+                          - source_id: remotive
+                            status: open
+                            url: https://jobs.example.test/remotive/3
+                            location_restriction: Europe
+                        look_alike: null
+                        location_check: null
+                        match:
+                          state: scored
+                          total: 70
+                          parts:
+                            skills: 70
+                            role_type: 70
+                            seniority: 70
+                            terms: 70
+                          note: Partly fits; frontend-heavy.
+                          claims: []
+                          stale: null
+                          reason: null
+                        realness: null
+                      - id: 01926a00-0000-7000-8000-0000000000a2
+                        title: Senior Backend Engineer
+                        company: Example Co
+                        published_at: 2026-08-12T08:00:00Z
+                        first_seen_at: 2026-08-12T09:00:00Z
+                        is_new: false
+                        matched_skills:
+                          - skill: TypeScript
+                            in_title: true
+                        listings:
+                          - source_id: jobicy
+                            status: open
+                            url: https://jobs.example.test/jobicy/2
+                            location_restriction: null
+                        look_alike: null
+                        location_check: null
+                        match:
+                          state: scored
+                          total: 92
+                          parts:
+                            skills: 95
+                            role_type: 90
+                            seniority: 95
+                            terms: 85
+                          note: Strong fit for your senior TypeScript backend work.
+                          claims: []
+                          stale: null
+                          reason: null
+                        realness:
+                          penalty: 25
+                          signals:
+                            - kind: age
+                              basis: posted
+                              days: 65
+                            - kind: no_salary
+                    has_next: false
+                    next_cursor: null
+                newest_signals:
+                  summary: Newest first with realness on; signals shown, order untouched (spec AC-02, AC-04)
+                  value:
+                    snapshot_id: 01926a3b-1c2d-7e4f-8a00-0000000000b2
+                    skills:
+                      - Go
+                    order: newest
+                    has_profile: false
+                    realness_on: true
+                    total: 1
+                    new_count: 0
+                    marked_count: 0
+                    hidden_count: 0
+                    collection_empty: false
+                    location_filter:
+                      mode: none
+                      country: null
+                    items:
+                      - id: 01926a00-0000-7000-8000-0000000000a4
+                        title: Go Engineer
+                        company: Example Co
+                        published_at: null
+                        first_seen_at: 2026-08-30T10:00:00Z
+                        is_new: false
+                        matched_skills:
+                          - skill: Go
+                            in_title: true
+                        listings:
+                          - source_id: weworkremotely
+                            status: open
+                            url: https://jobs.example.test/wwr/4
+                            location_restriction: null
+                        look_alike: null
+                        location_check: null
+                        match: null
+                        realness:
+                          penalty: 25
+                          signals:
+                            - kind: age
+                              basis: first_found
+                              days: 47
+                            - kind: repost
+                            - kind: no_salary
+                    has_next: false
+                    next_cursor: null
+        "400":
+          $ref: "#/components/responses/InvalidSkills"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "500":
+          $ref: "#/components/responses/Internal"
+        "503":
+          $ref: "#/components/responses/CollectionUnavailable"
+  /api/v1/search/snapshots/{snapshot_id}/pages:
+    post:
+      tags:
+        - search
+      summary: The next 50 shown postings of a snapshot, with their current match and their kept realness
+      description: |
+        As in match-score; the snapshot's order is fixed. `match` is read fresh, but `realness` is the
+        one kept in the snapshot, so a page never re-assesses and the order never shifts (sad.md §6
+        flow 5). A collector change shows from the next load or refresh (AC-09).
+      operationId: getNextPage
+      parameters:
+        - $ref: "#/components/parameters/SnapshotId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageRequest"
+            example:
+              cursor: "50"
+      responses:
+        "200":
+          description: The next page
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostingPage"
+              example:
+                items:
+                  - id: 01926a00-0000-7000-8000-0000000000a5
+                    title: Platform Engineer
+                    company: Example Co
+                    published_at: 2026-08-20T08:00:00Z
+                    first_seen_at: 2026-08-20T08:30:00Z
+                    is_new: false
+                    matched_skills:
+                      - skill: TypeScript
+                        in_title: false
+                    listings:
+                      - source_id: himalayas
+                        status: open
+                        url: https://jobs.example.test/himalayas/5
+                        location_restriction: null
+                      - source_id: remotive
+                        status: open
+                        url: https://jobs.example.test/remotive/5
+                        location_restriction: null
+                      - source_id: jobicy
+                        status: open
+                        url: https://jobs.example.test/jobicy/5
+                        location_restriction: null
+                      - source_id: weworkremotely
+                        status: open
+                        url: https://jobs.example.test/wwr/5
+                        location_restriction: null
+                    look_alike: null
+                    location_check: null
+                    match:
+                      state: pending
+                      total: null
+                      parts: null
+                      note: null
+                      claims: []
+                      stale: null
+                      reason: Waiting to be scored.
+                    realness:
+                      penalty: 15
+                      signals:
+                        - kind: many_boards
+                          boards: 4
+                          days: 57
+                has_next: false
+                next_cursor: null
+        "400":
+          $ref: "#/components/responses/ValidationError"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "410":
+          $ref: "#/components/responses/SnapshotExpired"
+        "415":
+          $ref: "#/components/responses/UnsupportedMediaType"
+        "500":
+          $ref: "#/components/responses/Internal"
+        "503":
+          $ref: "#/components/responses/CollectionUnavailable"
+components:
+  responses:
+    RealnessNotSaved:
+      description: The choice could not be saved (AC-11). Nothing changed; the web reverts the switch, keeps the list and offers a retry
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: REALNESS_SETTINGS_UNAVAILABLE
+              message: Job-radar could not save your realness choice just now. Try again.
+    Forbidden:
+      description: The Host header is not loopback, or the request is cross-site (collector ADR-0007, AC-12)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          examples:
+            host:
+              value:
+                error:
+                  code: FORBIDDEN_HOST
+                  message: Requests are accepted only for 127.0.0.1 or localhost.
+            cross_site:
+              value:
+                error:
+                  code: CROSS_SITE_REQUEST
+                  message: Cross-site requests are not accepted.
+    Internal:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: INTERNAL
+              message: Internal server error
+    ValidationError:
+      description: The body or a path parameter does not match the schema
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: VALIDATION_ERROR
+              message: body/on must be boolean
+    UnsupportedMediaType:
+      description: The request has no JSON body (collector ADR-0007)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: UNSUPPORTED_MEDIA_TYPE
+              message: Send the request body as application/json.
+    InvalidSkills:
+      description: The skills fail the check (search AC-05), so nothing ran
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: SEARCH_INVALID_SKILLS
+              message: 24 skills entered; search takes at most 20.
+    CollectionUnavailable:
+      description: |
+        The postings, the marks or the location settings cannot be read (search AC-12). The web shows a
+        plain-language message with Retry and keeps the last list visible.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: SEARCH_COLLECTION_UNAVAILABLE
+              message: Job-radar could not read its postings just now. Try again.
+    SnapshotExpired:
+      description: Unknown or expired snapshot (search ADR-0003); the web reloads the list from the start
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorEnvelope"
+          example:
+            error:
+              code: SEARCH_SNAPSHOT_EXPIRED
+              message: This list has expired; it was reloaded from the newest.
+  schemas:
+    RealnessSettings:
+      type: object
+      required:
+        - realness_on
+      additionalProperties: false
+      properties:
+        realness_on:
+          type: boolean
+          description: realness_settings.realness_on; no row reads as true (AC-10)
+    RealnessOnRequest:
+      type: object
+      required:
+        - on
+      additionalProperties: false
+      properties:
+        on:
+          type: boolean
+    RealnessSignal:
+      description: |
+        One realness signal behind a posting's penalty (CONTEXT: Realness signal; sad.md §4 signal
+        definitions). Only numbers and fixed kinds; the web turns them into fixed phrases
+        ("posted 65 days ago", "first found 47 days ago", "on 4 boards · first found 57 days ago",
+        "reposted", "no salary listed"). When both time signals apply only the one that counts is sent.
+      oneOf:
+        - type: object
+          title: age
+          required:
+            - kind
+            - basis
+            - days
+          additionalProperties: false
+          properties:
+            kind:
+              const: age
+            basis:
+              type: string
+              enum:
+                - posted
+                - first_found
+              description: posted when the time counted is the publication time, first_found otherwise (AC-07)
+            days:
+              type: integer
+              minimum: 30
+              description: Calendar days in the owner's time zone since the counted time
+        - type: object
+          title: many_boards
+          required:
+            - kind
+            - boards
+            - days
+          additionalProperties: false
+          properties:
+            kind:
+              const: many_boards
+            boards:
+              type: integer
+              minimum: 3
+              description: Enabled sources with an open listing for the posting (AC-09)
+            days:
+              type: integer
+              minimum: 45
+              description: Calendar days since first found
+        - type: object
+          title: repost
+          required:
+            - kind
+          additionalProperties: false
+          properties:
+            kind:
+              const: repost
+        - type: object
+          title: no_salary
+          required:
+            - kind
+          additionalProperties: false
+          properties:
+            kind:
+              const: no_salary
+    Realness:
+      type: object
+      required:
+        - penalty
+        - signals
+      additionalProperties: false
+      description: A posting's realness, worked out when the snapshot was built
+      properties:
+        penalty:
+          type: integer
+          minimum: 1
+          maximum: 30
+          description: Points taken off the posting's place in best match first; never shown as a score (AC-01, AC-03)
+        signals:
+          type: array
+          minItems: 1
+          maxItems: 3
+          items:
+            $ref: "#/components/schemas/RealnessSignal"
+          description: Every signal behind the penalty, in the order age or many boards, repost, no salary (AC-02)
+    Posting:
+      type: object
+      required:
+        - id
+        - title
+        - company
+        - published_at
+        - first_seen_at
+        - is_new
+        - matched_skills
+        - listings
+        - look_alike
+        - location_check
+        - match
+        - realness
+      additionalProperties: false
+      description: A main-list posting; match-score's Posting plus `realness`
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: collector_postings.id
+        title:
+          type: string
+          description: collector_postings.title; plain text
+        company:
+          type: string
+          description: collector_postings.company; plain text
+        published_at:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Effective publication time (search AC-03)
+        first_seen_at:
+          type: string
+          format: date-time
+          description: collector_postings.first_found_at
+        is_new:
+          type: boolean
+          description: first_found_at later than the previous visit's start (search AC-14); a hidden posting shown after switching off is new too (AC-09)
+        matched_skills:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/MatchedSkill"
+        listings:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Listing"
+          description: Every listing with its location as stated, so the mark's reason can be checked against each (AC-02)
+        look_alike:
+          oneOf:
+            - $ref: "#/components/schemas/LookAlike"
+            - type: "null"
+        location_check:
+          oneOf:
+            - $ref: "#/components/schemas/LocationCheck"
+            - type: "null"
+          description: The "check location" reason, or null when the posting fits or the list has no filter (mode none or off)
+        match:
+          oneOf:
+            - $ref: "#/components/schemas/Match"
+            - type: "null"
+          description: The posting's match, or null for every posting when there is no profile (AC-15)
+        realness:
+          oneOf:
+            - $ref: "#/components/schemas/Realness"
+            - type: "null"
+          description: The posting's realness when realness is on and it has at least one signal; null otherwise (AC-02, AC-10)
+    SearchResult:
+      type: object
+      required:
+        - snapshot_id
+        - skills
+        - order
+        - has_profile
+        - realness_on
+        - total
+        - new_count
+        - marked_count
+        - hidden_count
+        - collection_empty
+        - location_filter
+        - items
+        - has_next
+        - next_cursor
+      additionalProperties: false
+      properties:
+        order:
+          allOf:
+            - $ref: "#/components/schemas/ListOrder"
+          description: The order this snapshot is in; best_match is kept even with no profile or unreadable scores (ADR-0003)
+        has_profile:
+          type: boolean
+          description: false → no scores and the "no scores yet — set up a profile" line (AC-15)
+        realness_on:
+          type: boolean
+          description: Whether realness was on when this snapshot was built (AC-10)
+        snapshot_id:
+          type: string
+          format: uuid
+        skills:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Skill"
+        total:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings — "102 postings" (AC-07)
+        new_count:
+          type: integer
+          minimum: 0
+          description: Shown, unmarked matching open postings that are new (AC-09)
+        marked_count:
+          type: integer
+          minimum: 0
+          description: Matching open postings that are marked (applied-skipped AC-13), whatever their location
+        hidden_count:
+          type: integer
+          minimum: 0
+          description: Unmarked matching open postings not open to the filter's country — "38 hidden, not open to Poland" (AC-07, AC-08); 0 with mode none or off
+        collection_empty:
+          type: boolean
+          description: No open posting at all (search AC-11)
+        location_filter:
+          $ref: "#/components/schemas/LocationFilter"
+        items:
+          $ref: "#/components/schemas/PostingPage/properties/items"
+        has_next:
+          $ref: "#/components/schemas/PostingPage/properties/has_next"
+        next_cursor:
+          $ref: "#/components/schemas/PostingPage/properties/next_cursor"
+    SearchRequest:
+      type: object
+      required:
+        - skills
+      additionalProperties: false
+      properties:
+        skills:
+          type: string
+          description: The skills field exactly as typed, comma-separated (search AC-05). Empty = no skills.
+        order:
+          allOf:
+            - $ref: "#/components/schemas/ListOrder"
+          description: Set and keep the order; leave out to use the kept one (AC-11)
+    PageRequest:
+      type: object
+      required:
+        - cursor
+      additionalProperties: false
+      properties:
+        cursor:
+          $ref: "#/components/schemas/Cursor"
+    PostingPage:
+      type: object
+      required:
+        - items
+        - has_next
+        - next_cursor
+      additionalProperties: false
+      properties:
+        items:
+          type: array
+          maxItems: 50
+          items:
+            $ref: "#/components/schemas/Posting"
+          description: Shown, unmarked postings in snapshot order
+        has_next:
+          type: boolean
+        next_cursor:
+          oneOf:
+            - $ref: "#/components/schemas/Cursor"
+            - type: "null"
+    ErrorEnvelope:
+      type: object
+      required:
+        - error
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              pattern: ^[A-Z][A-Z0-9_]*$
+              description: UPPER_SNAKE; module-specific codes carry the module prefix (REMOTE_FILTER_..., SEARCH_...)
+            message:
+              type: string
+    MatchedSkill:
+      type: object
+      required:
+        - skill
+        - in_title
+      additionalProperties: false
+      properties:
+        skill:
+          $ref: "#/components/schemas/Skill"
+        in_title:
+          type: boolean
+          description: True when a matched open listing's title has it
+    Listing:
+      type: object
+      required:
+        - source_id
+        - status
+        - url
+        - location_restriction
+      additionalProperties: false
+      properties:
+        source_id:
+          type: string
+          pattern: ^[a-z0-9_]+$
+          description: collector_listings.source_id
+        status:
+          type: string
+          enum:
+            - open
+            - closed
+          description: collector_listings.status
+        url:
+          type:
+            - string
+            - "null"
+          format: uri
+          description: collector_listings.url, only when the listing is open and the URL is http(s) (search AC-08, AC-09)
+        location_restriction:
+          type:
+            - string
+            - "null"
+          description: collector_listings.location_restriction exactly as the source stated it, an explicit "Anywhere" included (AC-10); null = not stated
+    LookAlike:
+      type: object
+      required:
+        - mark
+        - marked_at
+        - company
+      additionalProperties: false
+      description: Unchanged from applied-skipped; computed only for shown postings, so a hidden look-alike carries none (AC-11)
+      properties:
+        mark:
+          type: string
+          enum:
+            - applied
+            - skipped
+        marked_at:
+          type: string
+          format: date-time
+        company:
+          type: string
+    LocationCheck:
+      type: string
+      enum:
+        - exception
+        - hours_only
+        - not_recognised
+        - not_stated
+      description: |
+        Why a shown posting carries "check location" (AC-02), one reason in this priority:
+        mentions an exception > only working hours fit > location not recognised > location not stated.
+    Match:
+      type: object
+      required:
+        - state
+        - total
+        - parts
+        - note
+        - claims
+        - stale
+        - reason
+      additionalProperties: false
+      description: A posting's match score, or why it has none (CONTEXT Match score)
+      properties:
+        state:
+          type: string
+          enum:
+            - scored
+            - pending
+            - not_scored
+            - cap_reached
+            - could_not_score
+          description: |
+            scored — a score is shown, possibly stale.
+            pending — waiting its turn.
+            not_scored — the provider is unreachable or rate-limited, or the key is missing or refused (AC-14).
+            cap_reached — "not scored — monthly cap reached" (AC-12).
+            could_not_score — three unusable answers for this posting and profile (AC-18).
+            A stale score keeps state scored while the cap is reached or the provider is down.
+        total:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: matching_scores.total; set iff state is scored
+        parts:
+          oneOf:
+            - $ref: "#/components/schemas/MatchParts"
+            - type: "null"
+          description: Set iff state is scored
+        note:
+          type:
+            - string
+            - "null"
+          description: matching_scores.note, at most 40 words; plain text, never markup (AC-03). Set iff state is scored
+        claims:
+          type: array
+          items:
+            type: string
+          description: matching_scores.claims; each shown as "the posting says…" (AC-03, AC-05). Empty unless scored
+        stale:
+          type:
+            - string
+            - "null"
+          enum:
+            - posting_changed
+            - profile_changed
+            - null
+          description: |
+            posting_changed — "scored against an earlier version of this posting" (text fingerprint differs, AC-06).
+            profile_changed — "scored against your previous profile" (profile or scorer version differs, AC-10).
+            When both differ, posting_changed. null when current or not scored.
+        reason:
+          type:
+            - string
+            - "null"
+          description: Plain-language reason when state is not scored; null when scored
+    ListOrder:
+      type: string
+      enum:
+        - newest
+        - best_match
+      description: search_state.list_order; NULL in the table reads as newest (AC-11)
+    Skill:
+      type: string
+      minLength: 1
+      maxLength: 50
+      description: One skill as the owner spelled it, trimmed (search AC-05)
+    LocationFilter:
+      type: object
+      required:
+        - mode
+        - country
+      additionalProperties: false
+      description: The filter a list was built with (search asks remote-filter for the active filter of its visit)
+      properties:
+        mode:
+          type: string
+          enum:
+            - none
+            - own
+            - look
+            - off
+          description: |
+            none — no country chosen and no look: every posting, with the prompt to choose (AC-04).
+            own — filtered for the owner's country. look — filtered for a one-off country (AC-06).
+            off — the owner switched the filter off: every posting, no check marks (AC-07).
+        country:
+          oneOf:
+            - $ref: "#/components/schemas/Country"
+            - type: "null"
+          description: The country the list was filtered for (own or look); the owner's country when off; null when none
+    Cursor:
+      type: string
+      pattern: ^[0-9]{1,6}$
+      description: Opaque to the web; the snapshot position after the last id read, from the previous page's `next_cursor`
+    MatchParts:
+      type: object
+      required:
+        - skills
+        - role_type
+        - seniority
+        - terms
+      additionalProperties: false
+      description: Each part 0–100, or null for "not stated" (AC-01, AC-04)
+      properties:
+        skills:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: matching_scores.skills_part
+        role_type:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: matching_scores.role_type_part
+        seniority:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: matching_scores.seniority_part
+        terms:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+          maximum: 100
+          description: matching_scores.terms_part
+    Country:
+      type: object
+      required:
+        - code
+        - name
+        - flag
+      additionalProperties: false
+      description: One entry of the country list (ADR-0003)
+      properties:
+        code:
+          $ref: "#/components/schemas/CountryCode"
+        name:
+          type: string
+          description: English name from Intl.DisplayNames, or the list's preferred alias where Intl's is unusual (e.g. "Hong Kong")
+        flag:
+          type: string
+          description: The flag emoji derived from the code
+    CountryCode:
+      type: string
+      pattern: ^[A-Z]{2}$
+      description: ISO 3166-1 alpha-2 code from the ADR-0003 country list (XK for Kosovo); remote_filter_settings.country / .look_country
+  parameters:
+    SnapshotId:
+      name: snapshot_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: The id the snapshot's first call returned (UUIDv7, in memory only)

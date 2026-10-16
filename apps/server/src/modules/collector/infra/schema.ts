@@ -115,6 +115,7 @@ export const postings = sqliteTable(
     status: text("status", { enum: ["open", "closed"] }).notNull(),
     closedAt: integer("closed_at"),
     lastOfferedAt: integer("last_offered_at").notNull(),
+    reopenedAt: integer("reopened_at"), // last closed → open since realness-score shipped; null = not reopened
   },
   (t) => [index("collector_postings_match_key_idx").on(t.matchKey)],
 );
@@ -144,6 +145,7 @@ export const listings = sqliteTable(
     lastSeenRunId: text("last_seen_run_id").notNull(), // no FK: runs are pruned after 60 days
     status: text("status", { enum: ["open", "closed"] }).notNull(),
     closedAt: integer("closed_at"),
+    payField: text("pay_field"), // board's own pay field as text; "" = none stated; null = not read since realness-score
   },
   (t) => [
     uniqueIndex("collector_listings_source_item_uq").on(t.sourceId, t.sourceItemId),

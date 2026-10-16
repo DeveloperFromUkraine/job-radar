@@ -11,6 +11,8 @@ export interface OpenListing {
   status: "open" | "closed";
   url: string;
   locationRestriction: string | null;
+  /** The board's own pay field; "" = nothing stated; null = not read since realness-score shipped. */
+  payField: string | null;
   title?: string;
   description?: string;
 }
@@ -22,6 +24,8 @@ export interface OpenPosting {
   company: string;
   publishedAt: number | null;
   firstFoundAt: number;
+  /** Last reopening since realness-score shipped; null = not reopened. */
+  reopenedAt: number | null;
   listings: OpenListing[];
 }
 
@@ -38,6 +42,7 @@ function read(db: Db, where?: SQL, includeClosed = false): OpenPosting[] {
       company: postings.company,
       publishedAt: postings.publishedAt,
       firstFoundAt: postings.firstFoundAt,
+      reopenedAt: postings.reopenedAt,
     })
     .from(postings)
     .where(filter)
@@ -52,6 +57,7 @@ function read(db: Db, where?: SQL, includeClosed = false): OpenPosting[] {
       status: listings.status,
       url: listings.url,
       locationRestriction: listings.locationRestriction,
+      payField: listings.payField,
       title: listings.title,
       description: listings.description,
     })
@@ -99,3 +105,22 @@ export function readPostingHeads(db: Db, ids: readonly string[]) {
     );
   return result;
 }
+
+const headsWhere = (db: Db, status: "open" | "closed") =>
+  db
+    .select({
+      id: postings.id,
+      company: postings.company,
+      title: postings.title,
+      publishedAt: postings.publishedAt,
+      firstFoundAt: postings.firstFoundAt,
+    })
+    .from(postings)
+    .where(eq(postings.status, status))
+    .orderBy(asc(postings.id))
+    .all();
+
+/** Every closed (not removed) posting's head, for the repost rule (realness-score AC-08). */
+export const readClosedPostingHeads = (db: Db) => headsWhere(db, "closed");
+/** Every open posting's head: an earlier open copy means parallel hires (realness-score AC-08). */
+export const readOpenPostingHeads = (db: Db) => headsWhere(db, "open");

@@ -16,6 +16,7 @@ const listing = (over: Partial<NormalizedListing> = {}): NormalizedListing => ({
   categories: ["Software Development"],
   publishedAt: T,
   expiresAt: null,
+  payField: "",
   ...over,
 });
 

@@ -48,7 +48,8 @@ describe("SCR-01 order and scoring notices", () => {
     expect(searchBodies(fetchMock)[0]).not.toHaveProperty("order"); // the first search uses the kept order
   });
 
-  it("without a profile: one line with one action, no order switch, no matches (AC-15)", async () => {
+  // realness-score ADR-0003: the order switch is offered without a profile too.
+  it("without a profile: one line with one action, the order switch, no matches (AC-15)", async () => {
     mockApi({ [PROBLEMS]: noProblems, [HEALTH]: healthy, [VISIT]: visit, [SEARCH]: { body: noProfile() } });
     renderWithProviders(<App />);
     expect(
@@ -56,7 +57,7 @@ describe("SCR-01 order and scoring notices", () => {
     ).toBeTruthy();
     const link = screen.getByRole("link", { name: "Set up profile" });
     expect(link.getAttribute("href")).toBe("/profile");
-    expect(screen.queryByRole("radiogroup", { name: "Order" })).toBeNull();
+    expect(screen.getByRole("radiogroup", { name: "Order" })).toBeTruthy();
     expect(screen.queryByText(/^Not scored/)).toBeNull();
   });
 

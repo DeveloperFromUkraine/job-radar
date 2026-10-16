@@ -148,6 +148,8 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 **When** one of its sources offers the same item again, or any source offers a listing that AC-04 would merge into it (publication time within 7 days of the latest publication time among the posting's listings)
 **Then** the same posting reopens with the owner's earlier marks, instead of a new unmarked copy appearing
 
+> Amended by [realness-score](../realness-score/spec.md) ([ADR-0004](../realness-score/adr/0004-keep-each-boards-pay-field-as-text-on-the-listing-and-judge-it-in-realness.md)): A posting that reopens also keeps when it reopened (the latest reopening). A listing keeps its board's own pay field as stated, written on every fetch of the listing, even when nothing else changed. A change in the pay field alone does not make the posting an updated posting.
+
 ### AC-12 (US-04) — happy
 **Given** at least one collection run has finished
 **When** the owner opens source health

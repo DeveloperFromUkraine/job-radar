@@ -16,6 +16,8 @@ export interface RawListing {
   publishedAt: number | null;
   /** A direct close signal where the source has one (Himalayas `expiryDate`). */
   expiresAt: number | null;
+  /** The board's own pay field as a person would read it; "" = nothing stated or no field (realness-score). */
+  payField: string;
 }
 
 /** A listing after the per-listing rules: plain text only, location as stated or null (= unknown). */
@@ -30,6 +32,7 @@ export interface NormalizedListing {
   categories: string[];
   publishedAt: number | null;
   expiresAt: number | null;
+  payField: string;
 }
 
 export type FailureCode = "unreachable" | "refused" | "too_large" | "timed_out" | "unreadable";

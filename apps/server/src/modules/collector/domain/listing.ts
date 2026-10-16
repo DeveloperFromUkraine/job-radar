@@ -73,6 +73,7 @@ export function normalizeListing(sourceId: SourceId, raw: RawListing): Normalize
     categories: raw.categories.map((c) => toPlainText(c, { singleLine: true })).filter((c) => c !== ""),
     publishedAt: raw.publishedAt,
     expiresAt: raw.expiresAt,
+    payField: toPlainText(raw.payField, { singleLine: true }),
   };
 }
 

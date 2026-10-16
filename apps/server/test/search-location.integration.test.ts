@@ -16,7 +16,8 @@ import { seedMarks } from "./helpers/tracking-fixtures.js";
 
 const contract = loadContract("remote-filter");
 // runSearch and getNextPage as restated by match-score (it supersedes remote-filter's).
-const listContract = loadContract("match-score");
+// The main list as restated by realness-score (adds realness and realness_on).
+const listContract = loadContract("realness-score");
 const MIN = 60_000;
 const T0 = Date.UTC(2026, 9, 14, 9);
 const PL = { code: "PL", name: "Poland", flag: "🇵🇱" };

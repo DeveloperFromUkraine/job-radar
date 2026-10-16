@@ -3,7 +3,7 @@
 // always `capped`; `expiryDate` is its direct close signal. It publishes no category list — the
 // owner's categories match the jobs' `parentCategories`. Attribution: keep the Himalayas `guid` URL.
 import type { FetchResult, RawListing } from "../../domain/adapter.js";
-import { type FetchContext, isObject, notOk, type SourceAdapter, unreadable } from "./types.js";
+import { type FetchContext, isObject, notOk, payText, type SourceAdapter, unreadable } from "./types.js";
 
 export function himalayasAdapter(baseUrl = "https://himalayas.app"): SourceAdapter {
   return {
@@ -63,5 +63,6 @@ function toListing(job: unknown): RawListing | null {
     categories: strings(job.parentCategories),
     publishedAt: seconds(pubDate),
     expiresAt: seconds(expiryDate),
+    payField: payText(job.minSalary, job.maxSalary, job.currency, job.salaryPeriod),
   };
 }

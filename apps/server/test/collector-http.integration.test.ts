@@ -163,6 +163,7 @@ describe("Jobicy adapter (ADR-0004)", () => {
       categories: ["Software Engineering"],
       publishedAt: Date.parse("2026-10-02T10:00:00+00:00"),
       expiresAt: null,
+      payField: "USD 60000–80000",
     });
   });
 

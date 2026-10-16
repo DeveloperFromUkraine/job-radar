@@ -52,6 +52,7 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
         categories: ["Software Development"],
         publishedAt: Date.UTC(2026, 8, 30, 13, 15, 26),
         expiresAt: null,
+        payField: "",
       });
     });
 

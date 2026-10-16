@@ -201,14 +201,17 @@ describe("runSearch", () => {
     addPosting(t.db, { title: "Secret React role" });
     search("React, Zig");
     expect(logged).toHaveLength(1);
-    // remote-filter sad §8 adds the hidden and checked counts and the country code.
+    // remote-filter sad §8 adds the hidden and checked counts and the country code; realness-score
+    // sad §7 the lowered count and the assessment time.
     expect(Object.keys(logged[0]?.obj ?? {}).sort()).toEqual([
       "checked",
       "country",
       "durationMs",
       "hidden",
+      "lowered",
       "matched",
       "openPostings",
+      "realnessMs",
       "skillCount",
     ]);
     expect(logged[0]?.obj).toMatchObject({ openPostings: 1, matched: 1, skillCount: 2 });

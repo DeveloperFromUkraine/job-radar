@@ -47,6 +47,7 @@ function toListing(item: string): RawListing | null {
     categories: category ? [category] : [],
     publishedAt: time(item, "pubDate"),
     expiresAt: time(item, "expires_at"),
+    payField: "", // no pay field
   };
 }
 

@@ -146,7 +146,7 @@ export function SearchList({
       <ul className="flex flex-col gap-3">
         {postings.map((p) => (
           <li key={p.id}>
-            <PostingCard posting={p} banner={bannerFor?.(p)} actions={actionsFor?.(p)} />
+            <PostingCard posting={p} order={result.order} banner={bannerFor?.(p)} actions={actionsFor?.(p)} />
           </li>
         ))}
       </ul>
