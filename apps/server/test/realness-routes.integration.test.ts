@@ -97,6 +97,14 @@ describe("realness settings routes", () => {
     expect(rows()).toEqual([{ id: 1, realness_on: 0 }]);
   });
 
+  it("a save whose switch read fails is the same 503, not a 500 (review F-05)", async () => {
+    sqlite((db) => db.exec("alter table realness_settings rename to realness_settings_gone"));
+    const res = await post({ on: true });
+    expect(res.statusCode).toBe(503);
+    contract.expectContract("setRealnessOn", 503, res.json());
+    expect(res.json().error.code).toBe("REALNESS_SETTINGS_UNAVAILABLE");
+  });
+
   it.each([[{ on: "no" }], [{}], [{ on: true, extra: 1 }]])(
     "refuses a malformed body %j with 400 VALIDATION_ERROR",
     async (body) => {

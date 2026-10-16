@@ -126,6 +126,36 @@ describe("best match first with realness (AC-01)", () => {
     expect(r.realness_on).toBe(true);
     expect(warned).toContainEqual(expect.objectContaining({ module: "search" }));
   });
+
+  it("fails open with the saved switch and keeps no day's share from an unread list (review F-03, F-04)", () => {
+    const noted: unknown[] = [];
+    deps.realness = {
+      assess: () => {
+        throw new Error("disk");
+      },
+      isOn: () => false,
+      noteListShown: (...args) => {
+        noted.push(args);
+      },
+    };
+    expect(search("best_match").realness_on).toBe(false);
+    expect(noted).toEqual([]);
+  });
+
+  it("an unreadable switch alone still presents realness, as on (contract: true if never read)", () => {
+    add("00000000-0000-7000-8000-000000000001", 1);
+    deps.realness = {
+      assess: (postings) =>
+        new Map(postings.map((p) => [p.id, { penalty: 10, signals: [{ kind: "no_salary" as const }] }])),
+      isOn: () => {
+        throw new Error("disk");
+      },
+      noteListShown: () => {},
+    };
+    const r = search("best_match");
+    expect(r.realness_on).toBe(true);
+    expect(r.items[0]?.realness?.signals).toEqual([{ kind: "no_salary" }]);
+  });
 });
 
 describe("the unscored block (AC-05, ADR-0003)", () => {

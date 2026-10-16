@@ -6,9 +6,8 @@ import type { RealnessDeps } from "./deps.js";
 export const isOn = (deps: Pick<RealnessDeps, "db">): boolean => readRealnessOn(deps.db);
 
 export function setOn(deps: Pick<RealnessDeps, "db">, on: boolean): boolean {
-  if (isOn(deps) === on) return on;
   try {
-    writeRealnessOn(deps.db, on);
+    if (isOn(deps) !== on) writeRealnessOn(deps.db, on);
   } catch {
     throw new AppError(
       "REALNESS_SETTINGS_UNAVAILABLE",

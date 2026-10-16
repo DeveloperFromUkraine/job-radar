@@ -112,14 +112,20 @@ const presentRealness = (r: Realness | undefined) => (r && r.signals.length > 0 
 export function readRealness(
   deps: SearchDeps,
   postings: readonly OpenPosting[],
-): { assessments: Map<string, Realness>; on: boolean } {
+): { assessments: Map<string, Realness>; on: boolean; read: boolean } {
+  const reader = realnessOf(deps);
+  // The switch is read on its own, so a facts failure never shows a saved "off" as on (review F-04).
+  let on = true;
   try {
-    const reader = realnessOf(deps);
-    return { assessments: reader.assess(postings), on: reader.isOn() };
+    on = reader.isOn();
+  } catch (error) {
+    deps.log?.warn?.({ module: "search", err: (error as Error).name }, "realness switch unreadable");
+  }
+  try {
+    return { assessments: reader.assess(postings), on, read: true };
   } catch (error) {
     deps.log?.warn?.({ module: "search", err: (error as Error).name }, "realness unreadable");
-    // ponytail: true, not the last known value — no state kept across builds; keep it if the owner notices.
-    return { assessments: new Map(), on: true };
+    return { assessments: new Map(), on, read: false };
   }
 }
 
@@ -222,22 +228,28 @@ export function runSearch(
   // Best match first is kept with no profile or unreadable scores: every posting is then unscored (ADR-0003).
   const order: ListOrder = wanted;
   const realnessStarted = performance.now();
-  const { assessments, on: realnessOn } = readRealness(
+  const {
+    assessments,
+    on: realnessOn,
+    read: realnessRead,
+  } = readRealness(
     deps,
     shown.map((f) => f.posting),
   );
   const realnessMs = Math.round(performance.now() - realnessStarted);
-  // The day's share counts the owner's list: shown and unmarked, switch-on values (AC-14).
+  // The day's share counts the owner's list: shown and unmarked, switch-on values (AC-14). An unread list
+  // keeps no share: a 0-of-0 row would hold the day's slot (review F-03).
   try {
-    realnessOf(deps).noteListShown(
-      new Map(
-        unmarked.flatMap((f) => {
-          const r = assessments.get(f.posting.id);
-          return r ? [[f.posting.id, r] as const] : [];
-        }),
-      ),
-      filter.mode,
-    );
+    if (realnessRead)
+      realnessOf(deps).noteListShown(
+        new Map(
+          unmarked.flatMap((f) => {
+            const r = assessments.get(f.posting.id);
+            return r ? [[f.posting.id, r] as const] : [];
+          }),
+        ),
+        filter.mode,
+      );
   } catch {
     // best-effort: never costs the owner the list
   }
