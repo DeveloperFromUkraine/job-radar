@@ -49,6 +49,17 @@ describe("assess (realness-score T08)", () => {
       ["a structured amount with no currency", { sourceId: "jobicy", payField: "60000–80000" }, false],
       ["a small structured range with no period", { sourceId: "himalayas", payField: "50–70" }, false],
       ["a bare number in free text", { sourceId: "remotive", payField: "5 days a week" }, true],
+      // Re-review G-02: payText keeps the board's ISO code for any currency.
+      [
+        "a high-nominal amount in rupees",
+        { sourceId: "jobicy", payField: "INR 1500000–2500000 per year" },
+        false,
+      ],
+      [
+        "a high-nominal amount in yen",
+        { sourceId: "himalayas", payField: "JPY 6000000–8000000 per year" },
+        false,
+      ],
       ["a pay field not read since this shipped, on a board with a field", { sourceId: "jobicy" }, false],
       ["no pay field ever, We Work Remotely", { sourceId: "weworkremotely" }, true],
     ])("%s", (_label, listing, noSalary) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { statesPay } from "./pay.js";
+import { fieldStatesPay, statesPay } from "./pay.js";
 import { PAY_FIXTURES } from "./pay-fixtures.js";
 
 describe("statesPay — AC-06 examples", () => {
@@ -51,6 +51,33 @@ describe("statesPay — AC-06 examples", () => {
     expect(statesPay(text)).toBe(false);
   });
 
+  // Re-review G-02, G-04: high-nominal salaries with a period are pay, cued or not.
+  it.each([
+    "¥6,000,000 per year",
+    "1 130 000 Kč – 1 410 000 Kč per year",
+    "€1,200,000 a year", // stated, if unlikely: it can only avoid a lowering
+    "$150k base salary with equity", // a pay word right after the amount names it
+    "Mzda 1 130 000 Kč ročně",
+    "€60,000 annual, plus bonus",
+    "$100k annual salary",
+  ])("reads %j as pay", (text) => {
+    expect(statesPay(text)).toBe(true);
+  });
+
+  // Re-review G-03: an amount that only names perks is not pay, however the perks are joined.
+  it.each([
+    "A $2,000 home office and learning budget",
+    "$1,200 gym and wellness allowance per year",
+    "$5,000 with a laptop and conference budget",
+    "$2,000, for your learning budget",
+    "$1,200,000 seed round",
+    "$1,500 annual wellness and learning stipend",
+    "$10,000 relocation and visa support",
+    "Personal learning and development budget of USD 2,000 per year Annual compensation review",
+  ])("does not read %j as pay", (text) => {
+    expect(statesPay(text)).toBe(false);
+  });
+
   it("finds pay inside a longer description and ignores non-pay amounts around it", () => {
     expect(
       statesPay(
@@ -82,4 +109,26 @@ describe("statesPay — labelled set (spec §6 Salary rule accuracy)", () => {
       );
     expect(1 - misses.length / PAY_FIXTURES.length).toBeGreaterThanOrEqual(0.95);
   });
+});
+
+describe("fieldStatesPay — a board's own pay field (review F-02, re-review G-02, G-06)", () => {
+  it.each([
+    "60000–80000",
+    "50–70",
+    "USD 60000–80000 per year",
+    "JPY 6000000–8000000 per year",
+    "HUF 1200000–1500000 per month",
+    "INR 1500000–2500000 per year",
+    "KRW 60000000–90000000 per year",
+    "$50-$75 /hour",
+  ])("reads %j as pay", (field) => {
+    expect(fieldStatesPay(field)).toBe(true);
+  });
+
+  it.each(["", "0", "1", "1-2", "5 day", "5 days a week", "competitive", "DOE"])(
+    "does not read %j as pay",
+    (field) => {
+      expect(fieldStatesPay(field)).toBe(false);
+    },
+  );
 });
