@@ -56,7 +56,10 @@ export function setMark(deps: TrackingDeps, postingId: string, mark: Mark | null
     requirePosting(deps, postingId);
     const row = getMark(deps.db, postingId);
     const next = applyMark(row, postingId, mark, deps.now(), newId());
-    if (next) writeMark(deps.db, next);
+    if (next) {
+      writeMark(deps.db, next);
+      deps.onMarkChanged?.(postingId, next.mark);
+    }
     return stateOf(deps, postingId, next ?? row);
   });
 }
@@ -70,9 +73,11 @@ export function undoMark(deps: TrackingDeps, postingId: string, changeId: string
     if (outcome.kind === "changedElsewhere") throw changedElsewhere();
     if (outcome.kind === "delete") {
       if (!deleteGuarded(deps.db, postingId, changeId)) throw changedElsewhere();
+      deps.onMarkChanged?.(postingId, null);
       return stateOf(deps, postingId, null);
     }
     if (!replaceGuarded(deps.db, outcome.row, changeId)) throw changedElsewhere();
+    deps.onMarkChanged?.(postingId, outcome.row.mark);
     return stateOf(deps, postingId, outcome.row);
   });
 }

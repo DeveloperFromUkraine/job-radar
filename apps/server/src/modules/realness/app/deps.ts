@@ -5,4 +5,9 @@ export interface RealnessDeps {
   db: Db;
   now: () => number;
   timeZone: string;
+  log?: RealnessLog;
+}
+
+export interface RealnessLog {
+  warn(obj: object, msg?: string): void;
 }

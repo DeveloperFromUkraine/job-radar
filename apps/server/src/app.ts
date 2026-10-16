@@ -48,12 +48,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       db: handle.db,
       now: options.collector.now ?? Date.now,
       timeZone: machineTimeZone(),
+      log: app.log.child({ module: "realness" }),
     });
     // Tracking next: the collector's clean-up asks its ProtectedPostings port what to keep.
     const tracking = createTracking({
       db: handle.db,
       now: options.collector.now ?? Date.now,
       timeZone: machineTimeZone(),
+      onMarkChanged: realness.onMarkChanged,
     });
     await app.register(
       collectorModule({ ...options.collector, handle, protectedPostings: tracking.protectedPostings }),
