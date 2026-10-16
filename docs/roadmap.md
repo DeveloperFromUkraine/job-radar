@@ -30,7 +30,7 @@ The owner, based in Poland, enters their skills and a remote mode and within sec
 | 9 | Collect postings from Greenhouse, Lever and Ashby boards of the watched companies | idea-brief.md §7 Recommendation | S | idea |
 | 10 | Collect postings from LinkedIn's public guest job pages — no login, no account, low request volume, remote filter; an optional source whose failure never breaks collection | idea-brief.md §7 Recommendation | S | idea |
 | 11 | Collect postings from Polish IT job boards (Just Join IT, No Fluff Jobs, theprotocol.it, Pracuj.pl, Bulldogjob) through the same source contract → see [Not yet specified](#not-yet-specified) | idea-brief.md §1 Raw idea, [`spec §3 Non-goals`](features/remote-boards-collector/spec.md) | fog | idea |
-| 12 | Realness score — rank stale or suspicious postings lower from signals the collector already keeps: age since first found, the same role found again (repost), no salary stated; a live check against the company's careers page joins once ATS boards exist (step 9) | [OfferRun Job Radar comparison 2026-10-16](https://offer-run.com/job-radar) | S | spec'd → [realness-score](features/realness-score/) |
+| 12 | Realness score — rank stale or suspicious postings lower from signals the collector already keeps: age since first found, the same role found again (repost), no salary stated; a live check against the company's careers page joins once ATS boards exist (step 9) | [OfferRun Job Radar comparison 2026-10-16](https://offer-run.com/job-radar) | S | shipped |
 | 13 | Reasons on the card — each posting ranked lower says why ("no salary listed", "reposted", "first found 60 days ago", "not on the company's careers site"), beside the fit note | [OfferRun Job Radar comparison 2026-10-16](https://offer-run.com/job-radar) | S | idea |
 
 ## Not yet specified
@@ -115,3 +115,4 @@ Step 11 holds its wave-3 slot only once the Access to Polish job boards area is 
 | 6 · Applied / skipped marks | 2026-10-14 | [PR #3](https://github.com/DeveloperFromUkraine/job-radar/pull/3) (stacked on #2), [changelog](features/applied-skipped/changelog.md) |
 | 5 · Remote filter | 2026-10-15 | [PR #5](https://github.com/DeveloperFromUkraine/job-radar/pull/5), [changelog](features/remote-filter/changelog.md) |
 | 4 · Match score | 2026-10-16 | [PR #7](https://github.com/DeveloperFromUkraine/job-radar/pull/7), [changelog](features/match-score/changelog.md) |
+| 12 · Realness score | 2026-10-16 | branch `feature/realness-score` (PR to open), [changelog](features/realness-score/changelog.md) |
