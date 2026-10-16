@@ -23,11 +23,14 @@ export const scoreAnswer = (
 });
 
 export const unusable = (): ProviderOutcome => ({ kind: "answer", answer: { refusal: true }, usage: USAGE });
+/** As the real client reports it: only an attempt with no HTTP answer may have been charged. */
 export const problem = (
-  p: "provider_unreachable" | "rate_limited" | "key_missing" | "key_refused",
+  p: "provider_unreachable" | "rate_limited" | "key_missing" | "key_refused" | "request_rejected",
+  charged = p === "provider_unreachable",
 ): ProviderOutcome => ({
   kind: "problem",
   problem: p,
+  charged,
   detail: "stand-in",
 });
 

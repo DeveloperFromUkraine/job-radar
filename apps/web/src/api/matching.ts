@@ -83,7 +83,13 @@ export interface ScoringHealth {
   oldest_pending_since: string | null;
   could_not_score_count: number;
   problem: {
-    kind: "provider_unreachable" | "rate_limited" | "key_missing" | "key_refused" | "cap_reached";
+    kind:
+      | "provider_unreachable"
+      | "rate_limited"
+      | "key_missing"
+      | "key_refused"
+      | "request_rejected"
+      | "cap_reached";
     reason: string;
     since: string;
   } | null;

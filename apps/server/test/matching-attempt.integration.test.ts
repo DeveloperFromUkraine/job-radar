@@ -114,13 +114,19 @@ describe("scoreOne (AC-01, AC-03, AC-12, AC-18)", () => {
     expect(spend()).toHaveLength(1);
   });
 
-  it.each(["provider_unreachable", "rate_limited", "key_refused", "key_missing"] as const)(
-    "%s: the reservation stays as spent, the problem is recorded, no strike (AC-14)",
-    async (p) => {
+  it.each([
+    ["provider_unreachable", null], // no answer arrived: it may have been charged, the reservation stays
+    ["rate_limited", 0], // an error answer is never charged: the reservation is released (AC-12)
+    ["key_refused", 0],
+    ["key_missing", 0],
+    ["request_rejected", 0],
+  ] as const)(
+    "%s: settles at %s, the problem is recorded, no strike (AC-12, AC-14, fix 2026-10-16)",
+    async (p, settled) => {
       deps.provider = fakeProvider(problem(p));
       const posting = ac01Posting();
       expect(await attempt(posting)).toEqual({ kind: "provider_problem", problem: p });
-      expect(spend()).toEqual([expect.objectContaining({ outcome: "no_answer", settledUsdMicros: null })]);
+      expect(spend()).toEqual([expect.objectContaining({ outcome: "no_answer", settledUsdMicros: settled })]);
       expect(readSettings(t.db)).toMatchObject({ scoringProblem: p, scoringProblemAt: NOW });
       expect(scoresFor(t.db, [posting.id]).get(posting.id)).toBeUndefined();
     },

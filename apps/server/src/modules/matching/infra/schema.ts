@@ -14,7 +14,7 @@ export const matchingSettings = sqliteTable("matching_settings", {
   noticeAgreedAt: integer("notice_agreed_at"), // null = nothing may be sent (AC-20)
   lastSuccessAt: integer("last_success_at"),
   scoringProblem: text("scoring_problem", {
-    enum: ["provider_unreachable", "rate_limited", "key_missing", "key_refused"],
+    enum: ["provider_unreachable", "rate_limited", "key_missing", "key_refused", "request_rejected"],
   }),
   scoringProblemAt: integer("scoring_problem_at"),
 });

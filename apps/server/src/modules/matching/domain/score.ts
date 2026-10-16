@@ -101,13 +101,19 @@ export function strikeKey(fingerprint: string, profileVersion: number, scorerVer
 
 // ---- What a posting shows ----------------------------------------------------------------------
 
-export type ScoringProblem = "provider_unreachable" | "rate_limited" | "key_missing" | "key_refused";
+export type ScoringProblem =
+  | "provider_unreachable"
+  | "rate_limited"
+  | "key_missing"
+  | "key_refused"
+  | "request_rejected";
 
 export const PROBLEM_REASONS: Record<ScoringProblem, string> = {
   provider_unreachable: "the language-model provider can't be reached right now",
   rate_limited: "the language-model provider is busy right now",
   key_missing: "no provider key is set up",
   key_refused: "the language-model provider refused job-radar's key",
+  request_rejected: "the language-model provider rejected job-radar's request",
 };
 
 /** The stored score row as matching/domain sees it. */

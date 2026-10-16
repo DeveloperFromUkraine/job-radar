@@ -207,22 +207,32 @@ describe("retries (AC-14)", () => {
     expect(readSettings(t.db).scoringProblem).toBe(null);
   });
 
-  it("after a refused key, never retries until restart; a new scorer (restart) tries again", async () => {
-    seedProfile(t.db);
-    list = addPostings(1);
-    const sent: string[] = [];
-    deps.provider = fakeProvider(() => {
-      sent.push("x");
-      return sent.length === 1 ? problem("key_refused") : scoreAnswer();
-    });
-    const s = scorer();
-    await s.pass();
-    now += 24 * 60 * MIN;
-    await s.pass();
-    expect(sent).toHaveLength(1);
-    await scorer().pass(); // restarted with a key
-    expect(sent).toHaveLength(2);
-  });
+  it.each([
+    ["key_refused", /refused job-radar's key/],
+    ["request_rejected", /rejected job-radar's request.*server log/], // fix 2026-10-16
+  ] as const)(
+    "after %s, never retries until restart and says what to fix; a restart tries again",
+    async (p, reason) => {
+      seedProfile(t.db);
+      list = addPostings(1);
+      const sent: string[] = [];
+      deps.provider = fakeProvider(() => {
+        sent.push("x");
+        return sent.length === 1 ? problem(p) : scoreAnswer();
+      });
+      const s = scorer();
+      await s.pass();
+      now += 24 * 60 * MIN;
+      await s.pass();
+      expect(sent).toHaveLength(1);
+      expect(getScoringHealth(deps, () => list).problem).toMatchObject({
+        kind: p,
+        reason: expect.stringMatching(reason),
+      });
+      await scorer().pass(); // restarted with a key
+      expect(sent).toHaveLength(2);
+    },
+  );
 });
 
 describe("lifecycle", () => {
@@ -317,7 +327,7 @@ describe("the scorer's lifecycle (AC-14, ADR-0003; review R8, R10, R11)", () => 
         new Promise((resolve) => {
           asked = true;
           opts?.signal?.addEventListener("abort", () =>
-            resolve({ kind: "problem", problem: "provider_unreachable", detail: "aborted" }),
+            resolve({ kind: "problem", problem: "provider_unreachable", charged: true, detail: "aborted" }),
           );
         }),
     };

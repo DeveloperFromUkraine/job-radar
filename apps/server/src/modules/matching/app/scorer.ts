@@ -77,7 +77,8 @@ export function createScorer(
       const result = await scoreOne(deps, posting, settings.profile, settings.profileVersion, stopped.signal);
       if (result.kind === "cap_reached") return;
       if (result.kind === "provider_problem") {
-        if (result.problem === "key_missing" || result.problem === "key_refused") keyBlocked = true;
+        // A setup problem stays until it is fixed and job-radar restarts (fix 2026-10-16 for a rejected request).
+        if (["key_missing", "key_refused", "request_rejected"].includes(result.problem)) keyBlocked = true;
         else {
           retryAfter = deps.now() + PROVIDER_RETRY_MS;
           // The retry is due at 15 minutes, not on the poll after it (AC-14, review R8).

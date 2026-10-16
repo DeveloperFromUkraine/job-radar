@@ -60,7 +60,7 @@ export async function scoreOne(
     deps.log?.info({ module: "matching", postingId: posting.id, ...o }, "scoring attempt");
 
   if (outcome.kind === "problem") {
-    repo.markNoAnswer(db, reservation.id, deps.now());
+    repo.markNoAnswer(db, reservation.id, deps.now(), outcome.charged);
     // Stopped by shutdown: no answer, but not a provider problem to show (review R10).
     if (signal?.aborted) return { kind: "provider_problem", problem: outcome.problem };
     repo.setProblem(db, outcome.problem, deps.now());

@@ -14,6 +14,8 @@ const REASONS: Record<ScoringProblem, string> = {
   rate_limited: "The language-model provider is busy right now. Scoring tries again by itself.",
   key_missing: "No provider key is set up. Set one in your local configuration and restart job-radar.",
   key_refused: "The language-model provider refused job-radar's key. Set a valid key and restart job-radar.",
+  request_rejected:
+    "The language-model provider rejected job-radar's request; the server log has its message. Fix the key or account setup and restart job-radar.",
 };
 
 const day = (date: string) =>

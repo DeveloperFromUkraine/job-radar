@@ -227,7 +227,13 @@ export function settle(
     .run();
 }
 
-/** No answer came: the reservation stays counted at its largest possible cost. */
-export function markNoAnswer(db: Db, id: string, at: number): void {
-  db.update(matchingSpend).set({ outcome: "no_answer", settledAt: at }).where(eq(matchingSpend.id, id)).run();
+/**
+ * No answer came. If the attempt may have been charged, the reservation stays counted at its largest
+ * possible cost; if not (an error answer, or nothing sent), it settles at zero (AC-12, fix 2026-10-16).
+ */
+export function markNoAnswer(db: Db, id: string, at: number, charged: boolean): void {
+  db.update(matchingSpend)
+    .set({ outcome: "no_answer", settledAt: at, ...(charged ? {} : { settledUsdMicros: 0 }) })
+    .where(eq(matchingSpend.id, id))
+    .run();
 }

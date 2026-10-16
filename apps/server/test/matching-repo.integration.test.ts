@@ -86,8 +86,16 @@ describe("spend ledger (ADR-0006)", () => {
       usage: { inputTokens: 1_000, cacheWriteTokens: 500, cacheReadTokens: 2_000, outputTokens: 300 },
       at: MONTH + 2000,
     });
-    repo.markNoAnswer(d, b.id, MONTH + 3000);
+    repo.markNoAnswer(d, b.id, MONTH + 3000, true);
     expect(repo.monthSpend(d, MONTH)).toBe(12_900 + 60_000);
+  });
+
+  it("an attempt the provider did not charge for settles at zero (AC-12, fix 2026-10-16)", () => {
+    const d = db();
+    const a = repo.reserve(d, reserveArgs(60_000));
+    if (!a.ok) throw new Error("reservation refused");
+    repo.markNoAnswer(d, a.id, MONTH + 3000, false);
+    expect(repo.monthSpend(d, MONTH)).toBe(0);
   });
 
   it("refuses the second of two back-to-back reservations that only fit one at a time", () => {

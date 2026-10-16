@@ -9,8 +9,12 @@ import type { Usage } from "../domain/spend.js";
 export type ProviderOutcome =
   /** An answer the provider charged for; `answer` is the parsed JSON, `{ refusal: true }` or `{ invalid: true }`. */
   | { kind: "answer"; answer: unknown; usage: Usage }
-  /** No answer: provider or key problem. `detail` is for the log (status or error class), never the key. */
-  | { kind: "problem"; problem: ScoringProblem; detail: string };
+  /**
+   * No answer: provider or key problem. `charged` is false when the provider answered with an error or
+   * nothing was sent: such an attempt costs nothing (AC-12, fix 2026-10-16). `detail` is for the log
+   * (status, error class or the provider's own message), never the key.
+   */
+  | { kind: "problem"; problem: ScoringProblem; charged: boolean; detail: string };
 
 export interface SendOptions {
   /** The score or the draft timeout (sad.md §8): the caller knows which request this is. */
@@ -40,7 +44,8 @@ export function createClaudeProvider(
 
   return {
     async send(params, opts = {}) {
-      if (!client) return { kind: "problem", problem: "key_missing", detail: "no ANTHROPIC_API_KEY" };
+      if (!client)
+        return { kind: "problem", problem: "key_missing", charged: false, detail: "no ANTHROPIC_API_KEY" };
       try {
         const res = await client.messages.create(params, {
           ...(opts.timeoutMs ? { timeout: opts.timeoutMs } : {}),
@@ -66,18 +71,21 @@ export function createClaudeProvider(
   };
 }
 
-function classify(error: unknown): { problem: ScoringProblem; detail: string } {
-  if (error instanceof Anthropic.AuthenticationError || error instanceof Anthropic.PermissionDeniedError) {
-    return { problem: "key_refused", detail: `status ${error.status}` };
+function classify(error: unknown): { problem: ScoringProblem; charged: boolean; detail: string } {
+  // No HTTP answer (connection lost, timeout, abort): the provider may have charged, so it counts (ADR-0006).
+  if (!(error instanceof Anthropic.APIError) || typeof error.status !== "number") {
+    const detail = error instanceof Error ? error.constructor.name : "unknown";
+    return { problem: "provider_unreachable", charged: true, detail };
   }
-  if (error instanceof Anthropic.RateLimitError) return { problem: "rate_limited", detail: "status 429" };
-  if (error instanceof Anthropic.APIConnectionError) {
-    return { problem: "provider_unreachable", detail: error.constructor.name };
-  }
-  if (error instanceof Anthropic.APIError) {
-    // ponytail: a 400/404 is job-radar's request, not the provider being down; it retries like an outage
-    // (no charge, no strike). Give it its own problem kind if it ever shows up in the logs.
-    return { problem: "provider_unreachable", detail: `status ${error.status}` };
-  }
-  return { problem: "provider_unreachable", detail: error instanceof Error ? error.name : "unknown" };
+  // An error answer: the provider charged nothing (AC-12, fix 2026-10-16).
+  const status = error.status;
+  if (status === 401 || status === 403)
+    return { problem: "key_refused", charged: false, detail: `status ${status}` };
+  if (status === 429) return { problem: "rate_limited", charged: false, detail: "status 429" };
+  if (status >= 500) return { problem: "provider_unreachable", charged: false, detail: `status ${status}` };
+  // Any other 4xx is a request the provider will keep rejecting (seen live: a key not scoped to a
+  // workspace). Its own message goes to the log so the owner can fix the setup.
+  const body = error.error as { error?: { message?: unknown } } | undefined;
+  const message = typeof body?.error?.message === "string" ? `: ${body.error.message.slice(0, 300)}` : "";
+  return { problem: "request_rejected", charged: false, detail: `status ${status}${message}` };
 }

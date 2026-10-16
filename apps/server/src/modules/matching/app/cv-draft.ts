@@ -43,7 +43,7 @@ const resumeDay = (resumesOn: string) =>
 export const PROVIDER_UNAVAILABLE =
   "The language-model provider can't be reached right now. Try again later; your profile is unchanged.";
 export const KEY_PROBLEM =
-  "No valid provider key is set up. Set one in your local configuration and restart job-radar.";
+  "No valid provider key is set up, or the provider rejected job-radar's request (the server log has its message). Fix the key or account setup and restart job-radar.";
 const DRAFT_UNUSABLE =
   "The draft could not be made from this CV. Try again later, or fill in the profile by hand.";
 
@@ -92,12 +92,15 @@ export async function draftProfileFromCv(
     timeoutMs: cfg.draftTimeoutMs,
   });
   if (outcome.kind === "problem") {
-    repo.markNoAnswer(deps.db, reservation.id, deps.now());
+    repo.markNoAnswer(deps.db, reservation.id, deps.now(), outcome.charged);
     deps.log?.warn(
       { module: "matching", kind: "draft", problem: outcome.problem, detail: outcome.detail },
       "draft",
     );
-    const key = outcome.problem === "key_missing" || outcome.problem === "key_refused";
+    const key =
+      outcome.problem === "key_missing" ||
+      outcome.problem === "key_refused" ||
+      outcome.problem === "request_rejected";
     throw new AppError(
       key ? "MATCHING_KEY_PROBLEM" : "MATCHING_PROVIDER_UNAVAILABLE",
       key ? KEY_PROBLEM : PROVIDER_UNAVAILABLE,

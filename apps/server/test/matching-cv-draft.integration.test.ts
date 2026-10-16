@@ -184,12 +184,14 @@ describe("refusals and failures (AC-08, AC-20)", () => {
     ["rate_limited", "MATCHING_PROVIDER_UNAVAILABLE"],
     ["key_refused", "MATCHING_KEY_PROBLEM"],
     ["key_missing", "MATCHING_KEY_PROBLEM"],
-  ] as const)("%s: tells why, keeps the reservation as spent, profile unchanged", async (p, code) => {
+    ["request_rejected", "MATCHING_KEY_PROBLEM"],
+  ] as const)("%s: tells why, books only what may have been charged, profile unchanged", async (p, code) => {
     seedProfile(t.db);
     deps.provider = fakeProvider(problem(p));
     const e = await refused(draftProfileFromCv(deps, { mediaType: PDF, bytes: cv("cv.pdf") }), code, 503);
     expect(e.message).not.toContain("sk-");
-    expect(spend()).toEqual([expect.objectContaining({ outcome: "no_answer", settledUsdMicros: null })]);
+    const settled = p === "provider_unreachable" ? null : 0; // fix 2026-10-16
+    expect(spend()).toEqual([expect.objectContaining({ outcome: "no_answer", settledUsdMicros: settled })]);
     expect(readSettings(t.db).profile).toEqual(AC01_PROFILE);
   });
 

@@ -168,20 +168,41 @@ describe("createClaudeProvider", () => {
     [429, "rate_limit_error", "rate_limited"],
     [500, "api_error", "provider_unreachable"],
     [529, "overloaded_error", "provider_unreachable"],
-    [400, "invalid_request_error", "provider_unreachable"],
-  ])("classifies %d %s as %s, without retrying", async (status, type, problem) => {
-    const { p, seen } = provider(() => apiError(status, type));
-    const r = await p.send(params);
-    expect(r).toMatchObject({ kind: "problem", problem });
-    expect(seen).toHaveLength(1);
-    expect(JSON.stringify(r)).not.toContain("sk-test");
-  });
+    [400, "invalid_request_error", "request_rejected"],
+    [404, "not_found_error", "request_rejected"],
+  ])(
+    "classifies %d %s as %s, not charged, without retrying (AC-12, fix 2026-10-16)",
+    async (status, type, problem) => {
+      const { p, seen } = provider(() => apiError(status, type));
+      const r = await p.send(params);
+      // An error answer is not charged by the provider, so its reservation is released.
+      expect(r).toMatchObject({ kind: "problem", problem, charged: false });
+      expect(seen).toHaveLength(1);
+      expect(JSON.stringify(r)).not.toContain("sk-test");
+    },
+  );
 
   it("classifies a connection failure as unreachable", async () => {
     const { p } = provider(() => {
       throw new TypeError("fetch failed");
     });
-    expect(await p.send(params)).toMatchObject({ kind: "problem", problem: "provider_unreachable" });
+    expect(await p.send(params)).toMatchObject({
+      kind: "problem",
+      problem: "provider_unreachable",
+      charged: true,
+    });
+  });
+
+  it("keeps the provider's own message for the log when it rejects the request (fix 2026-10-16)", async () => {
+    const { p } = provider(() =>
+      json(400, {
+        type: "error",
+        error: { type: "invalid_request_error", message: "key is not scoped to a workspace" },
+      }),
+    );
+    expect(await p.send(params)).toMatchObject({
+      detail: expect.stringContaining("key is not scoped to a workspace"),
+    });
   });
 
   it("gives up after the request's own timeout and on abort (review R10)", async () => {
@@ -190,7 +211,8 @@ describe("createClaudeProvider", () => {
         init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError"))),
       );
     const p = createClaudeProvider(cfg, { fetch: hang });
-    expect(await p.send(params, { timeoutMs: 50 })).toMatchObject({ kind: "problem" });
+    // No answer arrived: the provider may have charged, so the reservation stays (ADR-0006).
+    expect(await p.send(params, { timeoutMs: 50 })).toMatchObject({ kind: "problem", charged: true });
     const stop = new AbortController();
     const pending = p.send(params, { timeoutMs: 60_000, signal: stop.signal });
     stop.abort();
@@ -199,7 +221,7 @@ describe("createClaudeProvider", () => {
 
   it("reports a missing key without making any request", async () => {
     const { p, seen } = provider(() => json(200, message()), null);
-    expect(await p.send(params)).toMatchObject({ kind: "problem", problem: "key_missing" });
+    expect(await p.send(params)).toMatchObject({ kind: "problem", problem: "key_missing", charged: false });
     expect(seen).toHaveLength(0);
   });
 });

@@ -2,7 +2,7 @@
 status: Draft
 owner: "Volodymyr Kozlov"
 reviewers: ["Tech Lead", "Security Lead"]
-updated_at: "2026-10-15"
+updated_at: "2026-10-16"
 feature_size: "M"
 ---
 
@@ -158,11 +158,11 @@ Privacy against shipped specs: search, applied-skipped and the collector say "no
 > Scoring follows the list the owner sees, not "postings collected since", so postings brought into the list by a change of skills or filter are scored too, and nothing is spent on postings the owner cannot see. With an empty skills field the list is every open posting the filter shows (search AC-10), and the cap bounds the cost.
 
 ### AC-14 (US-06) — error
-**Given** the provider is unreachable, refuses job-radar's key, or no key is set up
+**Given** the provider is unreachable, refuses job-radar's key, rejects job-radar's request (for example a key not scoped to a workspace), or no key is set up <!-- added-by-fix: 2026-10-16 -->
 **When** scoring is due
-**Then** postings without a current score show "not scored" with the reason in plain language; scoring health shows the problem with the reason and when scoring last succeeded; the main-screen problem marker shows; nothing is hidden; and scoring picks up by itself, newest first and within the cap: after an unreachable or rate-limited provider, it is tried again at most every 15 minutes; after a missing or refused key, it is tried again when job-radar is restarted with a key
+**Then** postings without a current score show "not scored" with the reason in plain language; scoring health shows the problem with the reason and when scoring last succeeded; the main-screen problem marker shows; nothing is hidden; and scoring picks up by itself, newest first and within the cap: after an unreachable or rate-limited provider, it is tried again at most every 15 minutes; after a missing or refused key or a rejected request, it is tried again when job-radar is restarted; the reason for a rejected request points to the server log, which holds the provider's message
 
-> Timeouts, rate limits, an unreachable provider and key problems are provider problems: the posting stays pending and does not count towards AC-18. The provider key is set only in the owner's local configuration, outside the repository, and never on screen.
+> Timeouts, rate limits, an unreachable provider and key problems are provider problems: the posting stays pending and does not count towards AC-18. The provider key is set only in the owner's local configuration, outside the repository, and never on screen. An attempt the provider answered with an error, or that was never sent, costs nothing (AC-12); only an attempt with no answer at all (a timeout, a lost connection) counts, at its largest possible cost. <!-- added-by-fix: 2026-10-16 -->
 
 ### AC-15 (US-06) — happy
 **Given** the owner has not set up a profile
@@ -238,7 +238,7 @@ Privacy against shipped specs: search, applied-skipped and the collector say "no
 - [ ] Should the profile's core skills also bring postings into the list, so the CV can truly replace typing skills (the idea brief's "I give it my CV or write the skills I have")? Default now: no — typed skills alone decide the list; the profile only scores. — owner: Volodymyr Kozlov, due: 2026-10-31
 - [x] Which provider data-retention terms are acceptable for the CV and the profile, and is a no-retention option required? **Resolved 2026-10-15 in [sad.md §2](sad.md): the standard Anthropic API data terms are accepted; zero data retention is not required.** Default now: the owner accepts the provider's standard API terms; what is sent is shown before anything leaves the machine (AC-20). — owner: Volodymyr Kozlov (Security Lead), due: before sdd:design completes
 - [ ] Should re-scoring after a profile edit have its own share of the cap, so one edit late in the month cannot stop scoring of new postings? Default now: no — one cap, newest postings first. — owner: Volodymyr Kozlov, due: before sdd:tasks
-- [ ] Review R2 (2026-10-15): with no provider key, each scoring attempt and CV draft still books its full largest-possible cost (`app/attempt.ts:37`, `app/cv-draft.ts:79`), though nothing leaves the machine (`infra/claude.ts:37`). About 25 draft clicks use up the $5 cap. AC-12 counts only attempts the provider charged for. Check for the key before reserving. — owner: Volodymyr Kozlov, due: 2026-10-31
+- [x] Review R2 (2026-10-15) — **resolved by fix 2026-10-16 ([_fixes/2026-10-16-rejected-request-burns-cap.md](_fixes/2026-10-16-rejected-request-burns-cap.md)): an attempt with no key now settles at zero.** with no provider key, each scoring attempt and CV draft still books its full largest-possible cost (`app/attempt.ts:37`, `app/cv-draft.ts:79`), though nothing leaves the machine (`infra/claude.ts:37`). About 25 draft clicks use up the $5 cap. AC-12 counts only attempts the provider charged for. Check for the key before reserving. — owner: Volodymyr Kozlov, due: 2026-10-31
 - [ ] Review R3 (2026-10-15): the CV route ignores `media_type` (`infra/cv-text.ts:38-46`). Any text-like file (SVG, HTML, JSON) is read as plain text, sent and charged, against AC-08 and the openapi `CvDraftRequest.media_type` text. Refuse anything that is not PDF, .docx or text/plain, or whose type disagrees with its bytes. — owner: Volodymyr Kozlov, due: 2026-10-31
 - [ ] Review R4 (2026-10-15): when the profile read fails, search reports `has_profile: false` (`search/app/search.ts:63-71`), so an owner with a profile sees AC-15's "set up a profile" line, against the openapi "as last known" text. Keep the last known value. — owner: Volodymyr Kozlov, due: 2026-10-31
 - [ ] Review R12 (2026-10-15): `MATCHING_CONCURRENCY` (`core/config.ts:50`) is never read; the scorer is serial. Remove it and note in sad.md §7 / ADR-0003 that concurrency is fixed at 1, or honour it. — owner: Volodymyr Kozlov, due: 2026-10-31

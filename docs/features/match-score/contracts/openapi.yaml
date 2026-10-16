@@ -1105,7 +1105,7 @@ components:
       properties:
         kind:
           type: string
-          enum: [provider_unreachable, rate_limited, key_missing, key_refused, cap_reached]
+          enum: [provider_unreachable, rate_limited, key_missing, key_refused, request_rejected, cap_reached]
           description: matching_settings.scoring_problem, or cap_reached computed from the ledger and the cap
         reason:
           type: string
