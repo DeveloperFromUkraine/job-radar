@@ -1,7 +1,7 @@
 // The source registry: intervals and published limits (spec §6 Source request rate).
 // One read = one request to the source, pages and failed requests included.
 
-export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit";
+export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit" | "nofluffjobs";
 
 export interface RateLimits {
   perMinute?: number;
@@ -167,6 +167,38 @@ export const SOURCES: readonly SourceDefinition[] = [
       "architecture",
       "other",
       "ai",
+    ],
+  },
+  {
+    id: "nofluffjobs",
+    name: "No Fluff Jobs",
+    siteUrl: "https://nofluffjobs.com",
+    // One or two requests per owner category a run (the search's pages are cumulative); no
+    // published limit, so hourly and at most 10 an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 10 },
+    // The category paths of https://nofluffjobs.com/pl/praca-zdalna/<category>, each checked 2026-10-17
+    // (an unknown path becomes a keyword search instead).
+    publishedCategories: [
+      "frontend",
+      "fullstack",
+      "backend",
+      "mobile",
+      "embedded",
+      "testing",
+      "devops",
+      "architecture",
+      "security",
+      "game-dev",
+      "artificial-intelligence",
+      "support",
+      "agile",
+      "product-management",
+      "project-manager",
+      "business-intelligence",
+      "business-analyst",
+      "ux",
+      "erp",
     ],
   },
 ];

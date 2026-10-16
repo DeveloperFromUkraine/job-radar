@@ -49,6 +49,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         remotive: fine("remotive"),
         weworkremotely: fine("weworkremotely"),
         justjoinit: fine("justjoinit", { completeness: "capped" }),
+        nofluffjobs: fine("nofluffjobs"),
       },
       timeZone: "Europe/Warsaw",
     };
@@ -86,6 +87,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
       { source_id: "himalayas", outcome: "capped", failure_reason: null },
       { source_id: "jobicy", outcome: "complete", failure_reason: null },
       { source_id: "justjoinit", outcome: "capped", failure_reason: null },
+      { source_id: "nofluffjobs", outcome: "complete", failure_reason: null },
       {
         source_id: "remotive",
         outcome: "failed",

@@ -245,6 +245,9 @@ describe("finalize a run (Flow 7)", () => {
     );
     for (const category of ["javascript", "html"])
       fake.route(`/job-offers/all-locations/${category}`, xml(fixture("justjoinit/javascript.html")));
+    // Only No Fluff Jobs' first page answers, short of its total, so its read stays capped too.
+    for (const category of ["frontend", "fullstack"])
+      fake.route(`/pl/praca-zdalna/${category}`, xml(fixture("nofluffjobs/frontend-page1.html")));
 
     const run = await fullRun(T0);
 
@@ -256,6 +259,7 @@ describe("finalize a run (Flow 7)", () => {
       { source_id: "himalayas", outcome: "capped" },
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "justjoinit", outcome: "capped" },
+      { source_id: "nofluffjobs", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
       { source_id: "weworkremotely", outcome: "capped" },
     ]);

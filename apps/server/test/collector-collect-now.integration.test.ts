@@ -87,6 +87,7 @@ describe("collect now (Flow 2) and module wiring", () => {
       "remotive",
       "weworkremotely",
       "justjoinit",
+      "nofluffjobs",
     ]);
     await until(() => runs().every((r) => r.status === "finished"));
   });

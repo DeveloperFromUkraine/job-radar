@@ -206,4 +206,67 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
   });
+
+  describe("No Fluff Jobs", () => {
+    const fetchNoFluffJobs = (categories: string[]) =>
+      createAdapters({ baseUrl: fake.baseUrl }).nofluffjobs.fetchLatest({
+        http: createSourceHttp(db.db, sourceById("nofluffjobs"), { now: () => NOW }),
+        now: NOW,
+        categories,
+      });
+    // The search's pages are cumulative: page 2 holds pages 1 and 2.
+    const searchPages = () =>
+      fake.route("/pl/praca-zdalna/frontend", (req, res) => {
+        const page = (req.url ?? "").includes("page=2") ? "frontend-page2.html" : "frontend-page1.html";
+        res.writeHead(200, { "content-type": "text/html" }).end(fixture(`nofluffjobs/${page}`));
+      });
+
+    it("reads a category's remote search to its last, cumulative page and is complete", async () => {
+      searchPages();
+
+      const result = await fetchNoFluffJobs(["frontend"]);
+
+      expect(fake.requests).toEqual(["/pl/praca-zdalna/frontend", "/pl/praca-zdalna/frontend?page=2"]);
+      expect(result).toMatchObject({
+        completeness: "complete",
+        itemsReturned: 3,
+        coversPublishedAfter: null,
+      });
+      expect(result.listings).toHaveLength(3);
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "example-offer-1-Remote",
+        url: "https://nofluffjobs.com/pl/job/example-offer-1-remote",
+        company: "Example Co",
+        title: "React Developer | Premium Interior E-commerce Brand | Project-based",
+        description: "<p>Level: Senior</p>\n<p>Technology: React</p>\n<p>Contract: b2b</p>",
+        locationRestriction: "Poland",
+        categories: ["frontend"],
+        // Renewed postings count from the renewal, as the board shows them.
+        publishedAt: 1792161663110,
+        expiresAt: null,
+        payField: "b2b PLN 80–130 per hour",
+      });
+      expect(result.listings[1]?.publishedAt).toBe(1792150622655);
+      // A hidden salary (shown after the last interview) is no amount.
+      expect(result.listings[2]?.payField).toBe("");
+    });
+
+    it("stays capped when the last page still holds fewer than the total", async () => {
+      fake.route("/pl/praca-zdalna/frontend", (_req, res) => {
+        res.writeHead(200, { "content-type": "text/html" }).end(fixture("nofluffjobs/frontend-page1.html"));
+      });
+      expect(await fetchNoFluffJobs(["frontend"])).toMatchObject({
+        completeness: "capped",
+        itemsReturned: 2,
+      });
+    });
+
+    it("fails a page without the search state", async () => {
+      fake.route("/pl/praca-zdalna/frontend", xml("<html>Just a moment...</html>"));
+      expect(await fetchNoFluffJobs(["frontend"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+    });
+  });
 });

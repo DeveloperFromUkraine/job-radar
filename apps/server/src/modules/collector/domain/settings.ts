@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS: Settings = {
     },
     // Each category is one page read a run (justjoinit.ts), so the default stays small.
     justjoinit: { enabled: true, categories: ["javascript", "html"] },
+    nofluffjobs: { enabled: true, categories: ["frontend", "fullstack"] },
   },
 };
 

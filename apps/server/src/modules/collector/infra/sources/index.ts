@@ -2,6 +2,7 @@ import type { SourceId } from "../../domain/sources.js";
 import { himalayasAdapter } from "./himalayas.js";
 import { jobicyAdapter } from "./jobicy.js";
 import { justJoinItAdapter } from "./justjoinit.js";
+import { noFluffJobsAdapter } from "./nofluffjobs.js";
 import { remotiveAdapter } from "./remotive.js";
 import type { SourceAdapter } from "./types.js";
 import { weWorkRemotelyAdapter } from "./weworkremotely.js";
@@ -15,5 +16,6 @@ export function createAdapters(options: { baseUrl?: string } = {}): Record<Sourc
     remotive: remotiveAdapter(baseUrl),
     weworkremotely: weWorkRemotelyAdapter(baseUrl),
     justjoinit: justJoinItAdapter(baseUrl),
+    nofluffjobs: noFluffJobsAdapter(baseUrl),
   };
 }

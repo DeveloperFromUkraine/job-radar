@@ -8,7 +8,7 @@ import {
 } from "../../api/collector";
 import { ago, exact } from "../../lib/time";
 
-const ORDER: SourceId[] = ["jobicy", "himalayas", "remotive", "weworkremotely", "justjoinit"];
+const ORDER: SourceId[] = ["jobicy", "himalayas", "remotive", "weworkremotely", "justjoinit", "nofluffjobs"];
 
 function outcomeText(o: RunSourceOutcome): string {
   if (o.outcome === "pending") return "reading…";

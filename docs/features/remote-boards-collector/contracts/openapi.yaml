@@ -321,7 +321,7 @@ components:
 
     SourceId:
       type: string
-      enum: [jobicy, himalayas, remotive, weworkremotely, justjoinit]
+      enum: [jobicy, himalayas, remotive, weworkremotely, justjoinit, nofluffjobs]
       description: collector_sources.id — the source code from the adapter registry
 
     SourceState:

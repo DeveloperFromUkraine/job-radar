@@ -26,6 +26,7 @@ describe("parsing the settings file (AC-27)", () => {
       remotive: { enabled: true, categories: ["Software Development", "Devops"] },
       weworkremotely: { enabled: false, categories: [] },
       justjoinit: { enabled: true, categories: ["javascript"] },
+      nofluffjobs: { enabled: false, categories: ["frontend"] },
     },
   };
 

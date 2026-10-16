@@ -1,5 +1,5 @@
 // Typed client for the collector API (docs/features/remote-boards-collector/contracts/openapi.yaml).
-export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit";
+export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely" | "justjoinit" | "nofluffjobs";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -135,4 +135,5 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   remotive: { name: "Remotive", url: "https://remotive.com" },
   weworkremotely: { name: "We Work Remotely", url: "https://weworkremotely.com" },
   justjoinit: { name: "Just Join IT", url: "https://justjoin.it" },
+  nofluffjobs: { name: "No Fluff Jobs", url: "https://nofluffjobs.com" },
 };
