@@ -44,6 +44,18 @@ export interface MarkState {
   removed_after: string | null;
 }
 
+/** A realness signal (realness-score contract RealnessSignal), in the order the card names them. */
+export type RealnessSignal =
+  | { kind: "age"; basis: "posted" | "first_found"; days: number }
+  | { kind: "many_boards"; boards: number; days: number }
+  | { kind: "repost" }
+  | { kind: "no_salary" };
+
+export interface Realness {
+  penalty: number;
+  signals: RealnessSignal[];
+}
+
 export interface Posting {
   id: string;
   title: string;
@@ -58,6 +70,8 @@ export interface Posting {
   location_check: LocationCheck | null;
   /** The posting's match, or null for every posting when there is no profile (match-score AC-15). */
   match: Match | null;
+  /** Realness when it is on and the posting has a signal; null otherwise (realness-score AC-02, AC-10). */
+  realness: Realness | null;
 }
 
 /** A marked-view posting, open or closed (applied-skipped AC-05). */
@@ -102,6 +116,8 @@ export interface SearchResult extends PostingPage {
   order: ListOrder;
   /** false → no scores and the "set up a profile" line (match-score AC-15). */
   has_profile: boolean;
+  /** Whether realness was on when this snapshot was built (realness-score AC-10). */
+  realness_on: boolean;
   skills: string[];
   total: number;
   new_count: number;

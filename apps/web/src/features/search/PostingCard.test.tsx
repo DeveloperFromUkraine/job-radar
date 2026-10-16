@@ -190,3 +190,38 @@ describe("PostingCard (SCR-01)", () => {
     });
   });
 });
+
+describe("PostingCard reason line (realness-score SCR-01)", () => {
+  const lowered = () =>
+    contractExample<SearchResult>("runSearch", 200, "best_match_lowered").items.find(
+      (p) => p.realness,
+    ) as Posting;
+
+  it("shows the reason under the match, prefixed for the list's order", () => {
+    render(<PostingCard posting={lowered()} now={NOW} order="best_match" />);
+    expect(screen.getByText("Lowered: posted 65 days ago · no salary listed")).toBeTruthy();
+    expect(screen.getByText(/92/)).toBeTruthy(); // the score is unchanged
+  });
+
+  it("no realness, no line", () => {
+    render(<PostingCard posting={{ ...lowered(), realness: null }} now={NOW} order="best_match" />);
+    expect(screen.queryByText(/^Lowered:|^Signals:/)).toBeNull();
+  });
+
+  it("a look-alike that is reposted keeps its look-alike line and names the repost", () => {
+    const p: Posting = {
+      ...lowered(),
+      look_alike: { mark: "skipped", company: "Example Co", marked_at: "2026-09-02T10:00:00Z" },
+      realness: { penalty: 10, signals: [{ kind: "repost" }] },
+    };
+    render(<PostingCard posting={p} now={NOW} order="newest" />);
+    expect(screen.getByText(/You skipped a similar posting at Example Co/)).toBeTruthy();
+    expect(screen.getByText("Signals: reposted")).toBeTruthy();
+  });
+
+  it("never builds the line from posting text", () => {
+    const p = { ...lowered(), title: "Lowered: no signals here · reposted", company: "Signals: none" };
+    render(<PostingCard posting={p} now={NOW} order="best_match" />);
+    expect(screen.getByText("Lowered: posted 65 days ago · no salary listed")).toBeTruthy();
+  });
+});

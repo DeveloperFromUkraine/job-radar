@@ -1,6 +1,7 @@
 import { parse } from "yaml";
 import appliedSkippedApi from "../../../../docs/features/applied-skipped/contracts/openapi.yaml?raw";
 import matchScoreApi from "../../../../docs/features/match-score/contracts/openapi.yaml?raw";
+import realnessApi from "../../../../docs/features/realness-score/contracts/openapi.yaml?raw";
 import collectorApi from "../../../../docs/features/remote-boards-collector/contracts/openapi.yaml?raw";
 import remoteFilterApi from "../../../../docs/features/remote-filter/contracts/openapi.yaml?raw";
 import searchApi from "../../../../docs/features/search-postings/contracts/openapi.yaml?raw";
@@ -9,7 +10,7 @@ import searchApi from "../../../../docs/features/search-postings/contracts/opena
 // validated against, so the screens are tested on shapes the API really returns. Operation ids are
 // unique across the feature contracts, except that runSearch, getNextPage and getWaitingCount are
 // restated by applied-skipped and then remote-filter, and runSearch, getNextPage and the marked view by
-// match-score (the current shape). The older contracts are searched first, and an example they lack
+// match-score, and runSearch and getNextPage by realness-score (the current shape). The older contracts are searched first, and an example they lack
 // (found_with_hint, filtered, all_hidden, look, best_match, no_profile) falls through; an older example is
 // brought to the current shape with the values the server sends when no country and no profile are set.
 type Content = { example?: unknown; examples?: Record<string, { value: unknown }> };
@@ -18,7 +19,7 @@ type Doc = {
   paths: Record<string, Record<string, { operationId: string; responses: Record<string, Response> }>>;
   components?: { responses?: Record<string, Response> };
 };
-const docs = [collectorApi, searchApi, appliedSkippedApi, remoteFilterApi, matchScoreApi].map(
+const docs = [collectorApi, searchApi, appliedSkippedApi, remoteFilterApi, matchScoreApi, realnessApi].map(
   (raw) => parse(raw) as Doc,
 );
 const RESTATED = new Set(["runSearch", "getNextPage", "runMarkedView", "getNextMarkedPage"]);
@@ -30,7 +31,7 @@ function currentShape(operationId: string, status: number, value: unknown): unkn
   const page = value as { items: Item[] } & Item;
   const marked = operationId === "runMarkedView" || operationId === "getNextMarkedPage";
   const items = page.items.map((p) =>
-    marked ? { match: null, ...p } : { location_check: null, match: null, ...p },
+    marked ? { match: null, ...p } : { location_check: null, match: null, realness: null, ...p },
   );
   if (operationId !== "runSearch") return { ...page, items };
   return {
@@ -38,6 +39,7 @@ function currentShape(operationId: string, status: number, value: unknown): unkn
     location_filter: { mode: "none", country: null },
     order: "newest",
     has_profile: false,
+    realness_on: true,
     ...page,
     items,
   };

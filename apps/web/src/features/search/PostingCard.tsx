@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 import { SOURCE_NAMES } from "../../api/collector";
-import type { Listing, MarkedPosting, Posting } from "../../api/search";
+import type { Listing, ListOrder, MarkedPosting, Posting } from "../../api/search";
 import { Badge } from "../../components/Badge";
 import { ago, shortDate } from "../../lib/time";
 import { MatchSummary } from "../matching/MatchSummary";
+import { ReasonLine } from "../realness/ReasonLine";
 import { LocationCheck } from "../remote-filter/LocationCheck";
 
 // Source text is untrusted: rendered only as React text, never as markup (AC-09).
@@ -95,15 +96,18 @@ interface PostingCardProps {
   banner?: ReactNode;
   /** MarkActions, at the bottom of the card, full width on phones. */
   actions?: ReactNode;
+  /** The list's order, for the reason line's prefix (realness-score); the marked view passes none. */
+  order?: ListOrder;
 }
 
 /** SCR-01 posting (screens.md NEW: PostingCard; applied-skipped: look-alike line, marked variant,
- * actions slot; match-score: the match above the actions). Only the source names are links. Phones stack the parts in wireframe order; from md:
+ * actions slot; match-score: the match above the actions; realness-score: the reason line under the match). Only the source names are links. Phones stack the parts in wireframe order; from md:
  * time and sources move to a second column. */
-export function PostingCard({ posting, now = Date.now(), banner, actions }: PostingCardProps) {
+export function PostingCard({ posting, now = Date.now(), banner, actions, order }: PostingCardProps) {
   const marked = "mark_state" in posting ? posting : null;
   const hint = marked ? null : (posting as Posting).look_alike;
   const check = marked ? null : (posting as Posting).location_check;
+  const realness = marked || !order ? null : (posting as Posting).realness;
   return (
     <article
       id={`posting-${posting.id}`}
@@ -152,6 +156,11 @@ export function PostingCard({ posting, now = Date.now(), banner, actions }: Post
       {posting.match && (
         <div className="md:col-span-2">
           <MatchSummary match={posting.match} />
+        </div>
+      )}
+      {realness && order && (
+        <div className="md:col-span-2">
+          <ReasonLine realness={realness} order={order} />
         </div>
       )}
       {banner && <div className="md:col-span-2">{banner}</div>}
