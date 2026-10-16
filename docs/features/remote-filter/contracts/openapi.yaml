@@ -12,6 +12,10 @@ info:
     open to the country, to say how many it hid, and to mark the uncertain ones "check location"
     (ADR-0002).
 
+    Superseded in part: `runSearch` and `getNextPage` are restated, with the list order and a `match` on
+    every posting, in `docs/features/match-score/contracts/openapi.yaml`, which the server now follows.
+    `getWaitingCount` here is still current.
+
     Scope of this document:
     - **remote-filter** (new): read the settings and the country list, choose the country, switch
       the filter on or off, start or end a one-off look (ADR-0001).

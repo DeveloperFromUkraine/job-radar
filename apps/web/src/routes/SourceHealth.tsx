@@ -1,19 +1,31 @@
 // SCR-02 — source health (screens.md): page states around the source cards.
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
+import { useMatchingSettings, useScoringHealth } from "../features/matching/queries";
 import { CollectNowAction } from "../features/source-health/CollectNowAction";
 import { useSourceHealth } from "../features/source-health/queries";
 import { RunProgress } from "../features/source-health/RunProgress";
+import { ScoringHealthCard } from "../features/source-health/ScoringHealthCard";
 import { SourceCard } from "../features/source-health/SourceCard";
 
 export function SourceHealth() {
   const health = useSourceHealth();
   const data = health.data;
+  const scoring = useScoringHealth();
+  const matching = useMatchingSettings();
 
   return (
     <div className="flex flex-col gap-3">
       <h1 className="text-xl font-semibold">Source health</h1>
       <CollectNowAction disabled={health.isPending} />
+
+      <ScoringHealthCard
+        health={scoring.data}
+        hasProfile={matching.data ? matching.data.profile !== null : true}
+        loading={scoring.isPending}
+        error={scoring.isError ? scoring.error.message : undefined}
+        onRetry={() => void scoring.refetch()}
+      />
 
       {health.isPending && [0, 1, 2, 3].map((i) => <SkeletonRow key={i} />)}
 

@@ -1,0 +1,880 @@
+{
+  "slug": "match-score",
+  "tasks": [
+    {
+      "id": "T01",
+      "title": "Promote the staged schema: the three matching tables and search_state.list_order",
+      "layer": "migration",
+      "deps": [],
+      "acs": [
+        "AC-10",
+        "AC-11",
+        "AC-12",
+        "AC-18"
+      ],
+      "dod": "The generated drizzle migration applies on a copy of a database at 0005, and `matching-schema.integration.test.ts` passes (columns, FK refusal, cascade, NOT NULL cap).",
+      "files_hint": [
+        "docs/features/match-score/migrations/",
+        "apps/server/src/modules/matching/infra/schema.ts",
+        "apps/server/src/modules/search/infra/schema.ts",
+        "apps/server/drizzle/",
+        "apps/server/test/matching-schema.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t01-matching-schema.md"
+    },
+    {
+      "id": "T02",
+      "title": "Write the profile rules: fixed lists, field checks, contact detection, change detection and salary periods",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-09",
+        "AC-10",
+        "AC-16"
+      ],
+      "dod": "`profile.test.ts` passes for every AC-16 case, the AC-09 contact kinds, the AC-10 change/no-change pairs and the F-6 period table.",
+      "files_hint": [
+        "apps/server/src/modules/matching/domain/profile.ts",
+        "apps/server/src/modules/matching/domain/profile.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t02-profile-rules.md"
+    },
+    {
+      "id": "T03",
+      "title": "Write the score rules: total with fixed weights, answer validation, text fingerprint, staleness and the match state",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-04",
+        "AC-06",
+        "AC-10",
+        "AC-18"
+      ],
+      "dod": "`score.test.ts` passes: AC-01's example scores ≥ 80, AC-04's unstated parts do not lower it, every AC-18 unusable shape is refused, and staleness/state follow the contract table.",
+      "files_hint": [
+        "apps/server/src/modules/matching/domain/score.ts",
+        "apps/server/src/modules/matching/domain/score.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t03-score-rules.md"
+    },
+    {
+      "id": "T04",
+      "title": "Write the spend rules: largest possible cost, settled cost from usage, month boundary and cents rounding",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-12",
+        "AC-19"
+      ],
+      "dod": "`spend.test.ts` passes, including the AC-12 $4.98 refusal, the $0 pause and the month boundary in the machine time zone.",
+      "files_hint": [
+        "apps/server/src/modules/matching/domain/spend.ts",
+        "apps/server/src/modules/matching/domain/spend.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t04-spend-rules.md"
+    },
+    {
+      "id": "T05",
+      "title": "Write matching's repo: settings singleton, scores, and the spend ledger with reserve-in-one-transaction",
+      "layer": "infra",
+      "deps": [
+        "T01",
+        "T04"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-19"
+      ],
+      "dod": "`matching-repo.integration.test.ts` passes: the lazy upsert, reserve refusal at $4.98/$5, two back-to-back reservations, settle/no-answer sums and the score upsert/strike round trip.",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/repo.ts",
+        "apps/server/test/matching-repo.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t05-matching-repo.md"
+    },
+    {
+      "id": "T06",
+      "title": "Add the Claude client: SDK, configuration, fixed output schemas, usage, error classes and a stand-in provider",
+      "layer": "infra",
+      "deps": [
+        "T02",
+        "T03"
+      ],
+      "acs": [
+        "AC-03",
+        "AC-14",
+        "AC-18"
+      ],
+      "dod": "The error-classification unit test passes for every row of the edge-case table, and a test against the stand-in shows the prompt carries the posting only inside the data block and no key, name or contact detail.",
+      "files_hint": [
+        "apps/server/package.json",
+        "apps/server/src/core/config.ts",
+        "apps/server/src/modules/matching/infra/claude.ts",
+        "apps/server/src/modules/matching/infra/prompts.ts",
+        "apps/server/test/helpers/fake-provider.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t06-claude-client.md"
+    },
+    {
+      "id": "T07",
+      "title": "Extract CV text locally from PDF, Word (.docx) and plain text, with the AC-08 refusals",
+      "layer": "infra",
+      "deps": [],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "`cv-text.test.ts` passes for every fixture: text from PDF, .docx and .txt; the four AC-08 refusals for scan, empty, unsupported and oversized files.",
+      "files_hint": [
+        "apps/server/package.json",
+        "apps/server/src/modules/matching/infra/cv-text.ts",
+        "apps/server/src/modules/matching/infra/cv-text.test.ts",
+        "apps/server/test/fixtures/cv/"
+      ],
+      "file": "docs/features/match-score/tasks/t07-cv-text-extraction.md"
+    },
+    {
+      "id": "T08",
+      "title": "Implement the settings use cases: read settings, save profile, agree to the notice, set the cap",
+      "layer": "app",
+      "deps": [
+        "T02",
+        "T05"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-16",
+        "AC-19",
+        "AC-20",
+        "AC-21"
+      ],
+      "dod": "`matching-settings.integration.test.ts` passes every edge-case row plus AC-10 (senior → staff bumps the version) and AC-21 (first profile by hand wakes the scorer).",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/settings.ts",
+        "apps/server/src/modules/matching/app/deps.ts",
+        "apps/server/test/matching-settings.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t08-profile-settings-use-cases.md"
+    },
+    {
+      "id": "T09",
+      "title": "Implement the CV draft use case: extract, remove contacts, reserve, ask, map to the fixed lists, drop the CV",
+      "layer": "app",
+      "deps": [
+        "T02",
+        "T04",
+        "T05",
+        "T06",
+        "T07"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-20"
+      ],
+      "dod": "`matching-cv-draft.integration.test.ts` passes every edge-case row, and no request the stand-in received carries a name, email, phone, address or link.",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/cv-draft.ts",
+        "apps/server/test/matching-cv-draft.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t09-cv-draft-use-case.md"
+    },
+    {
+      "id": "T10",
+      "title": "Give search a ScoreReader, the best-match order and a match on every posting",
+      "layer": "app",
+      "deps": [
+        "T01"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-11",
+        "AC-15"
+      ],
+      "dod": "`search-scores.integration.test.ts` passes AC-11's order and paging over 130 postings, AC-02's 40 with 25 below 30 in both orders with identical counts, AC-15's no-profile list, and the fail-open case; the existing search tests stay green.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/deps.ts",
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/search/app/pages.ts",
+        "apps/server/src/modules/search/app/present.ts",
+        "apps/server/src/modules/search/app/snapshots.ts",
+        "apps/server/src/modules/search/domain/order.ts",
+        "apps/server/src/modules/search/infra/repo.ts",
+        "apps/server/src/modules/search/ports/routes.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/search-scores.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t10-search-score-reader-and-order.md"
+    },
+    {
+      "id": "T11",
+      "title": "Export the owner's list from search and show the last score in the marked view",
+      "layer": "app",
+      "deps": [
+        "T10"
+      ],
+      "acs": [
+        "AC-13"
+      ],
+      "dod": "`search-owner-list.integration.test.ts` passes AC-13: exactly the 30 listed postings, newest first, none of the 20 hidden or 5 marked; the marked view returns each marked posting's last score.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/owner-list.ts",
+        "apps/server/src/modules/search/app/marked.ts",
+        "apps/server/src/modules/search/app/present.ts",
+        "apps/server/test/search-owner-list.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t11-search-owner-list-and-marked-scores.md"
+    },
+    {
+      "id": "T12",
+      "title": "Implement matching's score reader and scoring health",
+      "layer": "app",
+      "deps": [
+        "T03",
+        "T05",
+        "T10",
+        "T11"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-10",
+        "AC-12",
+        "AC-14",
+        "AC-15",
+        "AC-18"
+      ],
+      "dod": "`matching-health.integration.test.ts` passes every edge-case row, and a reader test returns each `Match.state` / `stale` value for AC-06, AC-10, AC-12, AC-14, AC-15 and AC-18.",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/score-reader.ts",
+        "apps/server/src/modules/matching/app/health.ts",
+        "apps/server/test/matching-health.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t12-score-reader-and-scoring-health.md"
+    },
+    {
+      "id": "T13",
+      "title": "Implement one scoring attempt: reserve, ask, validate, store or strike, settle",
+      "layer": "app",
+      "deps": [
+        "T03",
+        "T04",
+        "T05",
+        "T06"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-12",
+        "AC-18"
+      ],
+      "dod": "`matching-attempt.integration.test.ts` passes every edge-case row, including the AC-01 profile/posting pair scoring ≥ 80 with the stand-in and the AC-18 third strike.",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/test/matching-attempt.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t13-scorer-attempt.md"
+    },
+    {
+      "id": "T14",
+      "title": "Run the background scorer: polling, wake-ups, queue order, retry cadence, start and stop",
+      "layer": "app",
+      "deps": [
+        "T11",
+        "T13"
+      ],
+      "acs": [
+        "AC-06",
+        "AC-10",
+        "AC-13",
+        "AC-14",
+        "AC-21"
+      ],
+      "dod": "`matching-scorer.integration.test.ts` passes every edge-case row and AC-21's first save scoring the list newest first; 50 new postings in an hour are scored within 15 minutes each with the stand-in.",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t14-scorer-loop.md"
+    },
+    {
+      "id": "T15",
+      "title": "Expose matching's routes and wire the module into app.ts",
+      "layer": "ports",
+      "deps": [
+        "T08",
+        "T09",
+        "T12",
+        "T14"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-16",
+        "AC-17",
+        "AC-19",
+        "AC-20"
+      ],
+      "dod": "`matching-routes.integration.test.ts` passes: every operation's documented responses validate against the match-score contract, the AC-17 refusals and the 413 mapping; the server starts and stops cleanly with the scorer running.",
+      "files_hint": [
+        "apps/server/src/modules/matching/ports/routes.ts",
+        "apps/server/src/modules/matching/index.ts",
+        "apps/server/src/app.ts",
+        "apps/server/test/matching-routes.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t15-matching-routes-and-wiring.md"
+    },
+    {
+      "id": "T16",
+      "title": "Show the match on every card: API types, ScoreBadge and MatchSummary in the main list and the marked view",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-12",
+        "AC-14",
+        "AC-18"
+      ],
+      "dod": "Testing Library tests pass for every MatchSummary state in the SCR-01 table and the marked-view row, with note and claims rendered as plain text and Details reachable at 44×44 px.",
+      "files_hint": [
+        "apps/web/src/api/search.ts",
+        "apps/web/src/api/matching.ts",
+        "apps/web/src/features/matching/ScoreBadge.tsx",
+        "apps/web/src/features/matching/MatchSummary.tsx",
+        "apps/web/src/features/search/PostingCard.tsx",
+        "apps/web/src/test/contract.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t16-web-match-on-cards.md"
+    },
+    {
+      "id": "T17",
+      "title": "Add the order switch, the no-profile and cap-reached line, and scoring problems in the marker",
+      "layer": "ui",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-11",
+        "AC-12",
+        "AC-14",
+        "AC-15"
+      ],
+      "dod": "Testing Library tests pass for every row of SCR-01 \"Order and notices\", including the switch round trip keeping the choice after a remount.",
+      "files_hint": [
+        "apps/web/src/features/matching/OrderSwitch.tsx",
+        "apps/web/src/features/matching/ScoringNotice.tsx",
+        "apps/web/src/features/matching/queries.ts",
+        "apps/web/src/features/search/SearchList.tsx",
+        "apps/web/src/features/search/queries.ts",
+        "apps/web/src/features/source-health/ProblemMarker.tsx",
+        "apps/web/src/routes/Home.tsx"
+      ],
+      "file": "docs/features/match-score/tasks/t17-web-order-switch-and-notices.md"
+    },
+    {
+      "id": "T18",
+      "title": "Add the scoring health card to the source health screen",
+      "layer": "ui",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-18"
+      ],
+      "dod": "Testing Library tests pass for every SCR-02 state using the contract's `healthy`, `key_refused` and `cap_reached` examples.",
+      "files_hint": [
+        "apps/web/src/features/source-health/ScoringHealthCard.tsx",
+        "apps/web/src/routes/SourceHealth.tsx"
+      ],
+      "file": "docs/features/match-score/tasks/t18-web-scoring-health-card.md"
+    },
+    {
+      "id": "T19",
+      "title": "Build the profile screen: route, AppNav link, ProfileForm, DataNotice and CapField",
+      "layer": "ui",
+      "deps": [
+        "T16"
+      ],
+      "acs": [
+        "AC-10",
+        "AC-16",
+        "AC-19",
+        "AC-20",
+        "AC-21"
+      ],
+      "dod": "Testing Library tests pass for every SCR-03 Profile editor, DataNotice and CapField state, and the web rule table matches the server's AC-16 cases.",
+      "files_hint": [
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/App.tsx",
+        "apps/web/src/components/AppNav.tsx",
+        "apps/web/src/features/matching/ProfileForm.tsx",
+        "apps/web/src/features/matching/DataNotice.tsx",
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/features/matching/profile-rules.ts"
+      ],
+      "file": "docs/features/match-score/tasks/t19-web-profile-screen.md"
+    },
+    {
+      "id": "T20",
+      "title": "Add CV upload and the draft review to the profile screen",
+      "layer": "ui",
+      "deps": [
+        "T19"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09"
+      ],
+      "dod": "Testing Library tests pass for every CvUpload/DraftReview state in SCR-03, including the client-side 5 MB refusal and the removed-details notice.",
+      "files_hint": [
+        "apps/web/src/features/matching/CvUpload.tsx",
+        "apps/web/src/features/matching/DraftReview.tsx",
+        "apps/web/src/routes/Profile.tsx"
+      ],
+      "file": "docs/features/match-score/tasks/t20-web-cv-upload-and-draft-review.md"
+    },
+    {
+      "id": "T21",
+      "title": "Prove the invariants and NFRs end to end, and add the real-model evaluation run",
+      "layer": "tests",
+      "deps": [
+        "T15",
+        "T17"
+      ],
+      "acs": [
+        "AC-02",
+        "AC-03",
+        "AC-05",
+        "AC-12",
+        "AC-13"
+      ],
+      "dod": "`match-score-nfr.integration.test.ts` and the rerun `search-nfr` pass in the gate; `eval-match-score.ts` runs against the stand-in in a dry mode and documents the real run for `ship`.",
+      "files_hint": [
+        "apps/server/test/match-score-nfr.integration.test.ts",
+        "apps/server/test/search-nfr.integration.test.ts",
+        "apps/server/scripts/eval-match-score.ts",
+        "apps/server/test/fixtures/eval/"
+      ],
+      "file": "docs/features/match-score/tasks/t21-end-to-end-nfr-and-evaluation.md"
+    },
+    {
+      "id": "T22",
+      "title": "Update the docs: SAD table names and flow 2, contract pointers, design-system inventory, roadmap and key setup",
+      "layer": "docs",
+      "deps": [
+        "T21"
+      ],
+      "acs": [
+        "AC-14"
+      ],
+      "dod": "The SAD, both earlier contracts, the design-system inventory, the roadmap and the README are updated, and every Mermaid block in `sad.md` still renders.",
+      "files_hint": [
+        "docs/features/match-score/sad.md",
+        "docs/features/remote-filter/contracts/openapi.yaml",
+        "docs/features/applied-skipped/contracts/openapi.yaml",
+        "docs/design-system.md",
+        "docs/roadmap.md",
+        "README.md"
+      ],
+      "file": "docs/features/match-score/tasks/t22-docs-and-pointers.md"
+    },
+    {
+      "id": "T23",
+      "title": "Review fix R1: the cap counts as reached once an attempt's reservation is refused this month",
+      "layer": "app",
+      "deps": [
+        "T22"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "A scorer test with a cap that leaves less than one real reservation but more than the no-input bound fails without the fix: after the pass, the reader shows cap_reached for unscored postings and health reports cap_reached with resumes_on; raising the cap clears it",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/cap-state.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/src/modules/matching/app/deps.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T24",
+      "title": "Review fixes R8, R10, R11: retry wakes at 15 minutes, provider calls abort on stop with their own timeout, pass errors are logged and reservations settle",
+      "layer": "app",
+      "deps": [
+        "T23"
+      ],
+      "acs": [
+        "AC-14"
+      ],
+      "dod": "Tests pin: the scorer wakes itself at retryAfter (fake timers); stop() aborts an in-flight send; a score request gets the score timeout; a throwing pass reaches onError and leaves no reservation 'reserved'",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/src/modules/matching/app/cv-draft.ts",
+        "apps/server/src/modules/matching/infra/claude.ts",
+        "apps/server/src/modules/matching/index.ts",
+        "apps/server/test/matching-scorer.integration.test.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T25",
+      "title": "Review fixes R14, R7: case-insensitive fence, the note names both salary amounts, eval checks AC-01 and AC-04",
+      "layer": "infra",
+      "deps": [
+        "T24"
+      ],
+      "acs": [
+        "AC-01",
+        "AC-03",
+        "AC-04"
+      ],
+      "dod": "claude.test pins </POSTING> and '</ posting' escaped; SCORE_INSTRUCTIONS asks for both amounts and SCORER_VERSION is bumped; the eval script reports fit median >=80 naming TypeScript and React, and unstated terms/seniority not_stated",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/prompts.ts",
+        "apps/server/src/modules/matching/domain/score.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts",
+        "apps/server/scripts/eval-match-score.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T26",
+      "title": "Review fix R15: a corrupt zip, a docx with no document part and an inflate bomb are refused as unsupported",
+      "layer": "test",
+      "deps": [
+        "T25"
+      ],
+      "acs": [
+        "AC-08"
+      ],
+      "dod": "Three cv-text cases refuse with MATCHING_CV_UNSUPPORTED without throwing",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/cv-text.ts",
+        "apps/server/src/modules/matching/infra/cv-text.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T27",
+      "title": "Review fix R9: the domain owns profile validation, so every profile error answers MATCHING_INVALID_PROFILE with the field message",
+      "layer": "ports",
+      "deps": [
+        "T26"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "A routes test pins a skill over 50 characters, a negative salary and years over 60 each answering MATCHING_INVALID_PROFILE with the field-named message; openapi saveProfile text says so",
+      "files_hint": [
+        "apps/server/src/modules/matching/ports/routes.ts",
+        "apps/server/test/matching-routes.integration.test.ts",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T28",
+      "title": "Review fixes R6, R16: no problem marker for cap_reached; the cap field shows the saved cap",
+      "layer": "ui",
+      "deps": [
+        "T27"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-19"
+      ],
+      "dod": "Home.scores.test pins no marker when the problem is cap_reached; Profile.test pins the saved cap shown after leaving and returning; openapi marker wording follows screens.md",
+      "files_hint": [
+        "apps/web/src/routes/Home.tsx",
+        "apps/web/src/routes/Home.scores.test.tsx",
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T29",
+      "title": "Review fixes R5, R17: the draft sits beside the current profile from md with a source tag on each field; the CV data notice shows under the upload",
+      "layer": "ui",
+      "deps": [
+        "T28"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-20"
+      ],
+      "dod": "Profile.cv.test pins the current profile visible beside the draft (not only in details), a tag next to each field, and the notice rendered under the upload when the upload triggered it",
+      "files_hint": [
+        "apps/web/src/features/matching/DraftReview.tsx",
+        "apps/web/src/features/matching/ProfileForm.tsx",
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15.md"
+    },
+    {
+      "id": "T30",
+      "title": "Review fixes R21, R22: profile type and duplicate errors answer MATCHING_INVALID_PROFILE; skill length and count are checked before the contact scan",
+      "layer": "ports",
+      "deps": [
+        "T29"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-17"
+      ],
+      "dod": "matching-routes test: amount 'abc' and 1.5, years 2.5 and a duplicate role type each answer 400 MATCHING_INVALID_PROFILE with the field message; a profile test proves an 80k-character skill name is refused quickly with no contact scan",
+      "files_hint": [
+        "apps/server/src/modules/matching/ports/routes.ts",
+        "apps/server/src/modules/matching/domain/profile.ts",
+        "apps/server/test/matching-routes.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T31",
+      "title": "Review fix R23: a successful reservation clears the refused-cap record, and each pass retries the reservation for the current head of the queue",
+      "layer": "app",
+      "deps": [
+        "T30"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "Scorer test: after a large head posting is refused and then marked, the next smaller posting is scored and health.capReached is false; after a cap raise, health.capReached is false",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/cap-state.ts",
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/src/modules/matching/app/attempt.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T32",
+      "title": "Review fix R24: the fence also escapes whitespace between < and /, and zero-width characters",
+      "layer": "infra",
+      "deps": [
+        "T31"
+      ],
+      "acs": [
+        "AC-03"
+      ],
+      "dod": "claude.test covers < /posting>, <\\n/posting> and a zero-width character after the slash, for both the posting and CV blocks",
+      "files_hint": [
+        "apps/server/src/modules/matching/infra/prompts.ts",
+        "apps/server/src/modules/matching/infra/claude.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T33",
+      "title": "Review fix R27: the cap field keeps its 'Saved' message after the cap changes",
+      "layer": "ui",
+      "deps": [
+        "T32"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "Profile.test changes the cap and checks the message in the CapField that stays on screen after the cache update; returning to the screen shows the saved cap",
+      "files_hint": [
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T34",
+      "title": "Review fixes R29, R30: two columns only when there is a current profile; on phones 'Show current profile' sits below the draft",
+      "layer": "ui",
+      "deps": [
+        "T33"
+      ],
+      "acs": [
+        "AC-07"
+      ],
+      "dod": "Profile.cv.test: a first upload has no md:grid-cols class; the details element comes after the form in document order",
+      "files_hint": [
+        "apps/web/src/features/matching/DraftReview.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T35",
+      "title": "Review fix R28: openapi and sad.md say the problem marker shows when there is a problem other than a reached cap",
+      "layer": "docs",
+      "deps": [
+        "T34"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14"
+      ],
+      "dod": "openapi.yaml:314-315 and :1144 and sad.md:567 match flow 9 and Home.tsx:33",
+      "files_hint": [
+        "docs/features/match-score/contracts/openapi.yaml",
+        "docs/features/match-score/sad.md"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-15-2.md"
+    },
+    {
+      "id": "T36",
+      "title": "Review fix R37: sad.md, CONTEXT and openapi say a reached cap has its own line, and which wrong types get VALIDATION_ERROR",
+      "layer": "docs",
+      "deps": [
+        "T35"
+      ],
+      "acs": [
+        "AC-12",
+        "AC-14",
+        "AC-16"
+      ],
+      "dod": "sad.md:542, CONTEXT.md:33 and openapi.yaml:109 match flow 9 and routes.ts",
+      "files_hint": [
+        "docs/features/match-score/sad.md",
+        "CONTEXT.md",
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T37",
+      "title": "Review fix R33: skill names are trimmed before they are checked and stored",
+      "layer": "domain",
+      "deps": [
+        "T36"
+      ],
+      "acs": [
+        "AC-16",
+        "AC-12"
+      ],
+      "dod": "A settings test saves a skill padded with whitespace and reads it back trimmed; a 1 MB padded name never reaches the stored profile",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/settings.ts",
+        "apps/server/src/modules/matching/domain/profile.ts",
+        "apps/server/test/matching-routes.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T38",
+      "title": "Review fix R35: cap reached clears when the queue is empty and money is left",
+      "layer": "app",
+      "deps": [
+        "T37"
+      ],
+      "acs": [
+        "AC-12"
+      ],
+      "dod": "Scorer test: a refused large posting is marked, the queue is empty, and health.capReached is false after the next pass",
+      "files_hint": [
+        "apps/server/src/modules/matching/app/scorer.ts",
+        "apps/server/test/matching-scorer.integration.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T39",
+      "title": "Review fix R32: the web profile rules check in the server's order and refuse duplicates, from one shared table",
+      "layer": "ui",
+      "deps": [
+        "T38"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "profile-rule-cases.json holds the duplicate and precedence cases with messages; both profile.test and profile-rules.test pass on it",
+      "files_hint": [
+        "apps/web/src/features/matching/profile-rules.ts",
+        "apps/server/src/modules/matching/domain/profile-rule-cases.json",
+        "apps/server/src/modules/matching/domain/profile.test.ts",
+        "apps/web/src/features/matching/profile-rules.test.ts"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T40",
+      "title": "Review fix R36: Spent this month follows the settings, not the value at mount",
+      "layer": "ui",
+      "deps": [
+        "T39"
+      ],
+      "acs": [
+        "AC-19"
+      ],
+      "dod": "Profile.test: a settings refetch with a new spend updates Spent this month without leaving the screen",
+      "files_hint": [
+        "apps/web/src/features/matching/CapField.tsx",
+        "apps/web/src/routes/Profile.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "T41",
+      "title": "Review fix R40: openapi says how scalars are converted and which bodies still get VALIDATION_ERROR",
+      "layer": "docs",
+      "deps": [
+        "T40"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "openapi.yaml saveProfile text matches Fastify's type conversion and the domain rules",
+      "files_hint": [
+        "docs/features/match-score/contracts/openapi.yaml"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "T42",
+      "title": "Review fix R39: the web refuses a postal address in a skill, from a shared table case",
+      "layer": "ui",
+      "deps": [
+        "T41"
+      ],
+      "acs": [
+        "AC-16"
+      ],
+      "dod": "profile-rule-cases.json has address cases with the message; profile.test and profile-rules.test pass on them",
+      "files_hint": [
+        "apps/web/src/features/matching/profile-rules.ts",
+        "apps/server/src/modules/matching/domain/profile-rule-cases.json"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
+    },
+    {
+      "id": "T43",
+      "title": "Review fix R41: a CV draft refreshes the settings and scoring health",
+      "layer": "ui",
+      "deps": [
+        "T42"
+      ],
+      "acs": [
+        "AC-19",
+        "AC-12"
+      ],
+      "dod": "Profile.cv.test: after a draft, Spent this month shows the refetched spend",
+      "files_hint": [
+        "apps/web/src/routes/Profile.tsx",
+        "apps/web/src/routes/Profile.cv.test.tsx"
+      ],
+      "file": "docs/features/match-score/_review/review-2026-10-16-2.md"
+    }
+  ]
+}

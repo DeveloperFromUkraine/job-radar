@@ -1,0 +1,5 @@
+Test User
+Senior TypeScript engineer, 8 years
+Email: user-0001@example.test  Phone: +48 000 000 000
+Skills: TypeScript, React, Node.js, GraphQL
+Roles: fullstack, Solutions Architect

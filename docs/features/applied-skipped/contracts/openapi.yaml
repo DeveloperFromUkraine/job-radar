@@ -11,6 +11,10 @@ info:
     and lists the marked postings, closed ones included, so the owner can change or clear a mark
     later. A separate posting that looks like a marked one carries a hint and is never hidden.
 
+    Superseded in part: `runSearch` and `getNextPage` (restated by remote-filter, then by match-score),
+    and `runMarkedView` / `getNextMarkedPage` (each marked posting's last score), are now defined in
+    `docs/features/match-score/contracts/openapi.yaml`, which the server follows.
+
     Scope of this document:
     - **tracking** (new): set / change / clear a mark, and undo (ADR-0001, ADR-0003).
     - **search** (changed): `runSearch`, `getNextPage` and `getWaitingCount` restated with their

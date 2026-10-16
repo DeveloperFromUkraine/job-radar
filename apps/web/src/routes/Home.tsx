@@ -3,6 +3,9 @@ import { ApiError } from "../api/collector";
 import type { MarkedPage, MarkedResult, SearchResult } from "../api/search";
 import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
+import { OrderSwitch } from "../features/matching/OrderSwitch";
+import { useScoringHealth } from "../features/matching/queries";
+import { ScoringNotice } from "../features/matching/ScoringNotice";
 import { LocationFilterBar } from "../features/remote-filter/LocationFilterBar";
 import { useFilterSwitch, useRemoteFilterSettings } from "../features/remote-filter/queries";
 import { MarkedList } from "../features/search/MarkedList";
@@ -25,6 +28,9 @@ import { noticeKey, UndoNotice } from "../features/tracking/UndoNotice";
 /** SCR-01 — the skills search over open postings, the feed when no skills are entered. */
 export function Home() {
   const problems = useProblems();
+  const health = useScoringHealth(); // a failed read shows nothing: the list does not depend on it
+  // Cap reached has its own line (ScoringNotice), so it raises no marker (screens.md SCR-01).
+  const scoringProblem = Boolean(health.data?.problem && health.data.problem.kind !== "cap_reached");
   const visit = useVisit();
   const [skills, setSkills] = useState("");
   const [request, setRequest] = useState<SearchRequest | null>(null);
@@ -55,6 +61,12 @@ export function Home() {
     if (markedView) return openMarked(text); // the switch stays on (screens.md owner decision)
     marks.closeNotice();
     setRequest((r) => ({ skills: text, run: (r?.run ?? 0) + 1 }));
+  };
+  // match-score AC-11: switching reloads the list from the top in the chosen order, which is kept.
+  const switchOrder = (order: "newest" | "best_match") => {
+    setExpired(false);
+    marks.closeNotice();
+    setRequest((r) => ({ skills, run: (r?.run ?? 0) + 1, order }));
   };
   const showMarked = () => openMarked(skills);
   const switchMarked = (on: boolean) => {
@@ -123,7 +135,9 @@ export function Home() {
 
   return (
     <div className="flex flex-col gap-4">
-      {problems.data?.has_problem && <ProblemMarker />}
+      {(problems.data?.has_problem || scoringProblem) && (
+        <ProblemMarker scoringOnly={!problems.data?.has_problem} />
+      )}
       {problems.isError && (
         <InlineBanner
           tone="error"
@@ -154,11 +168,17 @@ export function Home() {
         }
       />
       {!markedView && <LocationFilterBar filter={result?.location_filter} onChange={filterChanged} />}
-      <MarkedToggle
-        on={markedView}
-        disabled={loading || (markedView ? marked.isFetching : list.isFetching)}
-        onChange={switchMarked}
-      />
+      <div className="flex flex-wrap items-center gap-2">
+        {!markedView && result?.has_profile && (
+          <OrderSwitch order={result.order} disabled={list.isFetching} onChange={switchOrder} />
+        )}
+        <MarkedToggle
+          on={markedView}
+          disabled={loading || (markedView ? marked.isFetching : list.isFetching)}
+          onChange={switchMarked}
+        />
+      </div>
+      {!markedView && result && <ScoringNotice hasProfile={result.has_profile} health={health.data} />}
       {markedView && (
         <>
           {markedFailed && (

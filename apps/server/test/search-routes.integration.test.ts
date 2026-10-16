@@ -12,6 +12,8 @@ const contract = loadContract("search-postings");
 // remote-filter restates runSearch, getNextPage and getWaitingCount with their mark- and location-aware
 // shapes, superseding applied-skipped's (which superseded search-postings').
 const listContract = loadContract("remote-filter");
+// runSearch and getNextPage as restated by match-score (it supersedes remote-filter's).
+const scoredListContract = loadContract("match-score");
 const headers = { host: "127.0.0.1:3000" };
 
 let dir: string;
@@ -66,7 +68,7 @@ describe("search routes", () => {
     const res = await post("/api/v1/search/snapshots", { skills: "React, TypeScript" });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    listContract.expectContract("runSearch", 200, body);
+    scoredListContract.expectContract("runSearch", 200, body);
     expect(body).toMatchObject({ total: 1, skills: ["React", "TypeScript"], has_next: false });
     expect(body.items[0].listings[1]).toEqual({
       source_id: "himalayas",
@@ -76,7 +78,7 @@ describe("search routes", () => {
     });
 
     const feed = await search("");
-    listContract.expectContract("runSearch", 200, feed);
+    scoredListContract.expectContract("runSearch", 200, feed);
     expect(feed).toMatchObject({ total: 61, next_cursor: "50" });
   });
 
@@ -98,7 +100,7 @@ describe("search routes", () => {
     const first = await search("");
     const page = await post(`/api/v1/search/snapshots/${first.snapshot_id}/pages`, { cursor: "50" });
     expect(page.statusCode).toBe(200);
-    listContract.expectContract("getNextPage", 200, page.json());
+    scoredListContract.expectContract("getNextPage", 200, page.json());
     expect(page.json()).toMatchObject({ has_next: false, next_cursor: null });
     expect(page.json().items).toHaveLength(11);
 

@@ -15,6 +15,8 @@ import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 import { seedMarks } from "./helpers/tracking-fixtures.js";
 
 const contract = loadContract("remote-filter");
+// runSearch and getNextPage as restated by match-score (it supersedes remote-filter's).
+const listContract = loadContract("match-score");
 const MIN = 60_000;
 const T0 = Date.UTC(2026, 9, 14, 9);
 const PL = { code: "PL", name: "Poland", flag: "🇵🇱" };
@@ -39,7 +41,7 @@ afterEach(() => t.cleanup());
 const rf = () => ({ db: t.db, now: () => now });
 function search(skills = "") {
   const result = runSearch(deps, snapshots, skills);
-  contract.expectContract("runSearch", 200, result);
+  listContract.expectContract("runSearch", 200, result);
   return result;
 }
 const posting = (locationRestriction: string | null, over: Parameters<typeof addPosting>[1] = {}) =>
@@ -89,7 +91,7 @@ describe("search with the location filter", () => {
     let cursor = on.next_cursor;
     while (cursor) {
       const page = nextPage(deps, snapshots, on.snapshot_id, cursor);
-      contract.expectContract("getNextPage", 200, page);
+      listContract.expectContract("getNextPage", 200, page);
       pages.push(page.items);
       cursor = page.next_cursor;
     }

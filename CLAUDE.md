@@ -16,6 +16,16 @@ Node 22+ (`.nvmrc`), pnpm via corepack (`corepack enable`).
 | Dev servers | `pnpm dev` (server :3000, web via Vite with `/api` proxied to the server) |
 | Generate a migration | `pnpm --filter @job-radar/server db:generate` |
 | Apply migrations | `pnpm --filter @job-radar/server db:migrate` |
+| Match-score evaluation (real model, ~$1–2; before ship and after any prompt / schema / model change) | `cd apps/server && npx tsx scripts/eval-match-score.ts --real` (`--dry-run` is free) |
+
+## Configuration
+
+- **Match scoring** reads the provider key only from `ANTHROPIC_API_KEY` in your local environment —
+  never commit it, and it is never shown, stored or logged. Without it scoring shows "not scored" with
+  the reason; restart with the key to resume. Also set a spending limit in your provider account: the
+  in-app scoring cap bounds only job-radar's own spending, not a leaked key.
+- Optional overrides: `MATCHING_MODEL` (default `claude-opus-5-5`), `MATCHING_PRICE_*` (dollars per
+  million tokens, used for the cap).
 
 ## Layout
 

@@ -1,5 +1,6 @@
 import { parse } from "yaml";
 import appliedSkippedApi from "../../../../docs/features/applied-skipped/contracts/openapi.yaml?raw";
+import matchScoreApi from "../../../../docs/features/match-score/contracts/openapi.yaml?raw";
 import collectorApi from "../../../../docs/features/remote-boards-collector/contracts/openapi.yaml?raw";
 import remoteFilterApi from "../../../../docs/features/remote-filter/contracts/openapi.yaml?raw";
 import searchApi from "../../../../docs/features/search-postings/contracts/openapi.yaml?raw";
@@ -7,27 +8,39 @@ import searchApi from "../../../../docs/features/search-postings/contracts/opena
 // Mocks come from the contracts' own examples — the same bodies the server's responses are
 // validated against, so the screens are tested on shapes the API really returns. Operation ids are
 // unique across the feature contracts, except that runSearch, getNextPage and getWaitingCount are
-// restated by applied-skipped and then remote-filter (the current shape). The older contracts are
-// searched first, and an example they lack (found_with_hint, filtered, all_hidden, look) falls through;
-// a main-list example from them is brought to the current shape with the values the server sends when no
-// country is chosen.
+// restated by applied-skipped and then remote-filter, and runSearch, getNextPage and the marked view by
+// match-score (the current shape). The older contracts are searched first, and an example they lack
+// (found_with_hint, filtered, all_hidden, look, best_match, no_profile) falls through; an older example is
+// brought to the current shape with the values the server sends when no country and no profile are set.
 type Content = { example?: unknown; examples?: Record<string, { value: unknown }> };
 type Response = { $ref?: string; content?: Record<string, Content> };
 type Doc = {
   paths: Record<string, Record<string, { operationId: string; responses: Record<string, Response> }>>;
   components?: { responses?: Record<string, Response> };
 };
-const docs = [collectorApi, searchApi, appliedSkippedApi, remoteFilterApi].map((raw) => parse(raw) as Doc);
-const RESTATED = new Set(["runSearch", "getNextPage"]);
+const docs = [collectorApi, searchApi, appliedSkippedApi, remoteFilterApi, matchScoreApi].map(
+  (raw) => parse(raw) as Doc,
+);
+const RESTATED = new Set(["runSearch", "getNextPage", "runMarkedView", "getNextMarkedPage"]);
 
 type Item = Record<string, unknown>;
-/** An older main-list example as remote-filter returns it with no country chosen (mode none). */
+/** An older example as the server returns it with no country chosen (mode none) and no profile. */
 function currentShape(operationId: string, status: number, value: unknown): unknown {
   if (!RESTATED.has(operationId) || status !== 200) return value;
   const page = value as { items: Item[] } & Item;
-  const items = page.items.map((p) => ({ location_check: null, ...p }));
-  if (operationId === "getNextPage") return { ...page, items };
-  return { hidden_count: 0, location_filter: { mode: "none", country: null }, ...page, items };
+  const marked = operationId === "runMarkedView" || operationId === "getNextMarkedPage";
+  const items = page.items.map((p) =>
+    marked ? { match: null, ...p } : { location_check: null, match: null, ...p },
+  );
+  if (operationId !== "runSearch") return { ...page, items };
+  return {
+    hidden_count: 0,
+    location_filter: { mode: "none", country: null },
+    order: "newest",
+    has_profile: false,
+    ...page,
+    items,
+  };
 }
 
 export function contractExample<T = unknown>(operationId: string, status: number, name?: string): T {

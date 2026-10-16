@@ -3,6 +3,7 @@ import { SOURCE_NAMES } from "../../api/collector";
 import type { Listing, MarkedPosting, Posting } from "../../api/search";
 import { Badge } from "../../components/Badge";
 import { ago, shortDate } from "../../lib/time";
+import { MatchSummary } from "../matching/MatchSummary";
 import { LocationCheck } from "../remote-filter/LocationCheck";
 
 // Source text is untrusted: rendered only as React text, never as markup (AC-09).
@@ -97,7 +98,7 @@ interface PostingCardProps {
 }
 
 /** SCR-01 posting (screens.md NEW: PostingCard; applied-skipped: look-alike line, marked variant,
- * actions slot). Only the source names are links. Phones stack the parts in wireframe order; from md:
+ * actions slot; match-score: the match above the actions). Only the source names are links. Phones stack the parts in wireframe order; from md:
  * time and sources move to a second column. */
 export function PostingCard({ posting, now = Date.now(), banner, actions }: PostingCardProps) {
   const marked = "mark_state" in posting ? posting : null;
@@ -147,6 +148,11 @@ export function PostingCard({ posting, now = Date.now(), banner, actions }: Post
           You {hint.mark === "applied" ? "applied to" : "skipped"} a similar posting at {hint.company} on{" "}
           {day(hint.marked_at)}
         </p>
+      )}
+      {posting.match && (
+        <div className="md:col-span-2">
+          <MatchSummary match={posting.match} />
+        </div>
       )}
       {banner && <div className="md:col-span-2">{banner}</div>}
       {actions && <div className="mt-2 md:col-span-2">{actions}</div>}

@@ -1,5 +1,6 @@
-// Search HTTP routes (docs/features/search-postings/contracts/openapi.yaml; runSearch, getNextPage and
-// getWaitingCount as restated in docs/features/remote-filter/contracts/openapi.yaml). All change state,
+// Search HTTP routes (docs/features/search-postings/contracts/openapi.yaml; getWaitingCount as restated in
+// docs/features/remote-filter/contracts/openapi.yaml; runSearch and getNextPage as restated in
+// docs/features/match-score/contracts/openapi.yaml). All change state,
 // so all are JSON POSTs; access rules (collector ADR-0007) apply app-wide in core/.
 import type { FastifyPluginAsync } from "fastify";
 import type { SearchDeps } from "../app/deps.js";
@@ -30,7 +31,7 @@ export function searchRoutes(deps: SearchDeps, snapshots: SnapshotStore): Fastif
       };
     });
 
-    app.post<{ Body: { skills: string } }>(
+    app.post<{ Body: { skills: string; order?: "newest" | "best_match" } }>(
       "/api/v1/search/snapshots",
       {
         schema: {
@@ -38,11 +39,14 @@ export function searchRoutes(deps: SearchDeps, snapshots: SnapshotStore): Fastif
             type: "object",
             required: ["skills"],
             additionalProperties: false,
-            properties: { skills: { type: "string" } },
+            properties: {
+              skills: { type: "string" },
+              order: { type: "string", enum: ["newest", "best_match"] },
+            },
           },
         },
       },
-      async (request) => runSearch(deps, snapshots, request.body.skills),
+      async (request) => runSearch(deps, snapshots, request.body.skills, request.body.order),
     );
 
     app.post<SnapshotRoute & { Body: { cursor: string } }>(

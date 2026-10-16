@@ -1,7 +1,9 @@
 // Typed client for the search API (docs/features/search-postings/contracts/openapi.yaml), with the
-// marked view from docs/features/applied-skipped/contracts/openapi.yaml and the mark- and location-aware
-// main list from docs/features/remote-filter/contracts/openapi.yaml.
+// marked view from docs/features/applied-skipped/contracts/openapi.yaml, the mark- and location-aware
+// main list from docs/features/remote-filter/contracts/openapi.yaml, and the match scores and list
+// order from docs/features/match-score/contracts/openapi.yaml.
 import { post } from "./collector";
+import type { Match } from "./matching";
 import type { LocationCheck, LocationFilter } from "./remoteFilter";
 
 export interface Visit {
@@ -54,6 +56,8 @@ export interface Posting {
   look_alike: LookAlike | null;
   /** The "check location" reason, or null when it fits or the list has no filter (remote-filter AC-02). */
   location_check: LocationCheck | null;
+  /** The posting's match, or null for every posting when there is no profile (match-score AC-15). */
+  match: Match | null;
 }
 
 /** A marked-view posting, open or closed (applied-skipped AC-05). */
@@ -67,6 +71,8 @@ export interface MarkedPosting {
   matched_skills: MatchedSkill[];
   listings: Listing[];
   mark_state: MarkState;
+  /** The last score, never re-scored; null if never scored (match-score AC-13 note). */
+  match: Match | null;
 }
 
 export interface MarkedPage {
@@ -88,8 +94,14 @@ export interface PostingPage {
   next_cursor: string | null;
 }
 
+export type ListOrder = "newest" | "best_match";
+
 export interface SearchResult extends PostingPage {
   snapshot_id: string;
+  /** The order this snapshot is in (match-score AC-11). */
+  order: ListOrder;
+  /** false → no scores and the "set up a profile" line (match-score AC-15). */
+  has_profile: boolean;
   skills: string[];
   total: number;
   new_count: number;
@@ -109,7 +121,9 @@ export interface WaitingCount {
 const snapshot = (id: string) => `/api/v1/search/snapshots/${encodeURIComponent(id)}`;
 
 export const openVisit = () => post<Visit>("/api/v1/search/visits");
-export const runSearch = (skills: string) => post<SearchResult>("/api/v1/search/snapshots", { skills });
+/** Leave `order` out to use the kept one; set it to switch and keep it (match-score AC-11). */
+export const runSearch = (skills: string, order?: ListOrder) =>
+  post<SearchResult>("/api/v1/search/snapshots", order ? { skills, order } : { skills });
 export const getNextPage = (snapshotId: string, cursor: string) =>
   post<PostingPage>(`${snapshot(snapshotId)}/pages`, { cursor });
 export const getWaitingCount = (snapshotId: string) => post<WaitingCount>(`${snapshot(snapshotId)}/waiting`);
