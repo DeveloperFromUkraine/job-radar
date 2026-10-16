@@ -3,7 +3,7 @@ slug: realness-score
 date: 2026-10-16
 triage: regression
 acs: [AC-06]
-commit: <filled after the fix commit>
+commit: 9d93dc6
 recurrence_of: none
 ---
 
