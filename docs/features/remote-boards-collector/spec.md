@@ -148,6 +148,8 @@ Owner-facing surface: this feature ships one screen in the web app — source he
 **When** one of its sources offers the same item again, or any source offers a listing that AC-04 would merge into it (publication time within 7 days of the latest publication time among the posting's listings)
 **Then** the same posting reopens with the owner's earlier marks, instead of a new unmarked copy appearing
 
+> Amended by [realness-score](../realness-score/spec.md) (2026-10-16): a posting also keeps when it last reopened, and a listing keeps whether its board stated pay (realness-score AC-06, AC-08).
+
 ### AC-12 (US-04) — happy
 **Given** at least one collection run has finished
 **When** the owner opens source health

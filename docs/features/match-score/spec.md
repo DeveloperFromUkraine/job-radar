@@ -141,6 +141,8 @@ Privacy against shipped specs: search, applied-skipped and the collector say "no
 
 > The best-match order is fixed when the list is loaded, as the list itself is (search AC-16): a score that arrives later shows on its card but does not move the posting, and paging never repeats or skips a posting, until the owner refreshes the list. The default order for an owner who never chose is newest first.
 
+> Amended by [realness-score](../realness-score/spec.md) (2026-10-16): with realness on, best match first orders scored postings by score minus the realness penalty, and less-lowered postings come first within the unscored block (realness-score AC-01, AC-05).
+
 ### AC-12 (US-05) — domain invariant
 **Given** the scoring cap is $5 and this calendar month's scoring and profile drafting have cost $4.98, counting failed attempts the provider charged for
 **When** the next posting is due for scoring
