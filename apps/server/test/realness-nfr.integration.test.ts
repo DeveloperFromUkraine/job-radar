@@ -6,7 +6,8 @@ import { seedOpenPostings } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 // realness-score spec §6 "Search response with realness": ≤ 1 s p95 to the first 50 postings, 10,000 open
-// postings, scores and realness on, in either order — unchanged from search (sad §10 QG-3).
+// postings, scores and realness on, in either order, 50 searches and 50 next pages each (spec Test plan) —
+// unchanged from search (sad §10 QG-3).
 // The worst case for the salary check: every listing's pay field is "" (stated nothing), so realness reads
 // every title and description, and the text is full of numbers and non-pay amounts it must reject.
 // SKIP_PERF=1 skips it on a machine too slow to measure; the thresholds are never loosened.
@@ -32,6 +33,16 @@ describe.skipIf(process.env.SKIP_PERF)("search latency with realness on (realnes
       description: DESCRIPTION,
       listings: [{ payField: "" }],
     }));
+    // ~10% more as closed look-alikes found earlier, so the closed-heads read and the look-alike repost
+    // rule run under load too (review F-07).
+    seedOpenPostings(t.db, 1_000, (i) => ({
+      title: i % 8 === 0 ? "Senior React Engineer" : "Account Manager",
+      company: `Company ${i % 50}`,
+      firstFoundAt: now - (100 + (i % 30)) * DAY,
+      status: "closed",
+      description: DESCRIPTION,
+      listings: [{ payField: "", status: "closed" }],
+    }));
     seedProfile(t.db);
     seedScores(
       t.db,
@@ -54,13 +65,20 @@ describe.skipIf(process.env.SKIP_PERF)("search latency with realness on (realnes
     for (const order of ["best_match", "newest"] as const) {
       const searches: number[] = [];
       const pages: number[] = [];
-      for (let i = 0; i < 20; i++) {
+      for (let i = 0; i < 50; i++) {
         let started = performance.now();
         const res = await post("/api/v1/search/snapshots", { skills: "", order });
         searches.push(performance.now() - started);
         const body = res.json();
         expect(body).toMatchObject({ total: 10_000, order, realness_on: true });
         expect(body.items.some((p: { realness: unknown }) => p.realness !== null)).toBe(true);
+        if (i === 0 && order === "newest")
+          // best match first lowers the reposts out of the first 50
+          expect(
+            body.items.some((p: { realness: { signals: { kind: string }[] } | null }) =>
+              p.realness?.signals.some((s) => s.kind === "repost"),
+            ),
+          ).toBe(true);
         started = performance.now();
         const page = await post(`/api/v1/search/snapshots/${body.snapshot_id}/pages`, { cursor: "50" });
         pages.push(performance.now() - started);

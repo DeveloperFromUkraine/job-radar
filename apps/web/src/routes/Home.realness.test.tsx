@@ -108,6 +108,57 @@ describe("SCR-01 realness switch", () => {
     await waitFor(() => expect(realnessSwitch().checked).toBe(false));
   });
 
+  it("switching back on brings the reason lines back (AC-10, review F-08)", async () => {
+    mockApi({
+      ...base,
+      [SEARCH]: [{ body: lowered() }, { body: off() }, { body: lowered() }],
+      [SAVE]: [{ body: { realness_on: false } }, { body: { realness_on: true } }],
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("Lowered: posted 65 days ago · no salary listed");
+    fireEvent.click(realnessSwitch());
+    await waitFor(() => expect(screen.queryByText(/^Lowered:/)).toBeNull());
+    await waitFor(() => expect(realnessSwitch().disabled).toBe(false));
+    fireEvent.click(realnessSwitch());
+    expect(await screen.findByText("Lowered: posted 65 days ago · no salary listed")).toBeTruthy();
+    expect(realnessSwitch().checked).toBe(true);
+  });
+
+  it("loading: no switch row until the first list arrives (SCR-01, review F-09)", async () => {
+    const { fetchMock } = mockApi({ ...base, [SEARCH]: { body: lowered() } });
+    let release = () => {};
+    const held = new Promise<void>((r) => {
+      release = r;
+    });
+    const answer = fetchMock.getMockImplementation();
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/v1/search/snapshots") await held;
+      return (answer as NonNullable<typeof answer>)(input, init);
+    });
+    renderWithProviders(<App />);
+    await waitFor(() => expect(searches(fetchMock)).toBe(1));
+    expect(screen.queryByRole("switch", { name: "Lower stale postings" })).toBeNull();
+    release();
+    expect(await screen.findByRole("switch", { name: "Lower stale postings" })).toBeTruthy();
+  });
+
+  it("marked cards carry no reason line, even when the posting has signals (SCR-01, review F-09)", async () => {
+    const marked = contractExample<{ items: object[] }>("runMarkedView", 200);
+    const realness = lowered().items.find((p) => p.realness)?.realness;
+    expect(realness?.signals.length).toBeGreaterThan(0);
+    const withSignals = { ...marked, items: marked.items.map((p) => ({ ...p, realness })) };
+    mockApi({
+      ...base,
+      [SEARCH]: { body: lowered() },
+      "POST /api/v1/search/marked-snapshots": { body: withSignals },
+    });
+    renderWithProviders(<App />);
+    await screen.findByText("Lowered: posted 65 days ago · no salary listed");
+    fireEvent.click(screen.getByRole("switch", { name: "Show marked postings" }));
+    expect((await screen.findAllByText(/^Applied on /)).length).toBe(marked.items.length);
+    expect(screen.queryByText(/^(Lowered|Signals):/)).toBeNull();
+  });
+
   it("is hidden in the marked view", async () => {
     mockApi({
       ...base,

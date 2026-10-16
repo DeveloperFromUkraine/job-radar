@@ -11,6 +11,10 @@ import { type SourceId, sourceById } from "../src/modules/collector/domain/sourc
 import { createSourceHttp } from "../src/modules/collector/infra/http.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
 import { statesPay } from "../src/modules/realness/domain/pay.js";
+import type { SearchDeps } from "../src/modules/search/app/deps.js";
+import { runSearch } from "../src/modules/search/app/search.js";
+import { createSnapshotStore } from "../src/modules/search/app/snapshots.js";
+import { openVisit } from "../src/modules/search/app/visits.js";
 import { type FakeSources, fixture, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
@@ -197,6 +201,21 @@ describe("collector keeps the pay field and the reopening time (realness-score T
       now = T0 + 3 * HOUR;
       await runSource("jobicy");
       expect(rows("select reopened_at from collector_postings")).toEqual([{ reopened_at: T0 + 3 * HOUR }]);
+    });
+
+    it("a reopening by the collector carries the repost signal into the next list load (AC-08, review F-08)", async () => {
+      fake.route("/api/v2/remote-jobs", json(jobicyPage([jobicyJob()])));
+      await runSource("jobicy");
+      const search: SearchDeps = { db: db.db, now: () => now };
+      const list = () => runSearch(search, createSnapshotStore(search.now), "", "newest").items[0];
+      openVisit(search);
+      expect(list()?.realness?.signals ?? []).not.toContainEqual({ kind: "repost" });
+
+      db.db.run(sql`update collector_postings set status = 'closed', closed_at = ${now}`);
+      db.db.run(sql`update collector_listings set status = 'closed', closed_at = ${now}`);
+      now = T0 + HOUR;
+      await runSource("jobicy");
+      expect(list()?.realness?.signals).toContainEqual({ kind: "repost" });
     });
   });
 });

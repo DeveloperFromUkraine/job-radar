@@ -12,6 +12,7 @@ import { loadContract } from "./helpers/contract.js";
 import { fakeScoreReader, notScored, scored } from "./helpers/score-reader.js";
 import { addPosting, type PostingSeed } from "./helpers/search-fixtures.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
+import { seedMarks } from "./helpers/tracking-fixtures.js";
 
 // realness-score T10: search assesses at snapshot build, orders by penalty, presents realness (AC-01,
 // AC-02, AC-04, AC-05, AC-09, AC-10; ADR-0002, ADR-0003).
@@ -226,6 +227,64 @@ describe("paging and reloads", () => {
     add("00000000-0000-7000-8000-000000000001", 1);
     add("00000000-0000-7000-8000-000000000002", 2, { listings: [{ payField: "" }] });
     search("newest");
+    expect(t.db.all(sql`select postings, lowered from realness_daily_shares`)).toEqual([
+      { postings: 2, lowered: 1 },
+    ]);
+  });
+});
+
+// Review F-08: the Test plan rows that had no test of their own.
+describe("signals on the next list load (AC-07, AC-08, AC-09, AC-14)", () => {
+  const A = "00000000-0000-7000-8000-0000000000a1";
+  const B = "00000000-0000-7000-8000-0000000000b1";
+  const addListing = (postingId: string, sourceId: string, payField: string | null = null) => {
+    db(sql`insert or ignore into collector_sources (id, fill_status) values (${sourceId}, 'complete')`);
+    db(
+      sql`insert into collector_listings (id, posting_id, source_id, source_item_id, url, title, company, description,
+            location_restriction, categories, first_collected_at, is_first_fill, last_seen_at, last_seen_run_id, status, pay_field)
+          values (${`${postingId}-${sourceId}`}, ${postingId}, ${sourceId}, ${sourceId}, ${`https://jobs.example.test/${sourceId}`},
+            'Software Engineer', 'Example Co', 'A role.', 'Worldwide', '[]', ${NOW}, 0, 1, 'r1', 'open', ${payField})`,
+    );
+  };
+  const db = (q: ReturnType<typeof sql>) => t.db.run(q);
+  const signals = (id: string) => search("newest").items.find((p) => p.id === id)?.realness?.signals;
+
+  it("a reopened posting keeps its ordering time and age, and gains the repost signal (AC-07)", () => {
+    add(A, 40, { reopenedAt: NOW - DAY });
+    add(B, 35);
+    const r = search("newest");
+    expect(ids(r)).toEqual([B, A]);
+    expect(r.items[1]?.realness?.signals).toEqual([
+      { kind: "age", basis: "first_found", days: 40 },
+      { kind: "repost" },
+    ]);
+  });
+
+  it("a closed, applied look-alike more than 7 days earlier: the repost signal and the look-alike hint (AC-08)", () => {
+    const head = { company: "Acme", title: "Senior Go Engineer" };
+    const old = add(A, 30, { ...head, status: "closed", listings: [{ ...PAID, status: "closed" }] });
+    seedMarks(t.db, [old], { mark: "applied", markedAt: NOW - 29 * DAY });
+    add(B, 2, head);
+    const item = search("newest").items.find((p) => p.id === B);
+    expect(item?.realness?.signals).toEqual([{ kind: "repost" }]);
+    expect(item?.look_alike).toMatchObject({ mark: "applied", company: "Acme" });
+  });
+
+  it("new pay text and new listings change the signals on the next load (AC-09)", () => {
+    add(A, 50, { listings: [{ payField: "" }] });
+    expect(signals(A)).toEqual([{ kind: "age", basis: "first_found", days: 50 }, { kind: "no_salary" }]);
+    db(sql`update collector_listings set pay_field = 'USD 60000–80000' where posting_id = ${A}`);
+    expect(signals(A)).toEqual([{ kind: "age", basis: "first_found", days: 50 }]);
+    addListing(A, "remotive", "$100k");
+    addListing(A, "himalayas", "USD 90000");
+    expect(signals(A)).toEqual([{ kind: "many_boards", boards: 3, days: 50 }]);
+  });
+
+  it("keeps the day's share with the switch off too (AC-14)", () => {
+    add(A, 1);
+    add(B, 2, { listings: [{ payField: "" }] });
+    setOn({ db: t.db }, false);
+    expect(search("newest").realness_on).toBe(false);
     expect(t.db.all(sql`select postings, lowered from realness_daily_shares`)).toEqual([
       { postings: 2, lowered: 1 },
     ]);

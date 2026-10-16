@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { sql } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { setOn } from "../src/modules/realness/app/settings.js";
 import type { MatchView, SearchDeps } from "../src/modules/search/app/deps.js";
@@ -148,30 +148,61 @@ describe("realness costs nothing (QG-3, AC-13)", () => {
   });
   afterEach(() => t.cleanup());
 
-  it("makes no provider request and adds no spend while lists are built and marks set", async () => {
+  // With the scorer running, every provider request and every spend row is one posting's score — realness
+  // adds neither — and the day is the same with realness on and off (review F-10). Realness assesses with
+  // the switch off too, so on-vs-off alone could not catch it.
+  async function day(on: boolean) {
+    const t = createTempDb();
     seed(t, rng(9), 40);
     seedProfile(t.db);
+    setOn({ db: t.db }, on);
     const provider = fakeProvider();
     const app = await buildApp({
       port: 3000,
       collector: { databaseFile: t.file, scheduler: false },
-      matching: { provider, scorer: false },
+      matching: { provider, scorer: true, env: { ANTHROPIC_API_KEY: "sk-test-not-a-real-key" } },
     });
     await app.ready();
-    const post = (url: string, payload: object) =>
-      app.inject({ method: "POST", url, headers: { host: "127.0.0.1:3000" }, payload });
-    const spend = () => t.db.all(sql`select * from matching_spend`);
-    const before = spend();
+    const inject = (method: "GET" | "POST", url: string, payload?: object) =>
+      app.inject({ method, url, headers: { host: "127.0.0.1:3000" }, ...(payload ? { payload } : {}) });
+    const settled = () =>
+      vi.waitFor(
+        async () => expect((await inject("GET", "/api/v1/matching/health")).json().pending_count).toBe(0),
+        { timeout: 10_000 },
+      );
+    await inject("POST", "/api/v1/search/snapshots", { skills: "" });
+    await settled();
     for (const order of ["best_match", "newest"]) {
-      const res = await post("/api/v1/search/snapshots", { skills: "", order });
-      expect(res.json().realness_on).toBe(true);
+      const res = await inject("POST", "/api/v1/search/snapshots", { skills: "", order });
+      expect(res.json().realness_on).toBe(on);
       const id = res.json().items[0]?.id;
-      if (id) await post(`/api/v1/tracking/marks/${id}`, { mark: "skipped" });
+      if (id) await inject("POST", `/api/v1/tracking/marks/${id}`, { mark: "skipped" });
     }
-    expect(provider.sent).toHaveLength(0);
-    expect(spend()).toEqual(before);
+    await settled();
+    const spend = t.db.all(
+      sql`select kind, model, outcome, count(*) as calls, sum(coalesce(settled_usd_micros, reserved_usd_micros)) as usd_micros
+          from matching_spend group by kind, model, outcome order by kind, model, outcome`,
+    );
+    const asked = provider.sent.map((p) => JSON.stringify(p.messages)).sort();
+    const [counts] = t.db.all<{ spent: number; scored: number }>(
+      sql`select (select count(*) from matching_spend) as spent, (select count(*) from matching_scores) as scored`,
+    );
     await app.close();
-  });
+    t.cleanup();
+    return { asked, spend, counts };
+  }
+
+  it("asks the provider the same and spends the same with realness on and off", async () => {
+    const on = await day(true);
+    const off = await day(false);
+    for (const run of [on, off]) {
+      expect(run.counts?.scored).toBeGreaterThan(0); // the scorer did run
+      expect(run.asked).toHaveLength(run.counts?.scored ?? -1);
+      expect(run.counts?.spent).toBe(run.counts?.scored);
+    }
+    expect(on.asked).toEqual(off.asked);
+    expect(on.spend).toEqual(off.spend);
+  }, 30_000);
 
   it("the realness module imports no provider or matching code", () => {
     const dir = fileURLToPath(new URL("../src/modules/realness/", import.meta.url));
