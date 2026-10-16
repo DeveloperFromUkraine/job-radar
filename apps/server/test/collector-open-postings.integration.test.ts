@@ -60,12 +60,14 @@ describe("collector open-postings export", () => {
       company: "Example Co",
       publishedAt: 5,
       firstFoundAt: 20,
+      reopenedAt: null,
       listings: [
         {
           sourceId: "jobicy",
           status: "open",
           url: "https://jobs.example.test/l2",
           locationRestriction: "Worldwide",
+          payField: null,
           title: "L l2",
           description: "D l2",
         },
@@ -85,6 +87,7 @@ describe("collector open-postings export", () => {
       status: "closed",
       url: "https://jobs.example.test/l-closed",
       locationRestriction: null,
+      payField: null,
     });
     expect(p?.listings).toHaveLength(2);
   });

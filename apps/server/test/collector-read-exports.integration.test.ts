@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { enabledSourceIds, isStatedAnywhere } from "../src/modules/collector/app/location.js";
-import { postingsByIds } from "../src/modules/collector/app/open-postings.js";
+import { openPostings, postingsByIds } from "../src/modules/collector/app/open-postings.js";
+import { closedPostingHeads, hasPayField } from "../src/modules/collector/app/realness-facts.js";
 import { retentionOutlook } from "../src/modules/collector/app/retention-outlook.js";
 import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
 import { updateState } from "../src/modules/collector/infra/repo/state.js";
@@ -113,6 +114,62 @@ describe("collector read-only exports for applied-skipped", () => {
       const enabled = enabledSourceIds(t.db);
       expect(enabled).toContain("jobicy");
       expect(enabled).not.toContain("remotive");
+    });
+  });
+
+  describe("realness facts (realness-score AC-06, AC-08)", () => {
+    it("gives each open posting its reopening time and each listing its pay field", () => {
+      const id = addPosting(t.db, {
+        reopenedAt: NOW - DAY,
+        listings: [
+          { sourceId: "jobicy", payField: "USD 60000–80000" },
+          { sourceId: "remotive", payField: "" },
+          { sourceId: "himalayas" }, // not read since this shipped
+        ],
+      });
+      const [p] = openPostings(t.db);
+      expect(p).toMatchObject({ id, reopenedAt: NOW - DAY });
+      expect(p?.listings.map((l) => [l.sourceId, l.payField])).toEqual([
+        ["jobicy", "USD 60000–80000"],
+        ["remotive", ""],
+        ["himalayas", null],
+      ]);
+      expect(openPostings(t.db, {})[0]?.listings).toHaveLength(3);
+      const other = addPosting(t.db);
+      expect(postingsByIds(t.db, [other])[0]?.reopenedAt).toBeNull();
+    });
+
+    it("lists closed postings' heads only; removed postings are gone", () => {
+      const closed = addPosting(t.db, {
+        status: "closed",
+        title: "Data Engineer",
+        company: "Acme",
+        publishedAt: NOW - 30 * DAY,
+        firstFoundAt: NOW - 20 * DAY,
+        listings: [{ status: "closed" }],
+      });
+      addPosting(t.db, { title: "Open One" });
+      const removed = addPosting(t.db, { status: "closed", listings: [{ status: "closed" }] });
+      t.db.run(sql`delete from collector_postings where id = ${removed}`);
+      expect(closedPostingHeads(t.db)).toEqual([
+        {
+          id: closed,
+          company: "Acme",
+          title: "Data Engineer",
+          publishedAt: NOW - 30 * DAY,
+          firstFoundAt: NOW - 20 * DAY,
+        },
+      ]);
+    });
+
+    it("knows which boards have a pay field", () => {
+      expect(["himalayas", "remotive", "jobicy", "weworkremotely", "nope"].map(hasPayField)).toEqual([
+        true,
+        true,
+        true,
+        false,
+        false,
+      ]);
     });
   });
 });
