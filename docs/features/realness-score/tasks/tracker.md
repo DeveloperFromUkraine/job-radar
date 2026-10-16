@@ -6,7 +6,7 @@
 | # | Task | Layer | Owner | Estimate | Blocked by | Status |
 |---|---|---|---|---|---|---|
 | T01 | [Promote the staged schema: pay_field, reopened_at and the three realness tables](./t01-realness-schema.md) | migration | Volodymyr Kozlov | S | — | done |
-| T02 | [Write the amount parser and its labelled salary set](./t02-amount-parser.md) | domain | Volodymyr Kozlov | M | — | todo |
+| T02 | [Write the amount parser and its labelled salary set](./t02-amount-parser.md) | domain | Volodymyr Kozlov | M | — | done |
 | T03 | [Write the signal and penalty rules: age basis, many boards, repost, no salary, cap 30](./t03-signal-and-penalty-rules.md) | domain | Volodymyr Kozlov | M | — | todo |
 | T04 | [Let search's bestMatchOrder take a realness penalty](./t04-best-match-order-with-penalty.md) | domain | Volodymyr Kozlov | S | — | todo |
 | T05 | [Keep each board's pay field on every fetch and the reopening time in the collector](./t05-collector-keeps-pay-field-and-reopening.md) | infra | Volodymyr Kozlov | M | T01, T02 | todo |
