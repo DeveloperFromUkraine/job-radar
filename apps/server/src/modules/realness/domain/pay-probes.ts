@@ -49,6 +49,31 @@ export const PAY_PROBES: PayFixture[] = [
     "Salary: $120,000\n• Equity",
     "Salary: €70,000\nTraining budget: €1,000",
   ),
+  // A role or company noun between the pay word and the amount: still a salary (J-01).
+  ...text(
+    true,
+    "The salary range for this Customer Success Manager role is $70,000 - $85,000",
+    "The base pay range for this Software Development Engineer position is $130,000 - $160,000",
+    "The pay range for this Health Data Engineer position is $130,000 - $160,000 per year",
+    "Compensation for the Travel Platform team: $120k–$150k",
+    "Base salary for the Phone Support team is $45,000",
+    "The salary range for our wellness app engineer is $120k-$140k",
+    "Senior Engineer, Health Platform — $140k-$170k",
+    "Acme Health | Senior Engineer | Remote (US) | $150k–$190k + equity",
+    "Travel Nurse Recruiter $60,000 - $75,000",
+    "Salary: $120k equity 0.1%",
+  ),
+  // A perk after a salary-sized amount adds to it (J-02).
+  ...text(
+    true,
+    "$110,000, plus a home office budget",
+    "$95k, with a learning budget",
+    "$100,000 + travel reimbursement",
+    "$120,000 + learning stipend",
+    "We offer $120,000 and a learning budget",
+    "€65,000 and a home office allowance",
+    "Up to $140k and an education stipend",
+  ),
   // High-nominal and Czech salaries (G-02, G-04).
   ...text(
     true,
@@ -98,6 +123,19 @@ export const PAY_PROBES: PayFixture[] = [
     "$2,500 home office setup",
     "$5,000 sign-on",
     "$1,500 yearly travel",
+    // A perk right after the amount, even after a pay word (R10 own check).
+    "Competitive pay and a $2,000 learning budget",
+    "We pay for your $1,500 home office setup",
+    "Salary reviews twice a year and a $1,000 conference budget",
+    "Paid time off plus a $500 wellness stipend",
+    // A pay word before a count, a year or company money (J-03); "paid out" is company money (J-01).
+    "Rate limit of 10,000 requests per minute",
+    "A range of 1,000+ integrations",
+    "Range of 10,000 SKUs",
+    "Paid in 2024, our team of 1,200",
+    "Pay transparency: see 2024 report",
+    "Our user base of 1,500,000 people",
+    "We paid out $2,000,000 to creators",
     // Three capitals beside a number are not always a currency (re-review 2 fix, R09).
     "ISO 27001 certified",
     "SOC 2 and ISO 9001 audits",

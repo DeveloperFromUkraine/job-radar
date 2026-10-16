@@ -84,6 +84,7 @@ const CODE_BEFORE = /(?:^|[^A-Za-z])([A-Z]{3})\s?$/;
 const CODE_AFTER = /^\s?([A-Z]{3})(?![A-Za-z])/;
 const isCode = (c: string | undefined): c is string => c !== undefined && ISO_CODES.has(c);
 // Nouns that name an amount as a perk even further along the clause ("$2,000, for your learning budget").
+const ADD_ON = /^(equity|bonus|bonuses|stock|stocks|options)$/i;
 const PERK_NOUN = /\b(budget|stipend|allowance|reimburse\w*|voucher)s?\b/i;
 
 // Biased to pay (re-review 2): a wrong "no salary" is the sharpest failure (spec §1), a false pay only
@@ -111,18 +112,6 @@ function judge(text: string): boolean {
     const inRange =
       RANGE_END.test(rest) || /[-–—]\s*(?:[$€£]\s?)?$/.test(t.slice(Math.max(0, start - 3), start));
 
-    // The nearest cue before it in the same clause: "Salary: $150,000 and equity" is pay.
-    const before =
-      t
-        .slice(Math.max(0, start - 70), start)
-        .split(/[.!?•;,]\s|\n/)
-        .pop() ?? "";
-    const cue = nearestCue(before);
-    if (cue === "pay" && (currency || value >= 1000)) return true; // "Salary: 120,000", "salary: $1"
-    if (cue === "non_pay") continue; // "budget of USD 2,000 per year"
-    if (!currency && !(mag || hasPeriod)) continue; // a bare number: "280 doctors", "7 years"
-    if (!currency && value < 1000) continue; // "7 years", "3 days"
-
     // The words right after the amount name what it is: "$2,000 learning budget", "$5M Series A",
     // "$150k base salary". "annual" before a noun describes it ("$1,500 annual wellness stipend"); before a
     // break or at the end it is the period ("€60,000 annual, plus bonus").
@@ -138,14 +127,50 @@ function judge(text: string): boolean {
       .split(/[^\p{L}\d-]+/u)
       .filter(Boolean)
       .slice(0, 6);
+    // The nearest cue before it in the same clause: "Salary: $150,000 and equity" is pay.
+    const before =
+      t
+        .slice(Math.max(0, start - 70), start)
+        .split(/[.!?•;,]\s|\n/)
+        .pop() ?? "";
+    const cue = cueBefore(before);
+    // A bare number after a pay word is pay only as an amount: "Salary: 120,000", not "Rate limit of
+    // 10,000 requests", "Pay transparency: see 2024 report" or "user base of 1,500,000 people" (J-03).
+    const nextWord = /^\s*(\p{L}+)/u.exec(rest)?.[1];
+    const bareAmount =
+      value >= 1000 &&
+      !/^(19|20)\d\d$/.test(num) &&
+      (!nextWord || /^(to|and|or|with|plus)$/i.test(nextWord) || PAY.test(nextWord) || hasPeriod) &&
+      (value < 1_000_000 || hasPeriod);
+    // A perk noun right after the amount names it even after a pay word ("Competitive pay and a $2,000
+    // learning budget"); an add-on there does not cancel a salary ("Salary: $120k equity 0.1%").
     const namedAs = firstCue(headWords);
-    if (namedAs === "non_pay") continue;
+    const addOnOnly =
+      headWords.some((w) => ADD_ON.test(w)) &&
+      headWords.every((w) => !NON_PAY.test(w) || ADD_ON.test(w)) &&
+      !/home office/i.test(head);
+    if (namedAs === "non_pay" && !(cue === "pay" && addOnOnly)) continue;
+    if (cue === "pay" && (currency || bareAmount)) return true; // "Salary: 120,000", "salary: $1"
+    // A role or company noun before a range is the job, not a perk ("Senior Engineer, Health Platform —
+    // $140k-$170k"): perk amounts are single figures (J-01).
+    if (cue === "non_pay" && !inRange) continue; // "budget of USD 2,000 per year"
+    if (!currency && !(mag || hasPeriod)) continue; // a bare number: "280 doctors", "7 years"
+    if (!currency && value < 1000) continue; // "7 years", "3 days"
+
     // A pay word names the amount only when it follows it directly; after a period it starts the next
     // thought ("budget of USD 2,000 per year Annual compensation review").
     if (namedAs === "pay" && !afterPeriod) return true;
     // Nothing named the amount before the conjunction: a perk noun further on does ("$5,000 with a laptop
     // and conference budget"); "$120k for this role, and a training budget" stays pay.
-    if (!afterPeriod && !inRange && headWords.length === 0 && PERK_NOUN.test(tail.join(" "))) continue;
+    // A salary-sized amount keeps it: "$95k, with a learning budget" (J-02).
+    if (
+      !afterPeriod &&
+      !inRange &&
+      value < 10_000 &&
+      headWords.length === 0 &&
+      PERK_NOUN.test(tail.join(" "))
+    )
+      continue;
 
     // "$3,000,000 of transactions": uncued millions with no period are company money; "¥6,000,000 per
     // year" and "1 130 000 Kč per year" are pay (re-review G-02, G-04).
@@ -155,14 +180,16 @@ function judge(text: string): boolean {
   return false;
 }
 
-function nearestCue(before: string): "pay" | "non_pay" | null {
-  return firstCue(
-    before
-      .split(/[^\p{L}\d-]+/u)
-      .filter(Boolean)
-      .reverse(),
-    true,
-  );
+/** The cue before an amount, in its clause: any pay word there wins, however far back ("The salary range
+ * for this Customer Success Manager role is $70,000"), so a role or company noun in between never cancels
+ * it (re-review 3 J-01); otherwise the nearest non-pay word. "paid out" is company money. */
+function cueBefore(before: string): "pay" | "non_pay" | null {
+  const words = before
+    .replace(/\bpaid out\b/gi, "transacted")
+    .split(/[^\p{L}\d-]+/u)
+    .filter(Boolean);
+  if (words.some((w) => PAY.test(w))) return "pay";
+  return firstCue(words.reverse(), true);
 }
 
 /** The first pay or non-pay word in `words`, in order; two-word perks too ("home office", "paid out"). */
