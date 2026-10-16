@@ -314,6 +314,98 @@
         "CONTEXT.md"
       ],
       "file": "docs/features/realness-score/tasks/t14-upstream-amendments.md"
+    },
+    {
+      "id": "R01",
+      "title": "Fix the salary rule: next-words limit, bare million amounts, currency-less board pay fields (review F-01, F-02)",
+      "layer": "domain",
+      "deps": [],
+      "acs": [
+        "AC-06",
+        "AC-02"
+      ],
+      "dod": "Real pay followed by perk words reads as pay; '$3,000,000 of transactions' does not; a structured board field '60000–80000' or '50–70' clears 'no salary'; probes in pay.test.ts; labelled set still ≥ 95%.",
+      "files_hint": [
+        "apps/server/src/modules/realness/domain/pay.ts",
+        "apps/server/src/modules/realness/domain/pay.test.ts",
+        "apps/server/src/modules/realness/app/assess.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "R02",
+      "title": "Server failure paths: no 0-of-0 share, last-known switch, 503 on a failed switch read (review F-03, F-04, F-05)",
+      "layer": "app",
+      "deps": [],
+      "acs": [
+        "AC-14",
+        "AC-10",
+        "AC-11"
+      ],
+      "dod": "A failed assess writes no daily share and reports the saved switch state; a failed switch read on save is 503 REALNESS_SETTINGS_UNAVAILABLE; integration tests cover each.",
+      "files_hint": [
+        "apps/server/src/modules/search/app/search.ts",
+        "apps/server/src/modules/realness/app/settings.ts",
+        "apps/server/test/search-realness.integration.test.ts",
+        "apps/server/test/realness-routes.integration.test.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "R03",
+      "title": "Switch keeps the saved state while the list reloads (review F-06)",
+      "layer": "ui",
+      "deps": [],
+      "acs": [
+        "AC-10"
+      ],
+      "dod": "After a successful save the switch shows the new state until the new result arrives; a test asserts it during the reload.",
+      "files_hint": [
+        "apps/web/src/features/realness/RealnessSwitch.tsx",
+        "apps/web/src/routes/Home.realness.test.tsx"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "R04",
+      "title": "Close the test-plan gaps: AC-07/08/09/10/14 rows, SCR-01 loading + marked, AC-13 provider check, latency 50 + closed look-alikes (review F-07..F-10)",
+      "layer": "tests",
+      "deps": [
+        "R02",
+        "R03"
+      ],
+      "acs": [
+        "AC-07",
+        "AC-08",
+        "AC-09",
+        "AC-10",
+        "AC-13",
+        "AC-14"
+      ],
+      "dod": "Each listed Test plan row has a test that can fail; AC-13 runs with the scorer on and compares realness on vs off; latency runs 50+50 per order with ~10% closed look-alikes.",
+      "files_hint": [
+        "apps/server/test/search-realness.integration.test.ts",
+        "apps/server/test/realness-e2e.integration.test.ts",
+        "apps/server/test/realness-nfr.integration.test.ts",
+        "apps/web/src/routes/Home.realness.test.tsx"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16.md"
+    },
+    {
+      "id": "R05",
+      "title": "Tidy: unused realness exports, error detail in write logs, one day formatter (review F-11..F-13)",
+      "layer": "app",
+      "deps": [
+        "R02"
+      ],
+      "acs": [],
+      "dod": "No production-unused exports from createRealness (or they are wired); swallowed write errors log name + message; records.ts reuses the signals.ts day helper; gate green.",
+      "files_hint": [
+        "apps/server/src/modules/realness/index.ts",
+        "apps/server/src/modules/realness/app/records.ts",
+        "apps/server/src/modules/realness/domain/signals.ts"
+      ],
+      "file": "docs/features/realness-score/_review/review-2026-10-16.md"
     }
   ]
 }

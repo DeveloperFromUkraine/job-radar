@@ -192,3 +192,63 @@ Traceability: the list, its counts, paging, the "new" mark and the newest-first 
 - [ ] Are the thresholds and points right (30/60 days, 3 boards for 45 days, 10/20/15/10/5, cap 30)? Default now: as in AC-01, taken from the published age tiers. — owner: Volodymyr Kozlov, due: 2026-11-30, after the §7 hand check
 - [ ] Should job-radar learn about employer replies so the success can be measured directly? Default now: no; §7 uses marks and a hand check. — owner: Volodymyr Kozlov, due: when roadmap step 7 (alerts) is specified
 - [ ] When company boards exist (roadmap step 9), does "not on the company's careers site" become a fifth signal? Default now: yes, as its own spec. — owner: Volodymyr Kozlov, due: when step 9 is specified
+
+## Test plan
+
+Levels: unit (rules, phrases, order — no I/O), integration (server against a throwaway database created per suite and removed after, never a mocked store), contract (the realness settings shape against `contracts/openapi.yaml`), component (the reason line and the switch rendered in isolation). E2e here is the server-side flow from collected postings to the search answer. E2e-through-UI and visual-regression: <!-- N/A: the repo has no driven-UI or visual-diff layer; the 360 px check stays manual at ship (§6) -->.
+
+### AC coverage
+
+| AC (§5) | Test name (intent-based) | Level | Expected outcome |
+|---|---|---|---|
+| AC-01 | penalty points follow the thresholds, the larger time signal counts, total capped at 30 | unit | 29/30/59/60-day and 44/45-day edges score as AC-01 says; no total above 30 |
+| AC-01 | best match orders by score minus penalty, ties keep newest-first | unit + integration | A (88), C (70), B (67) in that order; cards still show 88, 70, 92 |
+| AC-02 | reason line names every counted signal in fixed phrases | unit | "Lowered: first found 47 days ago · reposted · no salary listed"; "posted" only when counted from publication time; only the counting time signal named; no signal → no line |
+| AC-02 | many-boards phrase reads "on N boards · first found D days ago" | unit | the phrase uses enabled boards and first-found age |
+| AC-02 | card shows "Lowered" in best match and "Signals" in newest first beside an unchanged score | component | right prefix per order; no line without signals; score untouched |
+| AC-03 | list with realness on and off holds the same postings, counts, scores and fit notes | integration | seeded loop over generated postings, both orders, profile on/off, remote filter on/off: zero differences; every penalty ≤ 30 |
+| AC-04 | newest-first order is identical with realness on and off, across every page | integration | same id sequence when paging the whole snapshot |
+| AC-04 | newest-first cards never say "Lowered" | component | signals shown as "Signals: …" only |
+| AC-05 | unscored block: no-signal postings first newest-first, then by penalty ascending, ties newest-first | unit + integration | the 8 then the 4 in that order, still above every scored posting; holds with no profile and with a scoring problem |
+| AC-06 | salary amounts in text are read as pay; vague wording and non-pay amounts are not | unit | ≥ 95% right on the labelled set (§6); every example in AC-06 decided as written |
+| AC-06 | a board's own pay field is kept on every fetch and clears "no salary" | integration | refetch with unchanged text updates the pay state; a posting with pay in the field has no "no salary" signal |
+| AC-06 | an unknown pay state on a pay-field board never counts as "no salary" | unit | no "no salary" signal until the next fetch |
+| AC-07 | age counts from publication time, never later than first found | unit | first-fill posting without publication time and one published after first found say "first found N days ago"; 30-day edge in the owner's time zone |
+| AC-07 | a reopened posting keeps its ordering time and gains the repost signal | unit | age unchanged, repost present |
+| AC-08 | repost rules: reopening, earlier closed look-alike > 7 days before, merged listings, first-fill copies, cleaned-up earlier copy, still-open earlier copy | unit | repost only for the reopening and the closed look-alike > 7 days earlier and the first-fill pair published > 7 days apart; none for the rest |
+| AC-08 | collector records the reopening time and exports closed earlier postings | integration | reopened posting carries the repost signal on the next list load; look-alike hint still shown |
+| AC-09 | disabling a source lowers the board count from the next list load | integration | 4 → 3 boards keeps the signal; 2 boards leaves only age; a new listing or new pay text changes signals on the next load |
+| AC-10 | realness settings read and write match the agreed shape | contract | real responses validate against `openapi.yaml` |
+| AC-10 | switch defaults to on, is kept between openings, and off means score-only order with no lines | integration | first open is on; off persists; best match by score alone; on restores penalty and lines |
+| AC-10 | switching reloads the list with or without reason lines | component | lines disappear and return with the switch |
+| AC-11 | a failed save puts the switch back, keeps the list and offers retry | component | switch in its previous state, list order unchanged, message shown, retry saves |
+| AC-12 | a request from outside the owner's machine or from another site is refused on every realness and search route | integration | refused; the setting stays as it was and no list with reasons is returned |
+| AC-13 | filter verdicts, marks, the "new" mark and match scores are the same with realness on and off | integration | identical hidden set, mark moves, "new" marks and scores |
+| AC-13 | realness makes no provider request and adds no scoring spend | integration | zero requests to the fake provider from realness; scoring health spend unchanged |
+| AC-14 | a mark keeps the posting's switch-on penalty and signals; changing keeps the latest, clearing removes it | integration | one record per marked posting, with realness off too; latest mark only; none after clearing |
+| AC-14 | the day's first opening of the saved-skills list keeps the lowered share once | integration | one share per calendar day in the owner's time zone; a one-off look and later openings that day add nothing |
+
+### Edge cases / error paths
+
+- Every posting at the cap → penalty exactly 30, never above.
+- Posting with no signals → no reason line in either order.
+- Owner's time zone near midnight → "N days ago" and the thresholds use calendar days in that zone.
+- Unknown pay state on a board without a pay field → falls back to the text check only.
+- Settings save fails → AC-11 row: previous state kept, retry offered.
+- Outsider or cross-site request → AC-12 row: refused, nothing changed.
+- Search response over budget with realness on → the per-listing pay decision is memoised (sad §7) and re-measured; the assertion is never skipped.
+
+### Test data
+
+- Seed: extend the existing posting and tracking fixture builders with the pay field, the reopening time, closed look-alike postings and per-source listings; the labelled salary set is a checked-in fixture of ≥ 100 real postings (≥ 20 pay only in the board field, ≥ 20 with non-pay amounts).
+- Dependency: a throwaway database per suite, created and removed by the existing temp-database helper; the language-model provider is the existing fake (it is an outside service, not our store).
+- Cleanup boundary: per suite for the database; the property loop reseeds per iteration from a fixed seed so failures replay.
+
+### NFR validation (load)
+
+- Search ≤ 1 s p95 → 10,000 open postings with scores and realness on: 50 sequential searches and 50 next-page requests (one owner, no concurrency), in best match first and in newest first; assert p95 ≤ 1 s for each. Rerun of the existing search latency test shape — the load tool already in the repo, or e.g. k6 / Locust.
+
+### CI placement
+
+- Every PR: unit, contract, component and the integration suites (including the property loop).
+- Pre-release: the 10,000-posting latency run and the manual 360 px phone check.
