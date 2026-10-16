@@ -18,6 +18,7 @@ const raw = (over: Partial<RawListing> = {}): RawListing => ({
   categories: ["Software Engineering"],
   publishedAt: 1_790_000_000_000,
   expiresAt: null,
+  payField: "",
   ...over,
 });
 
@@ -104,6 +105,7 @@ describe("normalizing a listing", () => {
       categories: ["Software Engineering"],
       publishedAt: 1_790_000_000_000,
       expiresAt: null,
+      payField: "",
     });
   });
 });

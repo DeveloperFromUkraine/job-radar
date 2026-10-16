@@ -2,7 +2,7 @@
 // when nothing more was available, else `capped`; absence closes only inside the window it covers.
 // API: github.com/Jobicy/remote-jobs-api (read 2026-10-02). Attribution: keep the Jobicy `url`.
 import type { FetchResult, RawListing } from "../../domain/adapter.js";
-import { type FetchContext, isObject, notOk, type SourceAdapter, unreadable } from "./types.js";
+import { type FetchContext, isObject, notOk, payText, type SourceAdapter, unreadable } from "./types.js";
 
 const HOUR = 60 * 60 * 1000;
 const PAGE = 200;
@@ -52,5 +52,6 @@ function toListing(job: unknown): RawListing | null {
       : [],
     publishedAt: Number.isNaN(published) ? null : published,
     expiresAt: null,
+    payField: payText(job.salaryMin, job.salaryMax, job.salaryCurrency, job.salaryPeriod),
   };
 }

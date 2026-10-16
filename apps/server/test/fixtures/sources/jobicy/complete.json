@@ -21,7 +21,10 @@
       "jobLevel": "Senior",
       "jobExcerpt": "Short summary.",
       "jobDescription": "<p>Build &amp; ship <b>APIs</b>.</p>",
-      "pubDate": "2026-10-02T10:00:00+00:00"
+      "pubDate": "2026-10-02T10:00:00+00:00",
+      "salaryMin": 60000,
+      "salaryMax": 80000,
+      "salaryCurrency": "USD"
     },
     {
       "id": 900002,

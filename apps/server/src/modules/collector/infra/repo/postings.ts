@@ -75,6 +75,8 @@ export function applyListing(
     lastSeenRunId: ctx.runId,
     status: "open" as const,
     closedAt: null,
+    // Written on every fetch, outside the change detection below: pay alone is not an update (realness-score).
+    payField: listing.payField,
   };
 
   if (decision.kind === "create") {
@@ -122,7 +124,7 @@ export function applyListing(
     .set({
       publishedAt: earliestPublishedAt(posting.publishedAt, listing.publishedAt),
       lastOfferedAt: ctx.now,
-      ...(decision.reopen ? { status: "open" as const, closedAt: null } : {}),
+      ...(decision.reopen ? { status: "open" as const, closedAt: null, reopenedAt: ctx.now } : {}),
     })
     .where(eq(postings.id, posting.id))
     .run();

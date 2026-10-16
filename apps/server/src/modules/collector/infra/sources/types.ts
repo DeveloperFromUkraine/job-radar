@@ -41,3 +41,18 @@ export function unreadable(detail: string): FetchResult {
 
 export const isObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null && !Array.isArray(v);
+
+const PERIODS: Record<string, string> = { annual: "year", yearly: "year", monthly: "month", hourly: "hour" };
+
+/**
+ * A board's structured pay (min/max, currency, period) as one text a person would read, e.g.
+ * "USD 60000–80000 per year"; no amount → "" (realness-score ADR-0004: the collector keeps it as stated).
+ */
+export function payText(min: unknown, max: unknown, currency: unknown, period?: unknown): string {
+  const amounts = [min, max].filter((v): v is number => typeof v === "number" && Number.isFinite(v) && v > 0);
+  if (amounts.length === 0) return "";
+  const range = amounts[0] === amounts[1] ? `${amounts[0]}` : amounts.join("–");
+  const parts = [typeof currency === "string" && currency !== "" ? currency : null, range];
+  if (typeof period === "string" && period !== "") parts.push(`per ${PERIODS[period] ?? period}`);
+  return parts.filter(Boolean).join(" ");
+}
