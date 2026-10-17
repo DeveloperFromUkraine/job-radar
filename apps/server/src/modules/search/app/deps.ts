@@ -99,6 +99,8 @@ export interface SearchDeps {
   scores?: ScoreReader;
   /** Default: realness's app exports on `db`. Replaced in tests to simulate unreadable realness. */
   realness?: RealnessReader;
+  /** Postings older than this are neither listed nor scored; none: no age limit. app.ts passes MAX_AGE_DAYS. */
+  maxAgeDays?: number;
   log?: SearchLog;
 }
 

@@ -13,6 +13,7 @@ import type { Provider } from "./modules/matching/infra/claude.js";
 import { createRealness } from "./modules/realness/index.js";
 import { createRemoteFilter } from "./modules/remote-filter/index.js";
 import { ownerList } from "./modules/search/app/owner-list.js";
+import { MAX_AGE_DAYS } from "./modules/search/domain/order.js";
 import { searchModule } from "./modules/search/index.js";
 import { createTracking } from "./modules/tracking/index.js";
 
@@ -26,10 +27,14 @@ export interface BuildAppOptions {
   webDist?: string;
   /** Match scoring: the stand-in provider and no background scorer in tests; env defaults to process.env. */
   matching?: { provider?: Provider; scorer?: boolean; env?: NodeJS.ProcessEnv };
+  /** The list's age limit in days; default MAX_AGE_DAYS, null for none (tests with fixed old times). */
+  search?: { maxAgeDays?: number | null };
 }
 
 // Composition root: every module is a Fastify plugin registered here.
 export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyInstance> {
+  const ageLimit =
+    options.search?.maxAgeDays === null ? undefined : (options.search?.maxAgeDays ?? MAX_AGE_DAYS);
   const app = Fastify({ logger: options.logger ?? false });
   const spa =
     options.webDist && existsSync(join(options.webDist, "index.html")) ? options.webDist : undefined;
@@ -72,13 +77,18 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
       now,
       timeZone: machineTimeZone(),
       config: loadMatchingConfig(options.matching?.env ?? process.env),
-      ownerList: () => ownerList({ db: handle.db, now }),
+      ownerList: () => ownerList({ db: handle.db, now, maxAgeDays: ageLimit }),
       provider: options.matching?.provider,
       scorer: options.matching?.scorer ?? options.collector.scheduler !== false,
     });
     await app.register(matching.plugin);
     await app.register(
-      searchModule({ db: handle.db, now: options.collector.now, scores: matching.scoreReader }),
+      searchModule({
+        db: handle.db,
+        now: options.collector.now,
+        scores: matching.scoreReader,
+        maxAgeDays: ageLimit,
+      }),
     );
   }
   if (spa) await app.register(fastifyStatic, { root: spa, wildcard: false });

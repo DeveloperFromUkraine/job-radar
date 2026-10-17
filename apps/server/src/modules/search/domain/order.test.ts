@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bestMatchOrder, compareNewestFirst, effectiveTime } from "./order.js";
+import { bestMatchOrder, compareNewestFirst, effectiveTime, isFresh } from "./order.js";
 
 describe("effectiveTime (AC-03)", () => {
   it("uses the publication time when it is not after first collection", () => {
@@ -72,5 +72,20 @@ describe("bestMatchOrder with a realness penalty (match-score AC-11 amended)", (
   it("score 20 with penalty 30 sorts at −10", () => {
     const score = of({ a: 20, b: 0 });
     expect(bestMatchOrder(["a", "b"], score, (id) => (id === "a" ? 30 : 0))).toEqual(["b", "a"]);
+  });
+});
+
+describe("isFresh: the owner's list holds only postings at most 30 days old", () => {
+  const DAY = 24 * 60 * 60 * 1000;
+  const NOW = Date.UTC(2026, 9, 17, 12);
+  it.each([
+    ["published 30 days ago", NOW - 30 * DAY, NOW - DAY, true],
+    ["published 31 days ago", NOW - 31 * DAY, NOW - DAY, false],
+    // A board's old publication time counts, even when job-radar found it today (Wellfound's 2022 jobs).
+    ["published 1600 days ago, found today", NOW - 1600 * DAY, NOW, false],
+    ["no publication time, first found 10 days ago", null, NOW - 10 * DAY, true],
+    ["no publication time, first found 45 days ago", null, NOW - 45 * DAY, false],
+  ])("%s → %s", (_name, publishedAt, firstFoundAt, fresh) => {
+    expect(isFresh({ publishedAt, firstFoundAt }, NOW)).toBe(fresh);
   });
 });

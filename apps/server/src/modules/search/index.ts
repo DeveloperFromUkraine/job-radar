@@ -11,12 +11,20 @@ export interface SearchModuleOptions {
   now?: () => number;
   /** Matching's reader, wired in app.ts (match-score ADR-0004); default: no scores. */
   scores?: ScoreReader;
+  /** Postings older than this are not listed; none: no age limit. */
+  maxAgeDays?: number;
 }
 
 export function searchModule(options: SearchModuleOptions): FastifyPluginAsync {
   return async (app) => {
     const now = options.now ?? Date.now;
-    const deps = { db: options.db, now, scores: options.scores, log: app.log.child({ module: "search" }) };
+    const deps = {
+      db: options.db,
+      now,
+      scores: options.scores,
+      maxAgeDays: options.maxAgeDays,
+      log: app.log.child({ module: "search" }),
+    };
     await app.register(searchRoutes(deps, createSnapshotStore(now)));
   };
 }

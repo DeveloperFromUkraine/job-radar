@@ -35,7 +35,11 @@ beforeEach(async () => {
   });
   seedOpenPostings(handle.db, 60, () => ({ title: "Go engineer" }));
   handle.close();
-  app = await buildApp({ port: 3000, collector: { databaseFile, scheduler: false } });
+  app = await buildApp({
+    port: 3000,
+    collector: { databaseFile, scheduler: false },
+    search: { maxAgeDays: null },
+  });
   await app.ready();
 });
 

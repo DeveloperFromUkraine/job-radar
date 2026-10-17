@@ -62,6 +62,7 @@ beforeEach(async () => {
     port: 3000,
     collector: { databaseFile, scheduler: false },
     matching: { provider, scorer: true, env: { ANTHROPIC_API_KEY: "sk-test-not-a-real-key" } },
+    search: { maxAgeDays: null }, // fixed early test times
   });
   await app.ready();
 });

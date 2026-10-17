@@ -29,6 +29,8 @@ async function start(extra: { sourcesBaseUrl?: string; now?: () => number } = {}
   app = await buildApp({
     port: 3000,
     collector: { databaseFile: t.file, scheduler: false, now: () => clock, ...extra },
+    // Fixed early test times: no age limit here; the limit has its own tests.
+    search: { maxAgeDays: null },
   });
   await app.ready();
   return app;

@@ -4,7 +4,7 @@ import type { OpenPosting } from "../../collector/app/open-postings.js";
 import type { Realness } from "../../realness/domain/signals.js";
 import type { LocationCheck } from "../../remote-filter/app/verdicts.js";
 import { compileMatcher, type MatchedSkill } from "../domain/match.js";
-import { bestMatchOrder, compareNewestFirst } from "../domain/order.js";
+import { bestMatchOrder, compareNewestFirst, isFresh } from "../domain/order.js";
 import { parseSkills } from "../domain/skills.js";
 import { isNew } from "../domain/visit.js";
 import { type ListOrder, readState, saveLastSkills, saveListOrder } from "../infra/repo.js";
@@ -170,7 +170,11 @@ export function selectList(
   const filterCountry =
     filter.mode === "own" || filter.mode === "look" ? (filter.country?.code ?? null) : null;
 
-  const open = readCollection((c) => c.open(), deps);
+  // Only fresh postings are listed or scored; older ones stay collected, just not shown.
+  const { maxAgeDays } = deps;
+  const open = readCollection((c) => c.open(), deps).filter(
+    (p) => maxAgeDays === undefined || isFresh(p, loadedAt, maxAgeDays),
+  );
   const found = matchPostings(skills, open).sort((a, b) => compareNewestFirst(a.posting, b.posting));
   // Verdicts for every match, marked ones too, before the snapshot (remote-filter ADR-0002).
   const verdicts = filterCountry
