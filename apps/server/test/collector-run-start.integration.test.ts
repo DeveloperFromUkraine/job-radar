@@ -64,20 +64,28 @@ describe("run start (Flows 3 and 4)", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ]);
     expect(rows("select trigger, status, started_at from collector_runs")).toEqual([
       { trigger: "schedule", status: "running", started_at: T0 },
     ]);
     expect(rows("select source_id, outcome from collector_run_sources order by source_id")).toEqual([
       { source_id: "bulldogjob", outcome: "pending" },
+      { source_id: "djinni", outcome: "pending" },
+      { source_id: "dou", outcome: "pending" },
       { source_id: "himalayas", outcome: "pending" },
       { source_id: "jobicy", outcome: "pending" },
       { source_id: "justjoinit", outcome: "pending" },
       { source_id: "nofluffjobs", outcome: "pending" },
       { source_id: "pracuj", outcome: "pending" },
+      { source_id: "remoteok", outcome: "pending" },
       { source_id: "remotive", outcome: "pending" },
       { source_id: "theprotocol", outcome: "pending" },
       { source_id: "weworkremotely", outcome: "pending" },
+      { source_id: "workingnomads", outcome: "pending" },
     ]);
   });
 
@@ -99,6 +107,10 @@ describe("run start (Flows 3 and 4)", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -116,6 +128,10 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "bulldogjob", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "pracuj", state: "enabled", nextDueAt: T0 + 10 * MIN },
         { sourceId: "theprotocol", state: "enabled", nextDueAt: T0 + 10 * MIN },
+        { sourceId: "djinni", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "dou", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "remoteok", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "workingnomads", state: "enabled", nextDueAt: T0 + HOUR },
       ],
     });
   });
@@ -132,6 +148,10 @@ describe("run start (Flows 3 and 4)", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -146,6 +166,10 @@ describe("run start (Flows 3 and 4)", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ]);
   });
 
@@ -163,6 +187,10 @@ describe("run start (Flows 3 and 4)", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ]);
     expect(
       rows("select source_id, disabled_from, disabled_until from collector_source_disabled_periods"),

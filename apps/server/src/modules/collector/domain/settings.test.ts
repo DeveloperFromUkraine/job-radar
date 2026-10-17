@@ -30,6 +30,10 @@ describe("parsing the settings file (AC-27)", () => {
       bulldogjob: { enabled: true, categories: ["frontend"] },
       pracuj: { enabled: true, categories: ["frontend"] },
       theprotocol: { enabled: false, categories: [] },
+      djinni: { enabled: true, categories: ["JavaScript"] },
+      dou: { enabled: true, categories: ["Front End"] },
+      remoteok: { enabled: true, categories: ["dev"] },
+      workingnomads: { enabled: false, categories: ["Development"] },
     },
   };
 
@@ -54,10 +58,10 @@ describe("parsing the settings file (AC-27)", () => {
 
   it("treats an unknown source as making the whole file unreadable", () => {
     const result = parseSettings(
-      JSON.stringify({ sources: { ...valid.sources, remoteok: { enabled: true, categories: [] } } }),
+      JSON.stringify({ sources: { ...valid.sources, linkedin: { enabled: true, categories: [] } } }),
     );
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.reason).toMatch(/unknown source "remoteok"/);
+    expect(!result.ok && result.reason).toMatch(/unknown source "linkedin"/);
   });
 
   it.each([

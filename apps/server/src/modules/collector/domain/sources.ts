@@ -10,7 +10,11 @@ export type SourceId =
   | "nofluffjobs"
   | "bulldogjob"
   | "pracuj"
-  | "theprotocol";
+  | "theprotocol"
+  | "djinni"
+  | "dou"
+  | "remoteok"
+  | "workingnomads";
 
 export interface RateLimits {
   perMinute?: number;
@@ -259,6 +263,58 @@ export const SOURCES: readonly SourceDefinition[] = [
     limits: { perHour: 6 },
     closesByExpiry: true,
     publishedCategories: ["frontend", "fullstack", "backend", "mobile", "devops", "testing", "data"],
+  },
+  {
+    id: "djinni",
+    name: "Djinni",
+    siteUrl: "https://djinni.co",
+    // One RSS request per owner category a run; no published limit, so hourly and at most 4 an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 4 },
+    closesByExpiry: true,
+    // `primary_keyword` values that answered with their own jobs on 2026-10-17 (an unknown one answers
+    // with every job, which the adapter drops).
+    publishedCategories: ["JavaScript", "Fullstack", "Node.js", "React.js"],
+  },
+  {
+    id: "dou",
+    name: "DOU",
+    siteUrl: "https://jobs.dou.ua",
+    // One RSS request per owner category a run; no published limit, so hourly and at most 4 an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 4 },
+    closesByExpiry: true,
+    // Categories that answered with remote jobs on 2026-10-17 (an unknown one answers with none).
+    publishedCategories: ["Front End", "JavaScript", "Node.js", "Fullstack"],
+  },
+  {
+    id: "remoteok",
+    name: "Remote OK",
+    siteUrl: "https://remoteok.com",
+    // One API request a run for the newest ~100 jobs; hourly.
+    intervalMs: HOUR,
+    limits: { perHour: 1 },
+    closesByExpiry: true,
+  },
+  {
+    id: "workingnomads",
+    name: "Working Nomads",
+    siteUrl: "https://www.workingnomads.com",
+    // One API request a run for the newest jobs; hourly.
+    intervalMs: HOUR,
+    limits: { perHour: 1 },
+    closesByExpiry: true,
+    // The `category_name` values seen on 2026-10-17.
+    publishedCategories: [
+      "Development",
+      "Administration",
+      "Customer Success",
+      "Marketing",
+      "Writing",
+      "Sales",
+      "Design",
+      "Education",
+    ],
   },
 ];
 

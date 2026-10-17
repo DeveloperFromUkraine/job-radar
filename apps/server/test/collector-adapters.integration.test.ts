@@ -394,4 +394,115 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
   });
+
+  describe("Djinni, DOU, Remote OK and Working Nomads feeds", () => {
+    const read = (id: SourceId, categories?: string[]) =>
+      createAdapters({ baseUrl: fake.baseUrl })[id].fetchLatest({
+        http: createSourceHttp(db.db, sourceById(id), { now: () => NOW }),
+        now: NOW,
+        categories,
+      });
+    const DAY = 24 * 60 * 60 * 1000;
+
+    it("Djinni: one RSS request per category, keeping only that category's jobs, expiring 30 days on", async () => {
+      fake.route("/jobs/rss/", xml(fixture("djinni/javascript.xml")));
+
+      const result = await read("djinni", ["JavaScript"]);
+
+      expect(fake.requests).toEqual(["/jobs/rss/?primary_keyword=JavaScript"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 3 });
+      // The third item is another category: an unknown keyword answers with every job.
+      expect(result.listings.map((l) => l.title)).toEqual([
+        "Junior Three.js Developer",
+        "Junior Frontend Developer",
+      ]);
+      const publishedAt = Date.parse("2026-10-16T08:12:06Z");
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "https://djinni.co/jobs/900001-example-role-1/",
+        url: "https://djinni.co/jobs/900001-example-role-1/",
+        company: "",
+        locationRestriction: null,
+        categories: ["JavaScript"],
+        publishedAt,
+        expiresAt: publishedAt + 30 * DAY,
+        payField: "",
+      });
+    });
+
+    it("DOU: one remote RSS request per category, company and pay read from the title", async () => {
+      fake.route("/vacancies/feeds/", xml(fixture("dou/front-end.xml")));
+
+      const result = await read("dou", ["Front End"]);
+
+      expect(fake.requests).toEqual(["/vacancies/feeds/?category=Front%20End&remote"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 2 });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "https://jobs.dou.ua/companies/example-1/vacancies/900001/",
+        url: "https://jobs.dou.ua/companies/example-1/vacancies/900001/",
+        title: "E-commerce Web Developer (WordPress-Shopify)",
+        company: "Example Co",
+        locationRestriction: null,
+        categories: ["Front End"],
+        publishedAt: Date.parse("2026-10-14T11:17:24Z"),
+        payField: "$2000–2200",
+      });
+      expect(result.listings[1]).toMatchObject({
+        title: "Front End Developer",
+        company: "Example Labs",
+        payField: "",
+      });
+    });
+
+    it("Remote OK: one API request, the legal notice skipped, tags as categories, pay in USD a year", async () => {
+      fake.route("/api", json(fixture("remoteok/api.json")));
+
+      const result = await read("remoteok");
+
+      expect(fake.requests).toEqual(["/api"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 2 });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "90001",
+        url: "https://remoteOK.com/remote-jobs/example-1",
+        company: "Example Co",
+        payField: "USD 50000–70000 per year",
+        publishedAt: Date.parse("2026-10-14T14:44:21Z"),
+      });
+      expect(result.listings[0]?.categories).toContain("data annotation");
+      // No location stated is unknown, never "anywhere"; 0 pay is no pay.
+      expect(result.listings[1]).toMatchObject({
+        locationRestriction: null,
+        payField: "",
+        company: "Example Labs",
+      });
+    });
+
+    it("Working Nomads: one API request, category and location as stated", async () => {
+      fake.route("/api/exposed_jobs/", json(fixture("workingnomads/jobs.json")));
+
+      const result = await read("workingnomads");
+
+      expect(fake.requests).toEqual(["/api/exposed_jobs/"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 2 });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "https://www.workingnomads.com/job/go/900001/",
+        company: "Example Co",
+        categories: ["Development"],
+        locationRestriction: "Europe, LATAM, APAC, the U.S., Canada",
+        publishedAt: Date.parse("2026-10-15T14:14:32Z"),
+      });
+    });
+
+    it("fails a feed that is not RSS or not a job list", async () => {
+      fake.route("/jobs/rss/", xml("<html>Just a moment...</html>"));
+      fake.route("/api", json(JSON.stringify({ error: "nope" })));
+      expect(await read("djinni", ["JavaScript"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+      expect(await read("remoteok")).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+    });
+  });
 });

@@ -255,6 +255,11 @@ describe("finalize a run (Flow 7)", () => {
         xml(fixture("bulldogjob/frontend-capped.html")),
       );
 
+    // The feeds read their fixtures: each is capped by nature.
+    fake.route("/jobs/rss/", xml(fixture("djinni/javascript.xml")));
+    fake.route("/vacancies/feeds/", xml(fixture("dou/front-end.xml")));
+    fake.route("/api", json(fixture("remoteok/api.json")));
+    fake.route("/api/exposed_jobs/", json(fixture("workingnomads/jobs.json")));
     const run = await fullRun(T0);
 
     expect(
@@ -263,15 +268,19 @@ describe("finalize a run (Flow 7)", () => {
       ),
     ).toEqual([
       { source_id: "bulldogjob", outcome: "capped" },
+      { source_id: "djinni", outcome: "capped" },
+      { source_id: "dou", outcome: "capped" },
       { source_id: "himalayas", outcome: "capped" },
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "justjoinit", outcome: "capped" },
       { source_id: "nofluffjobs", outcome: "capped" },
       // Nothing imported: an empty read.
       { source_id: "pracuj", outcome: "partial" },
+      { source_id: "remoteok", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
       { source_id: "theprotocol", outcome: "partial" },
       { source_id: "weworkremotely", outcome: "capped" },
+      { source_id: "workingnomads", outcome: "capped" },
     ]);
     // Himalayas, WWR and Just Join IT close by expiry, so a capped read re-checks every closure; the others' cannot.
     expect(

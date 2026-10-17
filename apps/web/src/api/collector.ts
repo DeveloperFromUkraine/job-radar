@@ -8,7 +8,11 @@ export type SourceId =
   | "nofluffjobs"
   | "bulldogjob"
   | "pracuj"
-  | "theprotocol";
+  | "theprotocol"
+  | "djinni"
+  | "dou"
+  | "remoteok"
+  | "workingnomads";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -148,4 +152,8 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   bulldogjob: { name: "Bulldogjob", url: "https://bulldogjob.pl" },
   pracuj: { name: "Pracuj.pl", url: "https://it.pracuj.pl" },
   theprotocol: { name: "theprotocol.it", url: "https://theprotocol.it" },
+  djinni: { name: "Djinni", url: "https://djinni.co" },
+  dou: { name: "DOU", url: "https://jobs.dou.ua" },
+  remoteok: { name: "Remote OK", url: "https://remoteok.com" },
+  workingnomads: { name: "Working Nomads", url: "https://www.workingnomads.com" },
 };

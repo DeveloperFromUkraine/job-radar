@@ -71,6 +71,10 @@ describe("collector read routes (Flow 10)", () => {
       ["bulldogjob", "enabled"],
       ["pracuj", "enabled"],
       ["theprotocol", "enabled"],
+      ["djinni", "enabled"],
+      ["dou", "enabled"],
+      ["remoteok", "enabled"],
+      ["workingnomads", "enabled"],
     ]);
     expect(health.sources[0].next_due_at).toBe(new Date(T0).toISOString());
   });

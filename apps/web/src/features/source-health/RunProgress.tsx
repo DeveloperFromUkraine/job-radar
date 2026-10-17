@@ -18,6 +18,10 @@ const ORDER: SourceId[] = [
   "bulldogjob",
   "pracuj",
   "theprotocol",
+  "djinni",
+  "dou",
+  "remoteok",
+  "workingnomads",
 ];
 
 function outcomeText(o: RunSourceOutcome): string {

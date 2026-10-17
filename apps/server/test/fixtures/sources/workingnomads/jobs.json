@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://www.workingnomads.com/job/go/900001/",
+    "title": "Senior AI Engineer / Architect",
+    "description": "<p>Role description.</p>",
+    "company_name": "Example Co",
+    "category_name": "Development",
+    "tags": "ai engineer,python,machine learning,architecture,sql",
+    "location": "Europe, LATAM, APAC, the U.S., Canada",
+    "pub_date": "2026-10-15T10:14:32-04:00"
+  },
+  {
+    "url": "https://www.workingnomads.com/job/go/900002/",
+    "title": "Video Creator (100% remote)",
+    "description": "<p>Role description.</p>",
+    "company_name": "Example Labs",
+    "category_name": "Marketing",
+    "tags": "editing,media,english,social media",
+    "location": "USA, Canada, Ireland or UK only",
+    "pub_date": "2026-10-15T14:12:21-04:00"
+  }
+]

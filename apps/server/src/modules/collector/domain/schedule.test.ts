@@ -19,6 +19,10 @@ describe("source registry", () => {
       "bulldogjob",
       "pracuj",
       "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
     ]);
     expect(sourceById("jobicy").intervalMs).toBe(HOUR);
     expect(sourceById("remotive").intervalMs).toBe(6 * HOUR);

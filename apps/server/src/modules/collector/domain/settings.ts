@@ -57,6 +57,14 @@ export const DEFAULT_SETTINGS: Settings = {
     bulldogjob: { enabled: true, categories: ["frontend", "fullstack"] },
     pracuj: { enabled: true, categories: ["frontend", "fullstack"] },
     theprotocol: { enabled: true, categories: ["frontend", "fullstack"] },
+    djinni: { enabled: true, categories: ["JavaScript", "Fullstack", "React.js"] },
+    dou: { enabled: true, categories: ["Front End", "Fullstack"] },
+    // Remote OK's categories are its free-form tags.
+    remoteok: {
+      enabled: true,
+      categories: ["dev", "javascript", "web dev", "full stack", "react", "frontend"],
+    },
+    workingnomads: { enabled: true, categories: ["Development"] },
   },
 };
 
