@@ -19,6 +19,8 @@ export interface SourceHttp {
   getJson(url: string): Promise<HttpResult>;
   /** The body as text, for feeds that are not JSON (We Work Remotely's RSS). */
   getText(url: string): Promise<HttpResult>;
+  /** A JSON POST that only reads (inhire's offer search), counted and limited like a GET. */
+  postJson(url: string, body: unknown): Promise<HttpResult>;
   /** A read that sends nothing (an imported file), counted like a request so the source keeps its
    * interval and limit; false when the window is used up. */
   countRead(): boolean;
@@ -47,7 +49,7 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     failure: { code, detail },
   });
 
-  async function get(url: string, accept: string): Promise<HttpResult> {
+  async function get(url: string, accept: string, post?: unknown): Promise<HttpResult> {
     // Shutdown has begun: nothing is sent, so nothing is charged to the source's rate (review R6).
     if (options.signal?.aborted) throw new CollectorStopping();
     const now = options.now();
@@ -60,7 +62,12 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     try {
       const signal = AbortSignal.any([abort.signal, timeout, ...(options.signal ? [options.signal] : [])]);
       const res = await fetch(url, {
-        headers: { "user-agent": USER_AGENT, accept },
+        headers: {
+          "user-agent": USER_AGENT,
+          accept,
+          ...(post === undefined ? {} : { "content-type": "application/json" }),
+        },
+        ...(post === undefined ? {} : { method: "POST", body: JSON.stringify(post) }),
         signal,
       });
       if (res.status === 401 || res.status === 403 || res.status === 429 || res.status === 451) {
@@ -91,16 +98,18 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
     }
   }
 
+  const json = async (res: HttpResult): Promise<HttpResult> => {
+    if (res.kind !== "ok") return res;
+    try {
+      return { kind: "ok", body: JSON.parse(res.body as string) };
+    } catch {
+      return fail("unreadable", "not JSON");
+    }
+  };
+
   return {
-    async getJson(url) {
-      const res = await get(url, "application/json");
-      if (res.kind !== "ok") return res;
-      try {
-        return { kind: "ok", body: JSON.parse(res.body as string) };
-      } catch {
-        return fail("unreadable", "not JSON");
-      }
-    },
+    getJson: async (url) => json(await get(url, "application/json")),
+    postJson: async (url, body) => json(await get(url, "application/json", body)),
     getText: (url) => get(url, "application/rss+xml, application/xml, text/xml"),
     countRead() {
       const now = options.now();

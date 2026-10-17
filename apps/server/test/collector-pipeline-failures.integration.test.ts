@@ -57,6 +57,8 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         dou: fine("dou", { completeness: "capped" }),
         remoteok: fine("remoteok", { completeness: "capped" }),
         workingnomads: fine("workingnomads", { completeness: "capped" }),
+        inhire: fine("inhire"),
+        wellfound: fine("wellfound", { completeness: "capped" }),
       },
       timeZone: "Europe/Warsaw",
     };
@@ -95,6 +97,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
       { source_id: "djinni", outcome: "capped", failure_reason: null },
       { source_id: "dou", outcome: "capped", failure_reason: null },
       { source_id: "himalayas", outcome: "capped", failure_reason: null },
+      { source_id: "inhire", outcome: "complete", failure_reason: null },
       { source_id: "jobicy", outcome: "complete", failure_reason: null },
       { source_id: "justjoinit", outcome: "capped", failure_reason: null },
       { source_id: "nofluffjobs", outcome: "complete", failure_reason: null },
@@ -106,6 +109,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         failure_reason: "The source's response could not be processed.",
       },
       { source_id: "theprotocol", outcome: "capped", failure_reason: null },
+      { source_id: "wellfound", outcome: "capped", failure_reason: null },
       { source_id: "weworkremotely", outcome: "complete", failure_reason: null },
       { source_id: "workingnomads", outcome: "capped", failure_reason: null },
     ]);

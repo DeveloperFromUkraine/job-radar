@@ -12,7 +12,9 @@ export type SourceId =
   | "djinni"
   | "dou"
   | "remoteok"
-  | "workingnomads";
+  | "workingnomads"
+  | "inhire"
+  | "wellfound";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -156,4 +158,6 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   dou: { name: "DOU", url: "https://jobs.dou.ua" },
   remoteok: { name: "Remote OK", url: "https://remoteok.com" },
   workingnomads: { name: "Working Nomads", url: "https://www.workingnomads.com" },
+  inhire: { name: "inhire.io", url: "https://inhire.io" },
+  wellfound: { name: "Wellfound", url: "https://wellfound.com" },
 };

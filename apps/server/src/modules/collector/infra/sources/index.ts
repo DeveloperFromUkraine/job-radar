@@ -4,12 +4,14 @@ import { djinniAdapter } from "./djinni.js";
 import { douAdapter } from "./dou.js";
 import { himalayasAdapter } from "./himalayas.js";
 import { importedAdapter } from "./imported.js";
+import { inhireAdapter } from "./inhire.js";
 import { jobicyAdapter } from "./jobicy.js";
 import { justJoinItAdapter } from "./justjoinit.js";
 import { noFluffJobsAdapter } from "./nofluffjobs.js";
 import { remoteOkAdapter } from "./remoteok.js";
 import { remotiveAdapter } from "./remotive.js";
 import type { SourceAdapter } from "./types.js";
+import { wellfoundAdapter } from "./wellfound.js";
 import { weWorkRemotelyAdapter } from "./weworkremotely.js";
 import { workingNomadsAdapter } from "./workingnomads.js";
 
@@ -35,5 +37,7 @@ export function createAdapters(
     dou: douAdapter(baseUrl),
     remoteok: remoteOkAdapter(baseUrl),
     workingnomads: workingNomadsAdapter(baseUrl),
+    inhire: inhireAdapter(baseUrl),
+    wellfound: wellfoundAdapter(baseUrl),
   };
 }

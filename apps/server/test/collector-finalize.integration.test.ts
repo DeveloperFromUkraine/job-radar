@@ -260,6 +260,9 @@ describe("finalize a run (Flow 7)", () => {
     fake.route("/vacancies/feeds/", xml(fixture("dou/front-end.xml")));
     fake.route("/api", json(fixture("remoteok/api.json")));
     fake.route("/api/exposed_jobs/", json(fixture("workingnomads/jobs.json")));
+    fake.route("/getAllOffersNonAuth", json(fixture("inhire/offers.json")));
+    for (const role of ["frontend-engineer", "full-stack-engineer", "react-developer"])
+      fake.route(`/role/r/${role}`, xml(fixture("wellfound/frontend-engineer.html")));
     const run = await fullRun(T0);
 
     expect(
@@ -271,6 +274,8 @@ describe("finalize a run (Flow 7)", () => {
       { source_id: "djinni", outcome: "capped" },
       { source_id: "dou", outcome: "capped" },
       { source_id: "himalayas", outcome: "capped" },
+      // inhire reads every page of its search: complete.
+      { source_id: "inhire", outcome: "complete" },
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "justjoinit", outcome: "capped" },
       { source_id: "nofluffjobs", outcome: "capped" },
@@ -279,6 +284,7 @@ describe("finalize a run (Flow 7)", () => {
       { source_id: "remoteok", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
       { source_id: "theprotocol", outcome: "partial" },
+      { source_id: "wellfound", outcome: "capped" },
       { source_id: "weworkremotely", outcome: "capped" },
       { source_id: "workingnomads", outcome: "capped" },
     ]);

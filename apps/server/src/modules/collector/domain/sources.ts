@@ -14,7 +14,9 @@ export type SourceId =
   | "djinni"
   | "dou"
   | "remoteok"
-  | "workingnomads";
+  | "workingnomads"
+  | "inhire"
+  | "wellfound";
 
 export interface RateLimits {
   perMinute?: number;
@@ -315,6 +317,43 @@ export const SOURCES: readonly SourceDefinition[] = [
       "Design",
       "Education",
     ],
+  },
+  {
+    id: "inhire",
+    name: "inhire.io",
+    siteUrl: "https://inhire.io",
+    // Every offer in up to 15 POSTs of 50 (about 7 on 2026-10-17); slow-moving, so every 6 hours.
+    intervalMs: 6 * HOUR,
+    limits: { perHour: 15 },
+    closesByExpiry: true,
+    // The `roles` values seen on 2026-10-17.
+    publishedCategories: [
+      "frontend_developer",
+      "full_stack_developer",
+      "backend_developer",
+      "mobile_developer",
+      "team_leader",
+      "architect",
+      "devops_engineer",
+      "testing",
+      "data_science",
+      "big_data",
+      "business_analyst",
+      "project_manager",
+      "ux_designer",
+      "security_engineer",
+    ],
+  },
+  {
+    id: "wellfound",
+    name: "Wellfound",
+    siteUrl: "https://wellfound.com",
+    // One page per owner role; startup jobs move slowly, so every 6 hours and at most 4 an hour.
+    intervalMs: 6 * HOUR,
+    limits: { perHour: 4 },
+    closesByExpiry: true,
+    // `/role/r/<role>` paths that answered with jobs on 2026-10-17 (an unknown one redirects).
+    publishedCategories: ["frontend-engineer", "full-stack-engineer", "software-engineer", "react-developer"],
   },
 ];
 

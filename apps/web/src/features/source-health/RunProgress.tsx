@@ -22,6 +22,8 @@ const ORDER: SourceId[] = [
   "dou",
   "remoteok",
   "workingnomads",
+  "inhire",
+  "wellfound",
 ];
 
 function outcomeText(o: RunSourceOutcome): string {

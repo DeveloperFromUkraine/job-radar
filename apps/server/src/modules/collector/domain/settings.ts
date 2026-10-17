@@ -65,6 +65,8 @@ export const DEFAULT_SETTINGS: Settings = {
       categories: ["dev", "javascript", "web dev", "full stack", "react", "frontend"],
     },
     workingnomads: { enabled: true, categories: ["Development"] },
+    inhire: { enabled: true, categories: ["frontend_developer", "full_stack_developer"] },
+    wellfound: { enabled: true, categories: ["frontend-engineer", "full-stack-engineer", "react-developer"] },
   },
 };
 

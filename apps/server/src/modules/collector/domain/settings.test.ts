@@ -34,6 +34,8 @@ describe("parsing the settings file (AC-27)", () => {
       dou: { enabled: true, categories: ["Front End"] },
       remoteok: { enabled: true, categories: ["dev"] },
       workingnomads: { enabled: false, categories: ["Development"] },
+      inhire: { enabled: true, categories: ["frontend_developer"] },
+      wellfound: { enabled: true, categories: ["frontend-engineer"] },
     },
   };
 

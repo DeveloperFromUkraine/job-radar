@@ -23,6 +23,8 @@ describe("source registry", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "inhire",
+      "wellfound",
     ]);
     expect(sourceById("jobicy").intervalMs).toBe(HOUR);
     expect(sourceById("remotive").intervalMs).toBe(6 * HOUR);

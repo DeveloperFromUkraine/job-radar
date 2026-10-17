@@ -507,4 +507,79 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
       });
     });
   });
+
+  describe("inhire.io and Wellfound", () => {
+    const read = (id: SourceId, categories?: string[]) =>
+      createAdapters({ baseUrl: fake.baseUrl })[id].fetchLatest({
+        http: createSourceHttp(db.db, sourceById(id), { now: () => NOW }),
+        now: NOW,
+        categories,
+      });
+    const HOUR = 60 * 60 * 1000;
+
+    it("inhire: POSTs its offer search page by page, keeps remote offers, complete on a short page", async () => {
+      const bodies: string[] = [];
+      fake.route("/getAllOffersNonAuth", async (req, res) => {
+        let body = "";
+        for await (const chunk of req) body += chunk;
+        bodies.push(`${req.method} ${body}`);
+        res.writeHead(200, { "content-type": "application/json" }).end(fixture("inhire/offers.json"));
+      });
+
+      const result = await read("inhire");
+
+      // Three offers is a short page: the last one.
+      expect(bodies).toEqual(['POST {"page":1}']);
+      expect(result).toMatchObject({ completeness: "complete", itemsReturned: 3 });
+      // The Warsaw-only offer is left out.
+      expect(result.listings.map((l) => l.title)).toEqual([
+        "React Native Developer",
+        "Fullstack Developer (React+Java)",
+      ]);
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "900001",
+        url: "https://inhire.io/praca/example-offer-1--job-arbeit-900001",
+        company: "Example Co",
+        locationRestriction: "Poland",
+        categories: ["frontend_developer", "mobile_developer"],
+        publishedAt: Date.parse("2026-10-17T09:11:52.725Z"),
+        expiresAt: NOW + 100 * HOUR,
+        payField: "contract 142-166 PLN per hour",
+      });
+      expect(result.listings[0]?.description).toContain("<p>Contract: contract</p>");
+      expect(result.listings[0]?.description).toContain("<p>Experience: 5+ years</p>");
+    });
+
+    it("Wellfound: one role page, jobs and their companies from the page's Apollo state", async () => {
+      fake.route("/role/r/frontend-engineer", xml(fixture("wellfound/frontend-engineer.html")));
+
+      const result = await read("wellfound", ["frontend-engineer"]);
+
+      expect(fake.requests).toEqual(["/role/r/frontend-engineer"]);
+      expect(result).toMatchObject({ completeness: "capped", itemsReturned: 2 });
+      expect(result.listings[0]).toMatchObject({
+        sourceItemId: "4748771",
+        url: "https://wellfound.com/jobs/4748771-frontend-engineer",
+        title: "Frontend Engineer",
+        company: "Example Co",
+        description: "Role description with **markdown**.",
+        locationRestriction: null,
+        categories: ["frontend-engineer"],
+        publishedAt: 1791826780 * 1000,
+        expiresAt: NOW + 30 * 24 * HOUR,
+        payField: "$150k – $190k",
+      });
+      expect(result.listings[1]).toMatchObject({ company: "", locationRestriction: "United States" });
+    });
+
+    it("fails a page or answer without the job data", async () => {
+      fake.route("/role/r/frontend-engineer", xml("<html>Just a moment...</html>"));
+      fake.route("/getAllOffersNonAuth", json(JSON.stringify({ result: "error" })));
+      expect(await read("wellfound", ["frontend-engineer"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+      expect(await read("inhire")).toMatchObject({ completeness: "failed", failure: { code: "unreadable" } });
+    });
+  });
 });

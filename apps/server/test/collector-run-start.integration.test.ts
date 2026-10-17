@@ -68,6 +68,8 @@ describe("run start (Flows 3 and 4)", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "inhire",
+      "wellfound",
     ]);
     expect(rows("select trigger, status, started_at from collector_runs")).toEqual([
       { trigger: "schedule", status: "running", started_at: T0 },
@@ -77,6 +79,7 @@ describe("run start (Flows 3 and 4)", () => {
       { source_id: "djinni", outcome: "pending" },
       { source_id: "dou", outcome: "pending" },
       { source_id: "himalayas", outcome: "pending" },
+      { source_id: "inhire", outcome: "pending" },
       { source_id: "jobicy", outcome: "pending" },
       { source_id: "justjoinit", outcome: "pending" },
       { source_id: "nofluffjobs", outcome: "pending" },
@@ -84,6 +87,7 @@ describe("run start (Flows 3 and 4)", () => {
       { source_id: "remoteok", outcome: "pending" },
       { source_id: "remotive", outcome: "pending" },
       { source_id: "theprotocol", outcome: "pending" },
+      { source_id: "wellfound", outcome: "pending" },
       { source_id: "weworkremotely", outcome: "pending" },
       { source_id: "workingnomads", outcome: "pending" },
     ]);
@@ -111,6 +115,8 @@ describe("run start (Flows 3 and 4)", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "inhire",
+      "wellfound",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -132,6 +138,8 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "dou", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "remoteok", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "workingnomads", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "inhire", state: "enabled", nextDueAt: T0 + 6 * HOUR },
+        { sourceId: "wellfound", state: "enabled", nextDueAt: T0 + 6 * HOUR },
       ],
     });
   });
@@ -152,6 +160,8 @@ describe("run start (Flows 3 and 4)", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "inhire",
+      "wellfound",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -191,6 +201,8 @@ describe("run start (Flows 3 and 4)", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "inhire",
+      "wellfound",
     ]);
     expect(
       rows("select source_id, disabled_from, disabled_until from collector_source_disabled_periods"),
