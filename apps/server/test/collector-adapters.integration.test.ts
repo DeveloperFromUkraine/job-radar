@@ -466,6 +466,8 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
         company: "Example Co",
         payField: "USD 50000–70000 per year",
         publishedAt: Date.parse("2026-10-14T14:44:21Z"),
+        // Live jobs stay in the feed past a month: it expires 30 days after it was last seen.
+        expiresAt: NOW + 30 * DAY,
       });
       expect(result.listings[0]?.categories).toContain("data annotation");
       // No location stated is unknown, never "anywhere"; 0 pay is no pay.

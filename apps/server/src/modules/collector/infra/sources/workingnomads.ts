@@ -1,13 +1,13 @@
 // Working Nomads: its public API (workingnomads.com/api/exposed_jobs/, allowed by robots.txt, read
-// 2026-10-17), one request a run for the newest jobs. Categories are its `category_name`; no expiry is
-// given, so a job counts as expiring 30 days after it was published. The feed is `capped`.
+// 2026-10-17), one request a run for its current jobs. Categories are its `category_name`; no expiry
+// is given, so a job expires 30 days after it was last seen in the feed. The feed is `capped`.
 import type { FetchResult, RawListing } from "../../domain/adapter.js";
 import { type FetchContext, isObject, notOk, type SourceAdapter, unreadable } from "./types.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const text = (v: unknown): string => (typeof v === "string" ? v : "");
 
-function toListing(job: unknown): RawListing | null {
+function toListing(job: unknown, now: number): RawListing | null {
   if (!isObject(job)) return null;
   const url = text(job.url);
   const title = text(job.title);
@@ -23,7 +23,7 @@ function toListing(job: unknown): RawListing | null {
     locationRestriction: text(job.location).trim() || null,
     categories: text(job.category_name) ? [text(job.category_name)] : [],
     publishedAt,
-    expiresAt: publishedAt === null ? null : publishedAt + 30 * DAY,
+    expiresAt: now + 30 * DAY,
     payField: "",
   };
 }
@@ -37,7 +37,7 @@ export function workingNomadsAdapter(baseUrl = "https://www.workingnomads.com"):
       if (!Array.isArray(res.body)) return unreadable("not a job list");
       const listings: RawListing[] = [];
       for (const job of res.body) {
-        const listing = toListing(job);
+        const listing = toListing(job, ctx.now);
         if (!listing) return unreadable("unexpected job shape");
         listings.push(listing);
       }
