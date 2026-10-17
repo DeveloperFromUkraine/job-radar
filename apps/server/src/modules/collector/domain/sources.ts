@@ -33,7 +33,8 @@ export interface SourceDefinition {
   closesByExpiry?: boolean;
 }
 
-const HOUR = 60 * 60 * 1000;
+const MINUTE = 60 * 1000;
+const HOUR = 60 * MINUTE;
 
 export const SOURCES: readonly SourceDefinition[] = [
   {
@@ -239,13 +240,14 @@ export const SOURCES: readonly SourceDefinition[] = [
   },
   // Pracuj.pl and theprotocol.it answer programs with a bot check: job-radar never fetches them. Their
   // listings come from the owner's own look in their browser, written to an import file
-  // (infra/sources/imported.ts); a run only reads that file, so the limit is moot.
+  // (infra/sources/imported.ts); a run only reads that file, so it is read every 10 minutes and a fresh
+  // import shows up soon.
   {
     id: "pracuj",
     name: "Pracuj.pl",
     siteUrl: "https://it.pracuj.pl",
-    intervalMs: HOUR,
-    limits: { perHour: 1 },
+    intervalMs: 10 * MINUTE,
+    limits: { perHour: 6 },
     closesByExpiry: true,
     publishedCategories: ["frontend", "fullstack", "backend", "mobile", "devops", "testing", "data"],
   },
@@ -253,8 +255,8 @@ export const SOURCES: readonly SourceDefinition[] = [
     id: "theprotocol",
     name: "theprotocol.it",
     siteUrl: "https://theprotocol.it",
-    intervalMs: HOUR,
-    limits: { perHour: 1 },
+    intervalMs: 10 * MINUTE,
+    limits: { perHour: 6 },
     closesByExpiry: true,
     publishedCategories: ["frontend", "fullstack", "backend", "mobile", "devops", "testing", "data"],
   },

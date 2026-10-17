@@ -102,7 +102,7 @@ describe("run start (Flows 3 and 4)", () => {
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
-    now = T0 + 30 * MIN;
+    now = T0 + 5 * MIN; // inside even the shortest interval (the imported sources' 10 minutes)
 
     expect(openRun(deps, "collect_now")).toEqual({
       kind: "nothing_due",
@@ -114,8 +114,8 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "justjoinit", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "nofluffjobs", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "bulldogjob", state: "enabled", nextDueAt: T0 + HOUR },
-        { sourceId: "pracuj", state: "enabled", nextDueAt: T0 + HOUR },
-        { sourceId: "theprotocol", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "pracuj", state: "enabled", nextDueAt: T0 + 10 * MIN },
+        { sourceId: "theprotocol", state: "enabled", nextDueAt: T0 + 10 * MIN },
       ],
     });
   });
