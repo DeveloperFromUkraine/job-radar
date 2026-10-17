@@ -267,7 +267,10 @@ describe("finalize a run (Flow 7)", () => {
       { source_id: "jobicy", outcome: "capped" },
       { source_id: "justjoinit", outcome: "capped" },
       { source_id: "nofluffjobs", outcome: "capped" },
+      // Nothing imported: an empty read.
+      { source_id: "pracuj", outcome: "partial" },
       { source_id: "remotive", outcome: "capped" },
+      { source_id: "theprotocol", outcome: "partial" },
       { source_id: "weworkremotely", outcome: "capped" },
     ]);
     // Himalayas, WWR and Just Join IT close by expiry, so a capped read re-checks every closure; the others' cannot.

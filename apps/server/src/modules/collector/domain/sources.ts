@@ -8,7 +8,9 @@ export type SourceId =
   | "weworkremotely"
   | "justjoinit"
   | "nofluffjobs"
-  | "bulldogjob";
+  | "bulldogjob"
+  | "pracuj"
+  | "theprotocol";
 
 export interface RateLimits {
   perMinute?: number;
@@ -234,6 +236,27 @@ export const SOURCES: readonly SourceDefinition[] = [
       "embedded",
       "ai",
     ],
+  },
+  // Pracuj.pl and theprotocol.it answer programs with a bot check: job-radar never fetches them. Their
+  // listings come from the owner's own look in their browser, written to an import file
+  // (infra/sources/imported.ts); a run only reads that file, so the limit is moot.
+  {
+    id: "pracuj",
+    name: "Pracuj.pl",
+    siteUrl: "https://it.pracuj.pl",
+    intervalMs: HOUR,
+    limits: { perHour: 1 },
+    closesByExpiry: true,
+    publishedCategories: ["frontend", "fullstack", "backend", "mobile", "devops", "testing", "data"],
+  },
+  {
+    id: "theprotocol",
+    name: "theprotocol.it",
+    siteUrl: "https://theprotocol.it",
+    intervalMs: HOUR,
+    limits: { perHour: 1 },
+    closesByExpiry: true,
+    publishedCategories: ["frontend", "fullstack", "backend", "mobile", "devops", "testing", "data"],
   },
 ];
 

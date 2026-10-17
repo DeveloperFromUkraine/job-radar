@@ -19,6 +19,9 @@ export interface SourceHttp {
   getJson(url: string): Promise<HttpResult>;
   /** The body as text, for feeds that are not JSON (We Work Remotely's RSS). */
   getText(url: string): Promise<HttpResult>;
+  /** A read that sends nothing (an imported file), counted like a request so the source keeps its
+   * interval and limit; false when the window is used up. */
+  countRead(): boolean;
 }
 
 export interface SourceHttpOptions {
@@ -99,5 +102,11 @@ export function createSourceHttp(db: Db, source: SourceDefinition, options: Sour
       }
     },
     getText: (url) => get(url, "application/rss+xml, application/xml, text/xml"),
+    countRead() {
+      const now = options.now();
+      if (!windowAllows(source, readTimesSince(db, source.id, now - DAY), now)) return false;
+      recordRead(db, source.id, now);
+      return true;
+    },
   };
 }

@@ -28,6 +28,8 @@ describe("parsing the settings file (AC-27)", () => {
       justjoinit: { enabled: true, categories: ["javascript"] },
       nofluffjobs: { enabled: false, categories: ["frontend"] },
       bulldogjob: { enabled: true, categories: ["frontend"] },
+      pracuj: { enabled: true, categories: ["frontend"] },
+      theprotocol: { enabled: false, categories: [] },
     },
   };
 

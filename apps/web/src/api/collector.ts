@@ -6,7 +6,9 @@ export type SourceId =
   | "weworkremotely"
   | "justjoinit"
   | "nofluffjobs"
-  | "bulldogjob";
+  | "bulldogjob"
+  | "pracuj"
+  | "theprotocol";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -144,4 +146,6 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   justjoinit: { name: "Just Join IT", url: "https://justjoin.it" },
   nofluffjobs: { name: "No Fluff Jobs", url: "https://nofluffjobs.com" },
   bulldogjob: { name: "Bulldogjob", url: "https://bulldogjob.pl" },
+  pracuj: { name: "Pracuj.pl", url: "https://it.pracuj.pl" },
+  theprotocol: { name: "theprotocol.it", url: "https://theprotocol.it" },
 };

@@ -55,6 +55,8 @@ export const DEFAULT_SETTINGS: Settings = {
     justjoinit: { enabled: true, categories: ["javascript", "html"] },
     nofluffjobs: { enabled: true, categories: ["frontend", "fullstack"] },
     bulldogjob: { enabled: true, categories: ["frontend", "fullstack"] },
+    pracuj: { enabled: true, categories: ["frontend", "fullstack"] },
+    theprotocol: { enabled: true, categories: ["frontend", "fullstack"] },
   },
 };
 

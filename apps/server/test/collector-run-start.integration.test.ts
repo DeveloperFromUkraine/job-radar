@@ -62,6 +62,8 @@ describe("run start (Flows 3 and 4)", () => {
       "justjoinit",
       "nofluffjobs",
       "bulldogjob",
+      "pracuj",
+      "theprotocol",
     ]);
     expect(rows("select trigger, status, started_at from collector_runs")).toEqual([
       { trigger: "schedule", status: "running", started_at: T0 },
@@ -72,7 +74,9 @@ describe("run start (Flows 3 and 4)", () => {
       { source_id: "jobicy", outcome: "pending" },
       { source_id: "justjoinit", outcome: "pending" },
       { source_id: "nofluffjobs", outcome: "pending" },
+      { source_id: "pracuj", outcome: "pending" },
       { source_id: "remotive", outcome: "pending" },
+      { source_id: "theprotocol", outcome: "pending" },
       { source_id: "weworkremotely", outcome: "pending" },
     ]);
   });
@@ -93,6 +97,8 @@ describe("run start (Flows 3 and 4)", () => {
       "justjoinit",
       "nofluffjobs",
       "bulldogjob",
+      "pracuj",
+      "theprotocol",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -108,6 +114,8 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "justjoinit", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "nofluffjobs", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "bulldogjob", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "pracuj", state: "enabled", nextDueAt: T0 + HOUR },
+        { sourceId: "theprotocol", state: "enabled", nextDueAt: T0 + HOUR },
       ],
     });
   });
@@ -122,6 +130,8 @@ describe("run start (Flows 3 and 4)", () => {
       "justjoinit",
       "nofluffjobs",
       "bulldogjob",
+      "pracuj",
+      "theprotocol",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -134,6 +144,8 @@ describe("run start (Flows 3 and 4)", () => {
       "justjoinit",
       "nofluffjobs",
       "bulldogjob",
+      "pracuj",
+      "theprotocol",
     ]);
   });
 
@@ -149,6 +161,8 @@ describe("run start (Flows 3 and 4)", () => {
       "justjoinit",
       "nofluffjobs",
       "bulldogjob",
+      "pracuj",
+      "theprotocol",
     ]);
     expect(
       rows("select source_id, disabled_from, disabled_until from collector_source_disabled_periods"),

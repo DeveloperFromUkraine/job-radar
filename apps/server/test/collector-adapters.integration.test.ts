@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type SourceId, sourceById } from "../src/modules/collector/domain/sources.js";
 import { createSourceHttp } from "../src/modules/collector/infra/http.js";
@@ -317,6 +320,75 @@ describe("Remotive, Himalayas and We Work Remotely adapters (ADR-0004)", () => {
     it("fails a page without the job data", async () => {
       fake.route("/companies/jobs/s/city,Remote/role,frontend", xml("<html>Just a moment...</html>"));
       expect(await fetchBulldogjob(["frontend"])).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+    });
+  });
+
+  describe("Imported sources (Pracuj.pl, theprotocol.it)", () => {
+    let dir: string;
+    beforeEach(() => {
+      dir = mkdtempSync(join(tmpdir(), "job-radar-imports-"));
+    });
+    afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+    // One read an hour: each read here is an hour after the last.
+    let at = NOW;
+    const fetchImported = (importsDir?: string) => {
+      at += 60 * 60 * 1000;
+      const now = at;
+      return createAdapters({ importsDir }).pracuj.fetchLatest({
+        http: createSourceHttp(db.db, sourceById("pracuj"), { now: () => now }),
+        now,
+      });
+    };
+    const listing = {
+      sourceItemId: "1005164217",
+      url: "https://www.pracuj.pl/praca/example,oferta,1005164217",
+      title: "Senior Frontend Developer (Next.js / React)",
+      company: "Example Co",
+      description: "<p>Level: senior</p>",
+      locationRestriction: "Poland",
+      categories: ["frontend"],
+      publishedAt: "2026-10-16T14:42:53Z",
+      expiresAt: "2026-11-15T22:59:59Z",
+      payField: "",
+    };
+
+    it("asks nothing and reads nothing while no file is imported", async () => {
+      expect(await fetchImported(dir)).toEqual({
+        completeness: "partial",
+        listings: [],
+        itemsReturned: null,
+        coversPublishedAfter: null,
+      });
+      expect(await fetchImported(undefined)).toMatchObject({ completeness: "partial", itemsReturned: null });
+      expect(fake.requests).toEqual([]);
+    });
+
+    it("reads the imported listings, complete only when the look read every page", async () => {
+      writeFileSync(join(dir, "pracuj.json"), JSON.stringify({ complete: true, listings: [listing] }));
+      const result = await fetchImported(dir);
+      expect(result).toMatchObject({ completeness: "complete", itemsReturned: 1 });
+      expect(result.listings[0]).toEqual({
+        ...listing,
+        publishedAt: Date.UTC(2026, 9, 16, 14, 42, 53),
+        expiresAt: Date.UTC(2026, 10, 15, 22, 59, 59),
+      });
+
+      writeFileSync(join(dir, "pracuj.json"), JSON.stringify({ listings: [listing] }));
+      expect(await fetchImported(dir)).toMatchObject({ completeness: "capped", itemsReturned: 1 });
+    });
+
+    it("fails a file that is not valid JSON or holds an unexpected listing", async () => {
+      writeFileSync(join(dir, "pracuj.json"), "{");
+      expect(await fetchImported(dir)).toMatchObject({
+        completeness: "failed",
+        failure: { code: "unreadable" },
+      });
+      writeFileSync(join(dir, "pracuj.json"), JSON.stringify({ listings: [{ title: "no id" }] }));
+      expect(await fetchImported(dir)).toMatchObject({
         completeness: "failed",
         failure: { code: "unreadable" },
       });

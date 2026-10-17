@@ -51,6 +51,8 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         justjoinit: fine("justjoinit", { completeness: "capped" }),
         nofluffjobs: fine("nofluffjobs"),
         bulldogjob: fine("bulldogjob"),
+        pracuj: fine("pracuj", { completeness: "capped" }),
+        theprotocol: fine("theprotocol", { completeness: "capped" }),
       },
       timeZone: "Europe/Warsaw",
     };
@@ -90,11 +92,13 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
       { source_id: "jobicy", outcome: "complete", failure_reason: null },
       { source_id: "justjoinit", outcome: "capped", failure_reason: null },
       { source_id: "nofluffjobs", outcome: "complete", failure_reason: null },
+      { source_id: "pracuj", outcome: "capped", failure_reason: null },
       {
         source_id: "remotive",
         outcome: "failed",
         failure_reason: "The source's response could not be processed.",
       },
+      { source_id: "theprotocol", outcome: "capped", failure_reason: null },
       { source_id: "weworkremotely", outcome: "complete", failure_reason: null },
     ]);
     expect(rows(`select status from collector_runs where id = '${run.runId}'`)).toEqual([
