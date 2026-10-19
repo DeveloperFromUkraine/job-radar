@@ -72,12 +72,12 @@ describe("PostingCard (SCR-01)", () => {
       ...p,
       listings: [
         ...p.listings,
-        { source_id: "remoteok", status: "open", url: null, location_restriction: null },
+        { source_id: "linkedin", status: "open", url: null, location_restriction: null },
       ],
     });
     expect(screen.queryAllByRole("link")).toHaveLength(0);
     expect(screen.getByText(/Remotive — Worldwide/)).toBeTruthy();
-    expect(screen.getByText(/remoteok — unknown/)).toBeTruthy();
+    expect(screen.getByText(/linkedin — unknown/)).toBeTruthy();
   });
 
   it("renders hostile source text as plain text, never as markup (AC-09)", () => {
