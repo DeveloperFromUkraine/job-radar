@@ -31,17 +31,21 @@ export function createScheduler(deps: CollectorDeps, options: SchedulerOptions):
       options.onError?.(err);
     }
     if (busy) return busy; // a run is still executing; the unique index guards the rest
-    busy = (async () => {
+    const check = (async () => {
       try {
         const result = openRun(deps, trigger);
         if (result.kind === "started") await options.executeRun(result);
       } catch (err) {
         options.onError?.(err);
-      } finally {
-        busy = null;
       }
     })();
-    return busy;
+    // Cleared only after `busy` is assigned: a check with nothing due never awaits, so a `finally`
+    // inside it would run before the assignment and leave `busy` set for good — no run would open again.
+    const settled: Promise<void> = check.finally(() => {
+      if (busy === settled) busy = null;
+    });
+    busy = settled;
+    return settled;
   };
 
   return {

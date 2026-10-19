@@ -311,6 +311,28 @@ describe("start-up after a pause or an interrupted run (Flow 3)", () => {
     await new Promise((r) => setTimeout(r, 60));
     expect(opened.length).toBe(count); // stopped: no more ticks
   });
+  it("still opens a run when a source falls due after minutes with nothing due", async () => {
+    const opened: string[] = [];
+    const scheduler = createScheduler(deps, {
+      // A real run records its reads, so the next minutes have nothing due.
+      executeRun: async (run) => {
+        for (const id of run.due) recordRead(db.db, id, now);
+        opened.push(run.trigger);
+        db.db.run(sql`update collector_runs set status = 'finished' where id = ${run.runId}`);
+      },
+      intervalMs: 20,
+    });
+
+    await scheduler.start();
+    await new Promise((r) => setTimeout(r, 100)); // several ticks with nothing due
+    expect(opened).toEqual(["catch_up"]);
+
+    now = T0 + HOUR; // the hourly sources fall due
+    await new Promise((r) => setTimeout(r, 100));
+    await scheduler.stop();
+    expect(opened).toContain("schedule");
+  });
+
   it("keeps the session heartbeat moving while a long run is still busy (AC-13)", async () => {
     let release: () => void = () => {};
     const scheduler = createScheduler(deps, {
