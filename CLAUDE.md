@@ -14,6 +14,7 @@ Node 22+ (`.nvmrc`), pnpm via corepack (`corepack enable`).
 | Test (Vitest, both apps) | `pnpm test` |
 | Lint + format check (Biome) | `pnpm lint` · autofix: `pnpm format` |
 | Dev servers | `pnpm dev` (server :3000, web via Vite with `/api` proxied to the server) |
+| Run it locally, one command | `pnpm start:local` (install, build web, pending migrations, server :3000 with `.env.ship`) |
 | Generate a migration | `pnpm --filter @job-radar/server db:generate` |
 | Apply migrations | `pnpm --filter @job-radar/server db:migrate` |
 | Match-score evaluation (real model, ~$1–2; before ship and after any prompt / schema / model change) | `cd apps/server && npx tsx scripts/eval-match-score.ts --real` (`--dry-run` is free) |
