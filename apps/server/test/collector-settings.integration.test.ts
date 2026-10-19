@@ -70,13 +70,13 @@ describe("settings file (AC-27)", () => {
   });
 
   it("runs on the defaults without overwriting an unreadable file when no valid copy exists", () => {
-    writeFileSync(file, '{ "sources": { "remoteok": {} } }');
+    writeFileSync(file, '{ "sources": { "linkedin": {} } }');
 
     const result = loadSettings(db.db, file, NOW);
 
     expect(result.settings).toEqual(DEFAULT_SETTINGS);
-    expect(readFileSync(file, "utf8")).toBe('{ "sources": { "remoteok": {} } }');
-    expect(readState(db.db).settingsProblem).toMatch(/unknown source "remoteok"/);
+    expect(readFileSync(file, "utf8")).toBe('{ "sources": { "linkedin": {} } }');
+    expect(readState(db.db).settingsProblem).toMatch(/unknown source "linkedin"/);
   });
 
   it("clears the problem after the next valid read", () => {

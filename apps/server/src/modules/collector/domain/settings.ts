@@ -51,6 +51,22 @@ export const DEFAULT_SETTINGS: Settings = {
         "DevOps and Sysadmin",
       ],
     },
+    // Each category is one page read a run (justjoinit.ts), so the default stays small.
+    justjoinit: { enabled: true, categories: ["javascript", "html"] },
+    nofluffjobs: { enabled: true, categories: ["frontend", "fullstack"] },
+    bulldogjob: { enabled: true, categories: ["frontend", "fullstack"] },
+    pracuj: { enabled: true, categories: ["frontend", "fullstack"] },
+    theprotocol: { enabled: true, categories: ["frontend", "fullstack"] },
+    djinni: { enabled: true, categories: ["JavaScript", "Fullstack", "React.js"] },
+    dou: { enabled: true, categories: ["Front End", "Fullstack"] },
+    // Remote OK's categories are its free-form tags.
+    remoteok: {
+      enabled: true,
+      categories: ["dev", "javascript", "web dev", "full stack", "react", "frontend"],
+    },
+    workingnomads: { enabled: true, categories: ["Development"] },
+    inhire: { enabled: true, categories: ["frontend_developer", "full_stack_developer"] },
+    wellfound: { enabled: true, categories: ["frontend-engineer", "full-stack-engineer", "react-developer"] },
   },
 };
 

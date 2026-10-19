@@ -1,5 +1,20 @@
 // Typed client for the collector API (docs/features/remote-boards-collector/contracts/openapi.yaml).
-export type SourceId = "jobicy" | "himalayas" | "remotive" | "weworkremotely";
+export type SourceId =
+  | "jobicy"
+  | "himalayas"
+  | "remotive"
+  | "weworkremotely"
+  | "justjoinit"
+  | "nofluffjobs"
+  | "bulldogjob"
+  | "pracuj"
+  | "theprotocol"
+  | "djinni"
+  | "dou"
+  | "remoteok"
+  | "workingnomads"
+  | "inhire"
+  | "wellfound";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -134,4 +149,15 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   himalayas: { name: "Himalayas", url: "https://himalayas.app" },
   remotive: { name: "Remotive", url: "https://remotive.com" },
   weworkremotely: { name: "We Work Remotely", url: "https://weworkremotely.com" },
+  justjoinit: { name: "Just Join IT", url: "https://justjoin.it" },
+  nofluffjobs: { name: "No Fluff Jobs", url: "https://nofluffjobs.com" },
+  bulldogjob: { name: "Bulldogjob", url: "https://bulldogjob.pl" },
+  pracuj: { name: "Pracuj.pl", url: "https://it.pracuj.pl" },
+  theprotocol: { name: "theprotocol.it", url: "https://theprotocol.it" },
+  djinni: { name: "Djinni", url: "https://djinni.co" },
+  dou: { name: "DOU", url: "https://jobs.dou.ua" },
+  remoteok: { name: "Remote OK", url: "https://remoteok.com" },
+  workingnomads: { name: "Working Nomads", url: "https://www.workingnomads.com" },
+  inhire: { name: "inhire.io", url: "https://inhire.io" },
+  wellfound: { name: "Wellfound", url: "https://wellfound.com" },
 };

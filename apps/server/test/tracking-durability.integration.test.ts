@@ -28,7 +28,11 @@ describe("confirmed marks survive a restart", () => {
   });
 
   const start = async () => {
-    app = await buildApp({ port: 3000, collector: { databaseFile, scheduler: false } });
+    app = await buildApp({
+      port: 3000,
+      collector: { databaseFile, scheduler: false },
+      search: { maxAgeDays: null }, // fixed early test times
+    });
     await app.ready();
   };
   const post = (url: string, payload: object) =>

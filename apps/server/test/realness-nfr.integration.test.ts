@@ -49,7 +49,11 @@ describe.skipIf(process.env.SKIP_PERF)("search latency with realness on (realnes
       ids.filter((_, i) => i % 10 !== 0),
       (i) => ({ total: (i * 37) % 101 }),
     );
-    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    app = await buildApp({
+      port: 3000,
+      collector: { databaseFile: t.file, scheduler: false },
+      search: { maxAgeDays: null }, // fixed early test times: the 10,000 must all be listed
+    });
     await app.ready();
   }, 180_000);
 

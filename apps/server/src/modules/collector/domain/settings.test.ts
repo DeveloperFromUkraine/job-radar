@@ -25,6 +25,17 @@ describe("parsing the settings file (AC-27)", () => {
       himalayas: { enabled: false, categories: ["Developer"] },
       remotive: { enabled: true, categories: ["Software Development", "Devops"] },
       weworkremotely: { enabled: false, categories: [] },
+      justjoinit: { enabled: true, categories: ["javascript"] },
+      nofluffjobs: { enabled: false, categories: ["frontend"] },
+      bulldogjob: { enabled: true, categories: ["frontend"] },
+      pracuj: { enabled: true, categories: ["frontend"] },
+      theprotocol: { enabled: false, categories: [] },
+      djinni: { enabled: true, categories: ["JavaScript"] },
+      dou: { enabled: true, categories: ["Front End"] },
+      remoteok: { enabled: true, categories: ["dev"] },
+      workingnomads: { enabled: false, categories: ["Development"] },
+      inhire: { enabled: true, categories: ["frontend_developer"] },
+      wellfound: { enabled: true, categories: ["frontend-engineer"] },
     },
   };
 
@@ -49,10 +60,10 @@ describe("parsing the settings file (AC-27)", () => {
 
   it("treats an unknown source as making the whole file unreadable", () => {
     const result = parseSettings(
-      JSON.stringify({ sources: { ...valid.sources, remoteok: { enabled: true, categories: [] } } }),
+      JSON.stringify({ sources: { ...valid.sources, linkedin: { enabled: true, categories: [] } } }),
     );
     expect(result.ok).toBe(false);
-    expect(!result.ok && result.reason).toMatch(/unknown source "remoteok"/);
+    expect(!result.ok && result.reason).toMatch(/unknown source "linkedin"/);
   });
 
   it.each([

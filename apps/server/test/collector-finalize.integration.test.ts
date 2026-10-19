@@ -10,7 +10,7 @@ import { openRun } from "../src/modules/collector/app/open-run.js";
 import { startUp } from "../src/modules/collector/app/startup.js";
 import { DEFAULT_SETTINGS } from "../src/modules/collector/domain/settings.js";
 import { createAdapters } from "../src/modules/collector/infra/sources/index.js";
-import { type FakeSources, json, startFakeSources, xml } from "./helpers/fake-sources.js";
+import { type FakeSources, fixture, json, startFakeSources, xml } from "./helpers/fake-sources.js";
 import { createTempDb, type TempDb } from "./helpers/temp-db.js";
 
 const HOUR = 60 * 60 * 1000;
@@ -243,7 +243,26 @@ describe("finalize a run (Flow 7)", () => {
       "/api/remote-jobs",
       json(JSON.stringify({ ...JSON.parse(remotivePage([1])), "total-job-count": 50 })),
     );
+    for (const category of ["javascript", "html"])
+      fake.route(`/job-offers/all-locations/${category}`, xml(fixture("justjoinit/javascript.html")));
+    // Only No Fluff Jobs' first page answers, short of its total, so its read stays capped too.
+    for (const category of ["frontend", "fullstack"])
+      fake.route(`/pl/praca-zdalna/${category}`, xml(fixture("nofluffjobs/frontend-page1.html")));
+    // Bulldogjob answers with more jobs than its page holds, so its read stays capped too.
+    for (const role of ["frontend", "fullstack"])
+      fake.route(
+        `/companies/jobs/s/city,Remote/role,${role}`,
+        xml(fixture("bulldogjob/frontend-capped.html")),
+      );
 
+    // The feeds read their fixtures: each is capped by nature.
+    fake.route("/jobs/rss/", xml(fixture("djinni/javascript.xml")));
+    fake.route("/vacancies/feeds/", xml(fixture("dou/front-end.xml")));
+    fake.route("/api", json(fixture("remoteok/api.json")));
+    fake.route("/api/exposed_jobs/", json(fixture("workingnomads/jobs.json")));
+    fake.route("/getAllOffersNonAuth", json(fixture("inhire/offers.json")));
+    for (const role of ["frontend-engineer", "full-stack-engineer", "react-developer"])
+      fake.route(`/role/r/${role}`, xml(fixture("wellfound/frontend-engineer.html")));
     const run = await fullRun(T0);
 
     expect(
@@ -251,12 +270,25 @@ describe("finalize a run (Flow 7)", () => {
         `select source_id, outcome from collector_run_sources where run_id = '${run.runId}' order by source_id`,
       ),
     ).toEqual([
+      { source_id: "bulldogjob", outcome: "capped" },
+      { source_id: "djinni", outcome: "capped" },
+      { source_id: "dou", outcome: "capped" },
       { source_id: "himalayas", outcome: "capped" },
+      // inhire reads every page of its search: complete.
+      { source_id: "inhire", outcome: "complete" },
       { source_id: "jobicy", outcome: "capped" },
+      { source_id: "justjoinit", outcome: "capped" },
+      { source_id: "nofluffjobs", outcome: "capped" },
+      // Nothing imported: an empty read.
+      { source_id: "pracuj", outcome: "partial" },
+      { source_id: "remoteok", outcome: "capped" },
       { source_id: "remotive", outcome: "capped" },
+      { source_id: "theprotocol", outcome: "partial" },
+      { source_id: "wellfound", outcome: "capped" },
       { source_id: "weworkremotely", outcome: "capped" },
+      { source_id: "workingnomads", outcome: "capped" },
     ]);
-    // Himalayas and WWR close by expiry, so a capped read re-checks every closure; the others' cannot.
+    // Himalayas, WWR and Just Join IT close by expiry, so a capped read re-checks every closure; the others' cannot.
     expect(
       rows("select source_id from collector_source_flags where kind = 'held_back' order by source_id"),
     ).toEqual([{ source_id: "jobicy" }, { source_id: "remotive" }]);

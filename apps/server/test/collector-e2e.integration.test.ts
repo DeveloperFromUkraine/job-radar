@@ -142,7 +142,8 @@ describe("collection end to end against a fake source server", () => {
       )) {
         const id = r.source_id as string;
         reads[id] = [...(reads[id] ?? []), now];
-        ledgered++;
+        // An imported source counts its file read but sends nothing.
+        if (id !== "pracuj" && id !== "theprotocol") ledgered++;
       }
       for (const source of SOURCES) {
         const w = readsInWindows(reads[source.id] ?? [], now);

@@ -86,6 +86,17 @@ describe("collect now (Flow 2) and module wiring", () => {
       "himalayas",
       "remotive",
       "weworkremotely",
+      "justjoinit",
+      "nofluffjobs",
+      "bulldogjob",
+      "pracuj",
+      "theprotocol",
+      "djinni",
+      "dou",
+      "remoteok",
+      "workingnomads",
+      "inhire",
+      "wellfound",
     ]);
     await until(() => runs().every((r) => r.status === "finished"));
   });

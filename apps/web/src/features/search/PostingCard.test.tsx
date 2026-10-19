@@ -13,7 +13,7 @@ const card = (p: Posting) => render(<PostingCard posting={p} now={NOW} />);
 describe("PostingCard (SCR-01)", () => {
   it("shows title, company, publication time and the New mark (AC-07, AC-14)", () => {
     card(found());
-    expect(screen.getByText("Senior React Engineer").className).toContain("font-medium");
+    expect(screen.getByRole("heading", { name: "Senior React Engineer" }).className).toContain("font-medium");
     expect(screen.getByText("Example Co").className).toContain("text-text-muted");
     const time = screen.getByText(/^Published 2 days ago$/);
     expect(time.tagName).toBe("TIME");
@@ -53,7 +53,17 @@ describe("PostingCard (SCR-01)", () => {
     expect(himalayas.className).toContain("text-text-muted");
     expect(himalayas.parentElement?.textContent).toContain("Himalayas — unknown");
     expect(screen.queryByRole("link", { name: "Himalayas" })).toBeNull();
-    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getAllByRole("link")).toHaveLength(2);
+  });
+
+  it("links the title to the first open listing in a new tab, so the owner can go and apply", () => {
+    const p = found();
+    card(p);
+    const title = screen.getByRole("link", { name: p.title });
+    expect(title.closest("h3")).not.toBeNull();
+    expect(title.getAttribute("href")).toBe("https://jobs.example.test/jobicy/123");
+    expect(title.getAttribute("target")).toBe("_blank");
+    expect(title.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
   it("names an open listing without a safe link, and an unknown source by its id (AC-09)", () => {
@@ -62,12 +72,12 @@ describe("PostingCard (SCR-01)", () => {
       ...p,
       listings: [
         ...p.listings,
-        { source_id: "remoteok", status: "open", url: null, location_restriction: null },
+        { source_id: "linkedin", status: "open", url: null, location_restriction: null },
       ],
     });
     expect(screen.queryAllByRole("link")).toHaveLength(0);
     expect(screen.getByText(/Remotive — Worldwide/)).toBeTruthy();
-    expect(screen.getByText(/remoteok — unknown/)).toBeTruthy();
+    expect(screen.getByText(/linkedin — unknown/)).toBeTruthy();
   });
 
   it("renders hostile source text as plain text, never as markup (AC-09)", () => {

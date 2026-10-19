@@ -5,6 +5,8 @@ import type { HttpResult, SourceHttp } from "../http.js";
 export interface FetchContext {
   http: SourceHttp;
   now: number;
+  /** The owner's categories for this source, for sources read one category page at a time. */
+  categories?: readonly string[];
 }
 
 export interface SourceAdapter {

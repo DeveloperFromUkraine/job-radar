@@ -1,5 +1,6 @@
 // The collector module (ADR-0001): routes + the in-process scheduler, started with the server and
 // stopped on close. Clean-up asks the ProtectedPostings port what to keep (ADR-0006).
+import { dirname, join } from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import { machineTimeZone } from "../../core/config.js";
 import type { DbHandle } from "../../core/db.js";
@@ -34,7 +35,10 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
       db: handle.db,
       now: options.now ?? Date.now,
       settingsFile: settingsPathFor(options.databaseFile),
-      adapters: createAdapters({ baseUrl: options.sourcesBaseUrl }),
+      adapters: createAdapters({
+        baseUrl: options.sourcesBaseUrl,
+        importsDir: join(dirname(options.databaseFile), "imports"),
+      }),
       timeZone: machineTimeZone(),
       signal: stopping.signal,
     };

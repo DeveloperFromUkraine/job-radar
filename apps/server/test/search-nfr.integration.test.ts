@@ -30,7 +30,11 @@ describe.skipIf(process.env.SKIP_PERF)("search latency at 10,000 open postings",
       title: i % 8 === 0 ? "Senior React Engineer" : "Account Manager",
       description: DESCRIPTION,
     }));
-    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    app = await buildApp({
+      port: 3000,
+      collector: { databaseFile: t.file, scheduler: false },
+      search: { maxAgeDays: null },
+    });
     await app.ready();
   }, 120_000);
 
@@ -177,7 +181,11 @@ describe.skipIf(process.env.SKIP_PERF)("marked view latency at 5,000 marked post
     seedMarks(t.db, marked, { mark: "skipped" });
     t.db.run(sql`update collector_postings set status = 'closed'
       where id in (select posting_id from tracking_marks where rowid % 3 = 0)`);
-    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    app = await buildApp({
+      port: 3000,
+      collector: { databaseFile: t.file, scheduler: false },
+      search: { maxAgeDays: null },
+    });
     await app.ready();
   }, 120_000);
 
@@ -224,7 +232,11 @@ describe.skipIf(process.env.SKIP_PERF)("search latency with scores and a profile
       ids.filter((_, i) => i % 10 !== 0),
       (i) => ({ total: (i * 37) % 101 }),
     );
-    app = await buildApp({ port: 3000, collector: { databaseFile: t.file, scheduler: false } });
+    app = await buildApp({
+      port: 3000,
+      collector: { databaseFile: t.file, scheduler: false },
+      search: { maxAgeDays: null },
+    });
     await app.ready();
   }, 180_000);
 

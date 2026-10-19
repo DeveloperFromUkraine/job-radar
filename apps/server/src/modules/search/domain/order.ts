@@ -11,6 +11,14 @@ export function effectiveTime({ publishedAt, firstFoundAt }: Timed): number {
   return publishedAt === null ? firstFoundAt : Math.min(publishedAt, firstFoundAt);
 }
 
+/** The oldest a posting may be and still be listed: older roles are rarely still being filled. */
+export const MAX_AGE_DAYS = 30;
+
+/** At most `MAX_AGE_DAYS` old by its effective time (the owner's choice, 2026-10-17: only fresh roles). */
+export function isFresh(posting: Timed, now: number, maxAgeDays = MAX_AGE_DAYS): boolean {
+  return now - effectiveTime(posting) <= maxAgeDays * 24 * 60 * 60 * 1000;
+}
+
 export function compareNewestFirst(a: Timed & { id: string }, b: Timed & { id: string }): number {
   return effectiveTime(b) - effectiveTime(a) || (a.id < b.id ? 1 : a.id > b.id ? -1 : 0);
 }

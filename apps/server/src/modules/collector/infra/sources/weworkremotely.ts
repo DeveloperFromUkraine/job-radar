@@ -9,7 +9,7 @@ import { type FetchContext, notOk, type SourceAdapter, unreadable } from "./type
 const XML_ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'" };
 
 /** One element's text, XML-decoded; markup inside stays for the listing rules to strip. */
-function tag(item: string, name: string): string | null {
+export function tag(item: string, name: string): string | null {
   const match = new RegExp(`<${name}>([\\s\\S]*?)</${name}>`).exec(item);
   if (!match) return null;
   const text = match[1] as string;
@@ -22,7 +22,7 @@ function tag(item: string, name: string): string | null {
   });
 }
 
-function time(item: string, name: string): number | null {
+export function time(item: string, name: string): number | null {
   const parsed = Date.parse(tag(item, name) ?? "");
   return Number.isNaN(parsed) ? null : parsed;
 }
