@@ -3,6 +3,7 @@ import { InlineBanner } from "../components/InlineBanner";
 import { SkeletonRow } from "../components/SkeletonRow";
 import { useMatchingSettings, useScoringHealth } from "../features/matching/queries";
 import { CollectNowAction } from "../features/source-health/CollectNowAction";
+import { CompaniesCard } from "../features/source-health/CompaniesCard";
 import { useSourceHealth } from "../features/source-health/queries";
 import { RunProgress } from "../features/source-health/RunProgress";
 import { ScoringHealthCard } from "../features/source-health/ScoringHealthCard";
@@ -69,6 +70,7 @@ export function SourceHealth() {
               <SourceCard key={row.source_id} row={row} />
             ))}
           </div>
+          <CompaniesCard />
         </>
       )}
     </div>

@@ -278,6 +278,117 @@ paths:
                 error: { code: UNSUPPORTED_MEDIA_TYPE, message: "Send the request body as application/json." }
         "500": { $ref: "#/components/responses/Internal" }
 
+  /api/v1/collector/companies:
+    get:
+      tags: [collector]
+      summary: The companies whose job boards are read
+      description: |
+        The company job boards the `ats` source reads (Greenhouse, Lever, Ashby): found from collected
+        listings, from board names guessed from collected companies, from TheirStack, or added by the
+        owner. Companies with the most open roles first.
+      operationId: listCompanies
+      responses:
+        "200":
+          description: The active companies
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CompanyList" }
+              example:
+                companies:
+                  - id: 01920f3a-7b2c-7d4e-8f00-0000000000c1
+                    name: Example Co
+                    ats: ashby
+                    slug: example
+                    board_url: https://jobs.ashbyhq.com/example
+                    origin: probe
+                    added_at: "2026-10-20T09:00:00Z"
+                    last_checked_at: "2026-10-20T10:00:00Z"
+                    last_result: ok
+                    open_roles: 2
+                  - id: 01920f3a-7b2c-7d4e-8f00-0000000000c2
+                    name: Another Co
+                    ats: greenhouse
+                    slug: anotherco
+                    board_url: https://job-boards.greenhouse.io/anotherco
+                    origin: manual
+                    added_at: "2026-10-20T11:00:00Z"
+                    last_checked_at: null
+                    last_result: null
+                    open_roles: null
+        "500": { $ref: "#/components/responses/Internal" }
+    post:
+      tags: [collector]
+      summary: Add a company by its board link or its site
+      description: |
+        `url` is a board link (jobs.ashbyhq.com/linear) or the company's site (linear.app). For a site,
+        its home, /careers and /jobs pages are searched for a board link, then board names are guessed
+        from the site's name. A board already listed answers 200; a newly added one 201.
+      operationId: addCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AddCompanyRequest" }
+            example: { url: "https://linear.app" }
+      responses:
+        "201":
+          description: Added; its board is read in the next run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "200":
+          description: Already on the list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Company" }
+        "400":
+          description: The body is not `{ url }`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "422":
+          description: Not a link or site, or no supported board was found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+              examples:
+                invalid:
+                  value:
+                    error: { code: COLLECTOR_COMPANY_INVALID, message: "Enter a company site or a job board link." }
+                not_found:
+                  value:
+                    error: { code: COLLECTOR_COMPANY_NO_BOARD, message: "No Greenhouse, Lever or Ashby board was found for this company." }
+        "503":
+          description: The boards could not be checked now (the request window is used up or a system is down)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "500": { $ref: "#/components/responses/Internal" }
+  /api/v1/collector/companies/{id}:
+    delete:
+      tags: [collector]
+      summary: Stop reading a company's board
+      description: |
+        Discovery never adds it back; adding it by hand does. The body is the empty JSON object, as for
+        collect-now (ADR-0007).
+      operationId: removeCompany
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CollectNowRequest" }
+            example: {}
+      responses:
+        "204": { description: Removed }
+        "404":
+          description: No such active company
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorEnvelope" }
+        "500": { $ref: "#/components/responses/Internal" }
+
 components:
   responses:
     ForbiddenHost:
@@ -296,6 +407,34 @@ components:
             error: { code: INTERNAL, message: "Internal server error" }
 
   schemas:
+    Company:
+      type: object
+      required: [id, name, ats, slug, board_url, origin, added_at, last_checked_at, last_result, open_roles]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        name: { type: string }
+        ats: { type: string, enum: [greenhouse, lever, ashby] }
+        slug: { type: string }
+        board_url: { type: string, description: The board page a person opens }
+        origin: { type: string, enum: [link, probe, theirstack, manual] }
+        added_at: { $ref: "#/components/schemas/Timestamp" }
+        last_checked_at: { oneOf: [{ $ref: "#/components/schemas/Timestamp" }, { type: "null" }] }
+        last_result: { type: [string, "null"], enum: [ok, failed, null] }
+        open_roles: { type: [integer, "null"], description: Remote engineering roles at the last read }
+    CompanyList:
+      type: object
+      required: [companies]
+      additionalProperties: false
+      properties:
+        companies: { type: array, items: { $ref: "#/components/schemas/Company" } }
+    AddCompanyRequest:
+      type: object
+      required: [url]
+      additionalProperties: false
+      properties:
+        url: { type: string, minLength: 3, maxLength: 500 }
+
     # Repo envelope (apps/server/src/core/errors.ts) — deviation from the flat {code, message, details?} default.
     ErrorEnvelope:
       type: object
@@ -321,7 +460,7 @@ components:
 
     SourceId:
       type: string
-      enum: [jobicy, himalayas, remotive, weworkremotely, justjoinit, nofluffjobs, bulldogjob, pracuj, theprotocol, djinni, dou, remoteok, workingnomads, inhire, wellfound]
+      enum: [jobicy, himalayas, remotive, weworkremotely, justjoinit, nofluffjobs, bulldogjob, pracuj, theprotocol, djinni, dou, remoteok, workingnomads, inhire, wellfound, ats]
       description: collector_sources.id — the source code from the adapter registry
 
     SourceState:
