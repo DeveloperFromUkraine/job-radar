@@ -70,11 +70,13 @@ describe("run start (Flows 3 and 4)", () => {
       "workingnomads",
       "inhire",
       "wellfound",
+      "ats",
     ]);
     expect(rows("select trigger, status, started_at from collector_runs")).toEqual([
       { trigger: "schedule", status: "running", started_at: T0 },
     ]);
     expect(rows("select source_id, outcome from collector_run_sources order by source_id")).toEqual([
+      { source_id: "ats", outcome: "pending" },
       { source_id: "bulldogjob", outcome: "pending" },
       { source_id: "djinni", outcome: "pending" },
       { source_id: "dou", outcome: "pending" },
@@ -117,6 +119,7 @@ describe("run start (Flows 3 and 4)", () => {
       "workingnomads",
       "inhire",
       "wellfound",
+      "ats",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -140,6 +143,7 @@ describe("run start (Flows 3 and 4)", () => {
         { sourceId: "workingnomads", state: "enabled", nextDueAt: T0 + HOUR },
         { sourceId: "inhire", state: "enabled", nextDueAt: T0 + 6 * HOUR },
         { sourceId: "wellfound", state: "enabled", nextDueAt: T0 + 6 * HOUR },
+        { sourceId: "ats", state: "enabled", nextDueAt: T0 + HOUR },
       ],
     });
   });
@@ -162,6 +166,7 @@ describe("run start (Flows 3 and 4)", () => {
       "workingnomads",
       "inhire",
       "wellfound",
+      "ats",
     ] as const)
       recordRead(db.db, id, T0);
     finishRuns();
@@ -180,6 +185,7 @@ describe("run start (Flows 3 and 4)", () => {
       "dou",
       "remoteok",
       "workingnomads",
+      "ats",
     ]);
   });
 
@@ -203,6 +209,7 @@ describe("run start (Flows 3 and 4)", () => {
       "workingnomads",
       "inhire",
       "wellfound",
+      "ats",
     ]);
     expect(
       rows("select source_id, disabled_from, disabled_until from collector_source_disabled_periods"),

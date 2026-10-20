@@ -25,6 +25,8 @@ Node 22+ (`.nvmrc`), pnpm via corepack (`corepack enable`).
   never commit it, and it is never shown, stored or logged. Without it scoring shows "not scored" with
   the reason; restart with the key to resume. Also set a spending limit in your provider account: the
   in-app scoring cap bounds only job-radar's own spending, not a leaked key.
+- **Company job boards** (`docs/features/company-boards/`) need no key. With `THEIRSTACK_API_KEY` in
+  your local environment they also ask TheirStack once a day for companies that are hiring (6 credits).
 - Optional overrides: `MATCHING_MODEL` (default `claude-opus-5-5`), `MATCHING_PRICE_*` (dollars per
   million tokens, used for the cap).
 

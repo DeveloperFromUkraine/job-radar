@@ -59,6 +59,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         workingnomads: fine("workingnomads", { completeness: "capped" }),
         inhire: fine("inhire"),
         wellfound: fine("wellfound", { completeness: "capped" }),
+        ats: fine("ats", { completeness: "capped" }),
       },
       timeZone: "Europe/Warsaw",
     };
@@ -93,6 +94,7 @@ describe("failures inside the run pipeline (sad §8 Error handling)", () => {
         `select source_id, outcome, failure_reason from collector_run_sources where run_id = '${run.runId}' order by source_id`,
       ),
     ).toEqual([
+      { source_id: "ats", outcome: "capped", failure_reason: null },
       { source_id: "bulldogjob", outcome: "complete", failure_reason: null },
       { source_id: "djinni", outcome: "capped", failure_reason: null },
       { source_id: "dou", outcome: "capped", failure_reason: null },

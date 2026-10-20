@@ -25,6 +25,7 @@ describe("source registry", () => {
       "workingnomads",
       "inhire",
       "wellfound",
+      "ats",
     ]);
     expect(sourceById("jobicy").intervalMs).toBe(HOUR);
     expect(sourceById("remotive").intervalMs).toBe(6 * HOUR);
@@ -92,9 +93,14 @@ describe("7 days of scheduled runs, collect-now every minute and greedy fill pag
   // Every minute a run is attempted (schedule and collect-now alike); a due source gets its regular
   // read, then a fill reader takes pages while the window allows — the worst case for the limits.
   function simulate(source: SourceDefinition) {
-    const reads: number[] = [];
+    const reads: number[] = []; // the last day's reads: no window is longer
+    let total = 0;
     let lastReadAt: number | null = null;
     for (let now = T0; now < T0 + 7 * DAY; now += MIN) {
+      while (reads.length > 0 && (reads[0] as number) <= now - DAY) {
+        reads.shift();
+        total++;
+      }
       if (isDue(source, lastReadAt, now) && windowAllows(source, reads, now)) {
         reads.push(now);
         lastReadAt = now;
@@ -108,12 +114,12 @@ describe("7 days of scheduled runs, collect-now every minute and greedy fill pag
         );
       }
     }
-    return reads.length;
+    return total + reads.length;
   }
 
   it.each(SOURCES.map((s) => [s.id, s] as const))("%s never exceeds its limit", (_id, source) => {
     const total = simulate(source);
     if (source.limits.perDay === 0) expect(total).toBe(0);
     else expect(total).toBeGreaterThan(0);
-  });
+  }, 60_000); // the company boards' 100 reads an hour take ~5 s alone, longer under the full suite
 });

@@ -14,7 +14,8 @@ export type SourceId =
   | "remoteok"
   | "workingnomads"
   | "inhire"
-  | "wellfound";
+  | "wellfound"
+  | "ats";
 export type SourceState = "enabled" | "disabled" | "not_verified";
 export type FlagKind =
   | "failing"
@@ -160,4 +161,28 @@ export const SOURCE_NAMES: Record<SourceId, { name: string; url: string }> = {
   workingnomads: { name: "Working Nomads", url: "https://www.workingnomads.com" },
   inhire: { name: "inhire.io", url: "https://inhire.io" },
   wellfound: { name: "Wellfound", url: "https://wellfound.com" },
+  ats: { name: "Company job boards", url: "https://job-boards.greenhouse.io" },
 };
+
+/** A company whose Greenhouse, Lever or Ashby board the collector reads (company-boards). */
+export interface Company {
+  id: string;
+  name: string;
+  ats: "greenhouse" | "lever" | "ashby";
+  slug: string;
+  board_url: string;
+  origin: "link" | "probe" | "theirstack" | "manual";
+  added_at: string;
+  last_checked_at: string | null;
+  last_result: "ok" | "failed" | null;
+  open_roles: number | null;
+}
+
+export const getCompanies = () => request<{ companies: Company[] }>("/api/v1/collector/companies");
+export const addCompany = (url: string) => post<Company>("/api/v1/collector/companies", { url });
+export const removeCompany = (id: string) =>
+  request<void>(`/api/v1/collector/companies/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });

@@ -67,6 +67,8 @@ export const DEFAULT_SETTINGS: Settings = {
     workingnomads: { enabled: true, categories: ["Development"] },
     inhire: { enabled: true, categories: ["frontend_developer", "full_stack_developer"] },
     wellfound: { enabled: true, categories: ["frontend-engineer", "full-stack-engineer", "react-developer"] },
+    // Company job boards: the roles domain/ats.ts reads from a title.
+    ats: { enabled: true, categories: ["frontend", "fullstack"] },
   },
 };
 

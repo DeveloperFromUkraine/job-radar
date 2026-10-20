@@ -36,6 +36,7 @@ describe("parsing the settings file (AC-27)", () => {
       workingnomads: { enabled: false, categories: ["Development"] },
       inhire: { enabled: true, categories: ["frontend_developer"] },
       wellfound: { enabled: true, categories: ["frontend-engineer"] },
+      ats: { enabled: true, categories: ["frontend"] },
     },
   };
 

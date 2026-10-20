@@ -57,6 +57,13 @@
       "when": 1792154264609,
       "tag": "0007_icy_khan",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1792501316796,
+      "tag": "0008_steady_venom",
+      "breakpoints": true
     }
   ]
 }

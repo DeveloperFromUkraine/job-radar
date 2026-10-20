@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import type { FastifyPluginAsync } from "fastify";
 import { machineTimeZone } from "../../core/config.js";
 import type { DbHandle } from "../../core/db.js";
+import { type CompaniesOptions, createCompanyRegistry } from "./app/companies.js";
 import type { CollectorDeps } from "./app/deps.js";
 import { noMarks, type ProtectedPostings } from "./app/marked-postings.js";
 import { executeRun } from "./app/run-pipeline.js";
@@ -25,12 +26,21 @@ export interface CollectorModuleOptions {
   /** Which postings clean-up must keep (tracking's port, wired in app.ts). */
   protectedPostings?: ProtectedPostings;
   now?: () => number;
+  /** TheirStack's key, for its daily search for hiring companies (none: no search). */
+  theirstackKey?: string;
+  /** Where the TheirStack search goes (tests). */
+  theirstackEndpoint?: string;
 }
 
 export function collectorModule(options: CollectorModuleOptions): FastifyPluginAsync {
   return async (app) => {
     const { handle } = options;
     const stopping = new AbortController();
+    const companies: CompaniesOptions = {
+      baseUrl: options.sourcesBaseUrl,
+      theirstackKey: options.theirstackKey,
+      theirstackEndpoint: options.theirstackEndpoint,
+    };
     const deps: CollectorDeps = {
       db: handle.db,
       now: options.now ?? Date.now,
@@ -38,6 +48,7 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
       adapters: createAdapters({
         baseUrl: options.sourcesBaseUrl,
         importsDir: join(dirname(options.databaseFile), "imports"),
+        companies: createCompanyRegistry({ db: handle.db }, companies),
       }),
       timeZone: machineTimeZone(),
       signal: stopping.signal,
@@ -60,7 +71,7 @@ export function collectorModule(options: CollectorModuleOptions): FastifyPluginA
       executeRun: execute,
       onError: (err) => log.error({ err }, "due-check failed"),
     });
-    await app.register(collectorRoutes(deps, (run) => void execute(run)));
+    await app.register(collectorRoutes(deps, (run) => void execute(run), companies));
 
     if (options.scheduler === false) startUp(deps);
     else app.addHook("onReady", async () => scheduler.start());
