@@ -117,9 +117,13 @@ describe("7 days of scheduled runs, collect-now every minute and greedy fill pag
     return total + reads.length;
   }
 
-  it.each(SOURCES.map((s) => [s.id, s] as const))("%s never exceeds its limit", (_id, source) => {
-    const total = simulate(source);
-    if (source.limits.perDay === 0) expect(total).toBe(0);
-    else expect(total).toBeGreaterThan(0);
-  }, 60_000); // the company boards' 100 reads an hour take ~5 s alone, longer under the full suite
+  it.each(SOURCES.map((s) => [s.id, s] as const))(
+    "%s never exceeds its limit",
+    (_id, source) => {
+      const total = simulate(source);
+      if (source.limits.perDay === 0) expect(total).toBe(0);
+      else expect(total).toBeGreaterThan(0);
+    },
+    60_000,
+  ); // the company boards' 100 reads an hour take ~5 s alone, longer under the full suite
 });
