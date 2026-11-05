@@ -270,6 +270,8 @@ describe("finalize a run (Flow 7)", () => {
         `select source_id, outcome from collector_run_sources where run_id = '${run.runId}' order by source_id`,
       ),
     ).toEqual([
+      // No company list here: the company boards read nothing, completely.
+      { source_id: "ats", outcome: "complete" },
       { source_id: "bulldogjob", outcome: "capped" },
       { source_id: "djinni", outcome: "capped" },
       { source_id: "dou", outcome: "capped" },

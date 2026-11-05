@@ -19,3 +19,8 @@ Responses each adapter is tested against. Companies and links are anonymised to 
 - `workingnomads/jobs.json` — from `GET https://www.workingnomads.com/api/exposed_jobs/` on 2026-10-17: one Development and one Marketing job, anonymised.
 - `inhire/offers.json` — from `POST https://inhire.io/getAllOffersNonAuth` with `{"page":1}` on 2026-10-17 (50 offers): two remote offers (frontend, full-stack) and one Warsaw-only offer, companies, ids and links anonymised; `time_to_expiry_in_hours` set to 100, 200 and 300.
 - `wellfound/frontend-engineer.html` — from `GET https://wellfound.com/role/r/frontend-engineer` on 2026-10-17 (28 jobs in the page's Apollo state): two jobs (one named by its startup's `highlightedJobListings`, one with accepted remote locations) and that startup, descriptions shortened, company anonymised.
+- `ats/` — company job boards, from `GET https://boards-api.greenhouse.io/v1/boards/vercel/jobs?content=true`,
+  `GET https://api.lever.co/v0/postings/spotify?mode=json` and `GET https://api.ashbyhq.com/posting-api/job-board/linear?includeCompensation=true`
+  on 2026-10-20: three jobs from each kept with their ids, field names and shapes; titles, locations and
+  pay set for the cases tested (remote / hybrid / on-site, an unlisted Ashby job), companies and links
+  anonymised, descriptions shortened. Greenhouse's `content` stays entity-escaped as the API sends it.

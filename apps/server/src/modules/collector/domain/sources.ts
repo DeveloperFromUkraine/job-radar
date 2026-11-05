@@ -1,5 +1,6 @@
 // The source registry: intervals and published limits (spec §6 Source request rate).
 // One read = one request to the source, pages and failed requests included.
+import { ATS_ROLES } from "./ats.js";
 
 export type SourceId =
   | "jobicy"
@@ -16,7 +17,8 @@ export type SourceId =
   | "remoteok"
   | "workingnomads"
   | "inhire"
-  | "wellfound";
+  | "wellfound"
+  | "ats";
 
 export interface RateLimits {
   perMinute?: number;
@@ -354,6 +356,18 @@ export const SOURCES: readonly SourceDefinition[] = [
     closesByExpiry: true,
     // `/role/r/<role>` paths that answered with jobs on 2026-10-17 (an unknown one redirects).
     publishedCategories: ["frontend-engineer", "full-stack-engineer", "software-engineer", "react-developer"],
+  },
+  {
+    id: "ats",
+    name: "Company job boards",
+    siteUrl: "https://job-boards.greenhouse.io",
+    // One marker read and up to 60 boards a run (infra/sources/ats.ts), then board-name probes until
+    // the hour's reads are used; no published limit on the three systems' public APIs, so hourly and
+    // at most 100 reads an hour.
+    intervalMs: HOUR,
+    limits: { perHour: 100 },
+    closesByExpiry: true,
+    publishedCategories: ATS_ROLES,
   },
 ];
 

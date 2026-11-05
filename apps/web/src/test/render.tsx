@@ -24,6 +24,7 @@ const DEFAULTS = (): Record<string, Reply | Reply[]> => ({
   },
   "GET /api/v1/matching/health": { body: contractExample("getScoringHealth", 200, "healthy") },
   "GET /api/v1/matching/settings": { body: contractExample("getMatchingSettings", 200, "with_profile") },
+  "GET /api/v1/collector/companies": { body: contractExample("listCompanies", 200) },
 });
 
 /** Stubs fetch: each path answers with the queued replies in order, repeating the last one. */

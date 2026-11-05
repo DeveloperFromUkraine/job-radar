@@ -13,7 +13,7 @@ try {
 const app = await buildApp({
   logger: true,
   port: config.port,
-  collector: { databaseFile: config.databaseFile },
+  collector: { databaseFile: config.databaseFile, theirstackKey: config.theirstackKey ?? undefined },
   // Same path from src/ and dist/: apps/web/dist, served when built (pnpm build).
   webDist: fileURLToPath(new URL("../../web/dist", import.meta.url)),
 });

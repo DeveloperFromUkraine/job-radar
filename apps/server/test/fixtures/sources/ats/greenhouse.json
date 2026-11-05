@@ -1,0 +1,49 @@
+{
+  "jobs": [
+    {
+      "id": 6136160004,
+      "title": "Senior Frontend Engineer",
+      "updated_at": "2026-09-24T13:34:54-04:00",
+      "first_published": "2026-08-06T12:50:10-04:00",
+      "company_name": "Example Co",
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/6136160004",
+      "location": {
+        "name": "Remote - Europe"
+      },
+      "content": "&lt;p&gt;Build the &lt;b&gt;dashboard&lt;/b&gt; &amp;amp; more.&lt;/p&gt;",
+      "departments": [],
+      "offices": []
+    },
+    {
+      "id": 5999792004,
+      "title": "Senior Frontend Engineer, Dashboard",
+      "updated_at": "2026-09-24T17:12:05-04:00",
+      "first_published": "2026-05-21T09:26:09-04:00",
+      "company_name": "Example Co",
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/5999792004",
+      "location": {
+        "name": "Hybrid - London"
+      },
+      "content": "&lt;p&gt;Build the &lt;b&gt;dashboard&lt;/b&gt; &amp;amp; more.&lt;/p&gt;",
+      "departments": [],
+      "offices": []
+    },
+    {
+      "id": 5841911004,
+      "title": "Account Executive",
+      "updated_at": "2026-09-24T13:11:37-04:00",
+      "first_published": "2026-06-23T18:49:37-04:00",
+      "company_name": "Example Co",
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/5841911004",
+      "location": {
+        "name": "Remote - US"
+      },
+      "content": "&lt;p&gt;Build the &lt;b&gt;dashboard&lt;/b&gt; &amp;amp; more.&lt;/p&gt;",
+      "departments": [],
+      "offices": []
+    }
+  ],
+  "meta": {
+    "total": 3
+  }
+}

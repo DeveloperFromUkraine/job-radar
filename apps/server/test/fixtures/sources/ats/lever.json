@@ -1,0 +1,62 @@
+[
+  {
+    "id": "223f9722-3579-4ff2-b123-e4cc7b0c1a64",
+    "text": "Full Stack Engineer",
+    "hostedUrl": "https://jobs.lever.co/example/223f9722-3579-4ff2-b123-e4cc7b0c1a64",
+    "applyUrl": "https://jobs.lever.co/example/223f9722-3579-4ff2-b123-e4cc7b0c1a64/apply",
+    "createdAt": 1791566108174,
+    "workplaceType": "remote",
+    "country": "PL",
+    "categories": {
+      "commitment": "Permanent",
+      "location": "Warsaw",
+      "team": "Engineering",
+      "allLocations": ["Warsaw", "Poland"]
+    },
+    "description": "<div>About the role.</div>",
+    "descriptionPlain": "About the role.",
+    "lists": [
+      {
+        "text": "What you will do",
+        "content": "<li>Ship features</li>"
+      }
+    ],
+    "additional": "<div>Benefits.</div>",
+    "salaryRange": {
+      "min": 20000,
+      "max": 28000,
+      "currency": "PLN",
+      "interval": "per-month-salary"
+    }
+  },
+  {
+    "id": "d87833d0-fb78-4794-b45d-3fe5c8274bc8",
+    "text": "Frontend Engineer",
+    "hostedUrl": "https://jobs.lever.co/example/d87833d0-fb78-4794-b45d-3fe5c8274bc8",
+    "applyUrl": "https://jobs.lever.co/example/d87833d0-fb78-4794-b45d-3fe5c8274bc8/apply",
+    "createdAt": 1787802187805,
+    "workplaceType": "on-site",
+    "country": "PL",
+    "categories": {
+      "commitment": "Permanent",
+      "location": "Warsaw",
+      "team": "Engineering",
+      "allLocations": ["Warsaw", "Poland"]
+    },
+    "description": "<div>About the role.</div>",
+    "descriptionPlain": "About the role.",
+    "lists": [
+      {
+        "text": "What you will do",
+        "content": "<li>Ship features</li>"
+      }
+    ],
+    "additional": "<div>Benefits.</div>",
+    "salaryRange": {
+      "min": 20000,
+      "max": 28000,
+      "currency": "PLN",
+      "interval": "per-month-salary"
+    }
+  }
+]

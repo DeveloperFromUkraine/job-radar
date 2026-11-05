@@ -2,6 +2,8 @@ export interface Config {
   host: string;
   port: number;
   databaseFile: string;
+  /** Only from THEIRSTACK_API_KEY: TheirStack's daily search for hiring companies; null = no search. */
+  theirstackKey: string | null;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -9,6 +11,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     host: env.HOST ?? "127.0.0.1",
     port: Number(env.PORT ?? 3000),
     databaseFile: env.DATABASE_FILE ?? "data/job-radar.sqlite",
+    theirstackKey: env.THEIRSTACK_API_KEY ? env.THEIRSTACK_API_KEY : null,
   };
 }
 

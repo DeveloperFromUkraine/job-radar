@@ -61,7 +61,15 @@ describe("collect now and run progress (SCR-02, Flow 2)", () => {
       vi.fn(async (input: RequestInfo | URL, init?: RequestInit) =>
         init?.method === "POST"
           ? new Promise<Response>(() => {})
-          : new Response(JSON.stringify(String(input).includes("problems") ? noProblems.body : idle())),
+          : new Response(
+              JSON.stringify(
+                String(input).includes("problems")
+                  ? noProblems.body
+                  : String(input).includes("companies")
+                    ? { companies: [] }
+                    : idle(),
+              ),
+            ),
       ),
     );
     renderWithProviders(<App />, { route: "/sources" });

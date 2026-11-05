@@ -153,6 +153,31 @@ export const listings = sqliteTable(
   ],
 );
 
+// ---- Company job boards (the "ats" source) -----------------------------------------------------
+
+export const companies = sqliteTable(
+  "collector_companies",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    nameKey: text("name_key").notNull(), // domain/ats.ts nameKey: a name probed once is not probed again
+    ats: text("ats", { enum: ["greenhouse", "lever", "ashby"] }), // null: no supported board found
+    slug: text("slug"),
+    origin: text("origin", { enum: ["link", "probe", "theirstack", "manual"] }).notNull(),
+    // not_found: probed or gone (404); removed: the owner took it off, so discovery never adds it back.
+    status: text("status", { enum: ["active", "not_found", "removed"] }).notNull(),
+    addedAt: integer("added_at").notNull(),
+    lastCheckedAt: integer("last_checked_at"),
+    lastResult: text("last_result", { enum: ["ok", "failed"] }),
+    openRoles: integer("open_roles"), // remote roles in the owner's categories at the last read
+  },
+  (t) => [
+    uniqueIndex("collector_companies_board_uq").on(t.ats, t.slug),
+    index("collector_companies_name_key_idx").on(t.nameKey),
+    index("collector_companies_due_idx").on(t.status, t.lastCheckedAt),
+  ],
+);
+
 // ---- Module state -----------------------------------------------------------------------------
 
 export const collectorState = sqliteTable("collector_state", {
@@ -163,6 +188,8 @@ export const collectorState = sqliteTable("collector_state", {
   settingsProblem: text("settings_problem"),
   settingsProblemAt: integer("settings_problem_at"),
   lastCleanupOn: text("last_cleanup_on"),
+  /** The last TheirStack search for companies that are hiring (at most one a day, its credits are few). */
+  theirstackReadAt: integer("theirstack_read_at"),
 });
 
 export const appSessions = sqliteTable("collector_app_sessions", {
